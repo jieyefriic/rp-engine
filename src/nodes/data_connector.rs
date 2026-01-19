@@ -75,7 +75,7 @@ async fn execute_with_data_source(
     match kind.as_str() {
         "rest_api" => execute_rest_api_v2(&data_source.config, operation, state).await,
         "graphql" => execute_graphql_v2(&data_source.config, operation, state).await,
-        "minio" | "s3" => connectors::minio::execute_v2(&data_source.config, operation, state).await,
+        "minio" | "s3" => connectors::minio::execute_v2(&data_source.config, operation, bindings, state).await,
         "postgresql" | "postgres" => {
             // Use pool if available, otherwise fall back to creating a new connection
             if let Some(pool) = pools.get_pg_pool(data_source_id) {

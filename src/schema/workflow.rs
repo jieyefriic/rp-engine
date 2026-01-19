@@ -32,6 +32,30 @@ pub struct InputSchema {
     pub fields: Vec<InputField>,
 }
 
+impl InputSchema {
+    /// Validate input against schema
+    pub fn validate(&self, input: &std::collections::HashMap<String, serde_json::Value>) -> Result<(), crate::error::EngineError> {
+        for field in &self.fields {
+            if field.required {
+                match input.get(&field.name) {
+                    None => {
+                        return Err(crate::error::EngineError::MissingField(
+                            format!("Required input field '{}' is missing", field.name)
+                        ));
+                    }
+                    Some(value) if value.is_null() => {
+                        return Err(crate::error::EngineError::MissingField(
+                            format!("Required input field '{}' is null", field.name)
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Data Source definition
 /// Defines connection configuration for external data sources
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -272,6 +272,9 @@ pub async fn execute_workflow(
 ) -> Result<ExecutionResult, EngineError> {
     let start_time = Instant::now();
 
+    // Validate input against workflow schema
+    workflow.input.validate(&input)?;
+
     // Merge workflow templates into config
     for (id, template) in &workflow.templates {
         config.templates.insert(id.clone(), template.clone());
