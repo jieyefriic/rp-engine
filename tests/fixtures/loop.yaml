@@ -1,0 +1,63 @@
+version: "0.1"
+name: "Loop Flow"
+
+nodes:
+  - id: start
+    type: start
+    layer: 0
+    config:
+      output:
+        task: "input.task"
+
+  - id: think
+    type: generate
+    layer: 1
+    config:
+      template: tpl_think
+      provider: qwen
+      model: qwen-flash
+      variables:
+        task: "start.task"
+        history: "think[*].thought"
+
+  - id: response
+    type: response
+    layer: 2
+    config:
+      output:
+        final: "think.final_answer"
+        all_thoughts: "think[*].thought"
+
+edges:
+  - from: start
+    to: think
+  - from: think
+    to: think
+    condition: "think.needs_more == true"
+    max_iterations: 3
+  - from: think
+    to: response
+    condition: "think.needs_more == false"
+  - from: think
+    to: response
+    is_default: true
+
+templates:
+  tpl_think:
+    user_prompt: |
+      任务：{{task}}
+
+      之前的思考：{{history}}
+
+      请思考一步。如果可以得出最终答案，设置 needs_more=false 并给出 final_answer。
+      否则设置 needs_more=true 继续思考。
+    config:
+      temperature: 0.7
+      max_tokens: 200
+    output_schema:
+      - name: thought
+        type: string
+      - name: needs_more
+        type: boolean
+      - name: final_answer
+        type: string

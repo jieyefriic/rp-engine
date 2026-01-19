@@ -1,0 +1,52 @@
+[package]
+name = "riceprompt-engine"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "YAML-native Agent workflow execution engine"
+repository = "https://github.com/anthropics/riceprompt-engine"
+keywords = ["agent", "workflow", "llm", "yaml"]
+categories = ["development-tools", "asynchronous"]
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Data Connectors
+# Object Storage (S3-compatible)
+aws-sdk-s3 = "1.65"
+aws-config = "1.5"
+aws-credential-types = "1.2"
+
+# PostgreSQL
+tokio-postgres = { version = "0.7", features = ["with-serde_json-1", "with-uuid-1"] }
+deadpool-postgres = "0.14"
+
+# Vector Database
+qdrant-client = "1.13"
+
+# Redis
+redis = { version = "0.27", features = ["tokio-comp", "json"] }
+
+# Utilities
+thiserror = "2"
+tracing = "0.1"
+regex-lite = "0.1"
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.19.0", features = ["v4"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+wiremock = "0.6"
+tempfile = "3"
