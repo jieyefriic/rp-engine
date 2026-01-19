@@ -360,6 +360,106 @@ async fn execute_publish_v2(
     Ok(outputs)
 }
 
+/// Execute APPEND_HISTORY operation (V2 with bindings)
+/// Appends messages to chat_history array in a JSON object
+///
+/// Expected operation config:
+/// - key_template: Redis key
+/// - user_message: User message to append (resolved from bindings)
+/// - assistant_message: Assistant message to append (resolved from bindings)
+/// - message_type: Type of user message (text/voice/image)
+/// - ttl: Optional TTL in seconds
+async fn execute_append_history_v2(
+    conn: &mut redis::aio::MultiplexedConnection,
+    operation: &HashMap<String, Value>,
+    bindings: &HashMap<String, String>,
+    state: &ExecutionState,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let key = get_key(operation, bindings, state)?;
+
+    // Get message content from bindings
+    let user_message = if let Some(path) = bindings.get("userMessage") {
+        state.read(path).map(|v| match v {
+            Value::String(s) => s,
+            other => other.to_string(),
+        })
+    } else {
+        None
+    };
+
+    let assistant_message = if let Some(path) = bindings.get("assistantMessage") {
+        state.read(path).map(|v| match v {
+            Value::String(s) => s,
+            other => other.to_string(),
+        })
+    } else {
+        None
+    };
+
+    let message_type = if let Some(path) = bindings.get("messageType") {
+        state.read(path).map(|v| match v {
+            Value::String(s) => s,
+            other => other.to_string(),
+        }).unwrap_or_else(|| "text".to_string())
+    } else {
+        "text".to_string()
+    };
+
+    // Read existing value
+    let existing: Option<String> = conn.get(&key).await
+        .map_err(|e| EngineError::RedisError(e.to_string()))?;
+
+    // Parse or create new structure
+    let mut data: serde_json::Map<String, Value> = match existing {
+        Some(json_str) => {
+            serde_json::from_str(&json_str).unwrap_or_else(|_| serde_json::Map::new())
+        }
+        None => serde_json::Map::new(),
+    };
+
+    // Get or create chat_history array
+    let chat_history = data.entry("chat_history".to_string())
+        .or_insert_with(|| Value::Array(vec![]));
+
+    if let Value::Array(history) = chat_history {
+        // Append user message if present
+        if let Some(content) = user_message {
+            history.push(serde_json::json!({
+                "role": "user",
+                "content": content,
+                "type": message_type
+            }));
+        }
+
+        // Append assistant message if present
+        if let Some(content) = assistant_message {
+            history.push(serde_json::json!({
+                "role": "assistant",
+                "content": content
+            }));
+        }
+    }
+
+    // Serialize and save
+    let json_str = serde_json::to_string(&data)
+        .map_err(|e| EngineError::RedisError(format!("JSON serialize error: {}", e)))?;
+
+    // Get optional TTL
+    let ttl = get_optional_u64(operation, "ttl");
+
+    if let Some(seconds) = ttl {
+        let _: () = conn.set_ex(&key, &json_str, seconds).await
+            .map_err(|e| EngineError::RedisError(e.to_string()))?;
+    } else {
+        let _: () = conn.set(&key, &json_str).await
+            .map_err(|e| EngineError::RedisError(e.to_string()))?;
+    }
+
+    let mut outputs = HashMap::new();
+    outputs.insert("ok".to_string(), Value::Bool(true));
+    Ok(outputs)
+}
+
 /// Execute Redis with V2 config (data source + operation + bindings)
 pub async fn execute_v2(
     ds_config: &HashMap<String, Value>,
@@ -387,6 +487,7 @@ pub async fn execute_v2(
         "set" => execute_set_v2(&mut conn, operation, bindings, state).await,
         "del" => execute_del_v2(&mut conn, operation, bindings, state).await,
         "publish" => execute_publish_v2(&mut conn, operation, bindings, state).await,
+        "append_history" => execute_append_history_v2(&mut conn, operation, bindings, state).await,
         _ => Err(EngineError::InvalidOperation(format!("Unknown Redis operation: {}", op_type))),
     }
 }

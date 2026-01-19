@@ -161,6 +161,126 @@ async fn execute_put_object(
     Ok(outputs)
 }
 
+/// Execute put_object operation with V2 config (bindings support)
+/// Supports:
+/// - bucket: can be a template like "{userId}" resolved from bindings
+/// - prefix: directory prefix
+/// - data: base64 encoded data (resolved from bindings)
+/// - content_type: MIME type
+async fn execute_put_object_v2(
+    client: &Client,
+    endpoint: &str,
+    operation: &HashMap<String, Value>,
+    bindings: &HashMap<String, String>,
+    state: &ExecutionState,
+) -> Result<HashMap<String, Value>, EngineError> {
+    // Get bucket - resolve from bindings
+    let bucket = resolve_binding_value(operation, "bucket", bindings, state)?;
+    let prefix = get_optional_string(operation, "prefix", state)
+        .unwrap_or_else(|| "uploads".to_string());
+    let content_type = get_optional_string(operation, "content_type", state)
+        .unwrap_or_else(|| "application/octet-stream".to_string());
+
+    // Get data from bindings
+    let data_base64 = if let Some(data_path) = bindings.get("data") {
+        state.read(data_path)
+            .map(|v| match v {
+                Value::String(s) => s,
+                other => other.to_string(),
+            })
+            .ok_or_else(|| EngineError::MissingField("data binding".to_string()))?
+    } else {
+        return Err(EngineError::MissingField("data binding".to_string()));
+    };
+
+    // Decode base64
+    let data_bytes = BASE64.decode(&data_base64)
+        .map_err(|e| EngineError::MinIOError(format!("Invalid base64 data: {}", e)))?;
+
+    // Generate unique key
+    let extension = extension_from_content_type(&content_type);
+    let key = format!("{}/{}.{}", prefix, uuid::Uuid::new_v4(), extension);
+
+    // Ensure bucket exists
+    ensure_bucket_exists(client, &bucket).await?;
+
+    // Upload
+    let body = ByteStream::from(data_bytes);
+    client.put_object()
+        .bucket(&bucket)
+        .key(&key)
+        .body(body)
+        .content_type(&content_type)
+        .send()
+        .await
+        .map_err(|e| EngineError::MinIOError(e.to_string()))?;
+
+    // Build URL
+    let url = format!("{}/{}/{}", endpoint, bucket, key);
+
+    let mut outputs = HashMap::new();
+    outputs.insert("url".to_string(), Value::String(url));
+    outputs.insert("bucket".to_string(), Value::String(bucket));
+    outputs.insert("key".to_string(), Value::String(key));
+
+    Ok(outputs)
+}
+
+/// Resolve a value that might be a template like "{userId}"
+fn resolve_binding_value(
+    operation: &HashMap<String, Value>,
+    field: &str,
+    bindings: &HashMap<String, String>,
+    state: &ExecutionState,
+) -> Result<String, EngineError> {
+    let raw_value = operation.get(field)
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| EngineError::MissingField(field.to_string()))?;
+
+    // Check if it's a template like "{userId}"
+    if raw_value.starts_with('{') && raw_value.ends_with('}') {
+        let param_name = &raw_value[1..raw_value.len()-1];
+        if let Some(state_path) = bindings.get(param_name) {
+            return state.read(state_path)
+                .map(|v| match v {
+                    Value::String(s) => s,
+                    other => other.to_string(),
+                })
+                .ok_or_else(|| EngineError::MissingField(format!("binding {} not found in state", param_name)));
+        }
+    }
+
+    Ok(raw_value.to_string())
+}
+
+fn extension_from_content_type(content_type: &str) -> &str {
+    match content_type {
+        "image/jpeg" => "jpg",
+        "image/png" => "png",
+        "image/gif" => "gif",
+        "image/webp" => "webp",
+        "audio/mpeg" | "audio/mp3" => "mp3",
+        "audio/wav" => "wav",
+        "audio/ogg" => "ogg",
+        "audio/m4a" => "m4a",
+        _ => "bin",
+    }
+}
+
+async fn ensure_bucket_exists(client: &Client, bucket: &str) -> Result<(), EngineError> {
+    match client.head_bucket().bucket(bucket).send().await {
+        Ok(_) => Ok(()),
+        Err(_) => {
+            client.create_bucket()
+                .bucket(bucket)
+                .send()
+                .await
+                .map_err(|e| EngineError::MinIOError(format!("Failed to create bucket: {}", e)))?;
+            Ok(())
+        }
+    }
+}
+
 /// Execute list_objects operation
 async fn execute_list_objects(
     client: &Client,
@@ -225,10 +345,11 @@ async fn execute_delete_object(
     Ok(outputs)
 }
 
-/// Execute MinIO with V2 config (data source + operation)
+/// Execute MinIO with V2 config (data source + operation + bindings)
 pub async fn execute_v2(
     ds_config: &HashMap<String, Value>,
     operation: &HashMap<String, Value>,
+    bindings: &HashMap<String, String>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
     // Get connection parameters from data source config
@@ -248,7 +369,7 @@ pub async fn execute_v2(
 
     match op_type {
         "get_object" => execute_get_object(&client, operation, state).await,
-        "put_object" => execute_put_object(&client, operation, state).await,
+        "put_object" => execute_put_object_v2(&client, &endpoint, operation, bindings, state).await,
         "list_objects" => execute_list_objects(&client, operation, state).await,
         "delete_object" => execute_delete_object(&client, operation, state).await,
         _ => Err(EngineError::InvalidOperation(format!("Unknown MinIO operation: {}", op_type))),
