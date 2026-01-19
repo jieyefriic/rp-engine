@@ -1,0 +1,43 @@
+version: "0.1"
+name: "Linear Flow"
+
+nodes:
+  - id: start
+    type: start
+    layer: 0
+    config:
+      output:
+        query: "input.query"
+
+  - id: think
+    type: generate
+    layer: 1
+    config:
+      template: tpl_think
+      provider: qwen
+      model: qwen-flash
+      variables:
+        query: "start.query"
+
+  - id: response
+    type: response
+    layer: 2
+    config:
+      output:
+        answer: "think.answer"
+
+edges:
+  - from: start
+    to: think
+  - from: think
+    to: response
+
+templates:
+  tpl_think:
+    user_prompt: "请用一句话回答：{{query}}"
+    config:
+      temperature: 0.7
+      max_tokens: 100
+    output_schema:
+      - name: answer
+        type: string

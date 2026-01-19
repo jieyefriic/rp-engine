@@ -1,0 +1,67 @@
+version: "0.1"
+name: "Parallel Flow"
+
+nodes:
+  - id: start
+    type: start
+    layer: 0
+    config:
+      output:
+        topic: "input.topic"
+
+  - id: gen_chinese
+    type: generate
+    layer: 1
+    config:
+      template: tpl_chinese
+      provider: qwen
+      model: qwen-flash
+      variables:
+        topic: "start.topic"
+
+  - id: gen_english
+    type: generate
+    layer: 1
+    config:
+      template: tpl_english
+      provider: qwen
+      model: qwen-flash
+      variables:
+        topic: "start.topic"
+
+  - id: response
+    type: response
+    layer: 2
+    config:
+      output:
+        chinese: "gen_chinese.text"
+        english: "gen_english.text"
+
+edges:
+  - from: start
+    to: gen_chinese
+  - from: start
+    to: gen_english
+  - from: gen_chinese
+    to: response
+  - from: gen_english
+    to: response
+
+templates:
+  tpl_chinese:
+    user_prompt: "用中文一句话描述：{{topic}}"
+    config:
+      temperature: 0.7
+      max_tokens: 100
+    output_schema:
+      - name: text
+        type: string
+
+  tpl_english:
+    user_prompt: "Describe in one sentence: {{topic}}"
+    config:
+      temperature: 0.7
+      max_tokens: 100
+    output_schema:
+      - name: text
+        type: string

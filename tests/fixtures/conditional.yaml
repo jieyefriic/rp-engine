@@ -1,0 +1,95 @@
+version: "0.1"
+name: "Conditional Flow"
+
+nodes:
+  - id: start
+    type: start
+    layer: 0
+    config:
+      output:
+        question: "input.question"
+
+  - id: classifier
+    type: generate
+    layer: 1
+    config:
+      template: tpl_classify
+      provider: qwen
+      model: qwen-flash
+      variables:
+        question: "start.question"
+
+  - id: math_solver
+    type: generate
+    layer: 2
+    config:
+      template: tpl_math
+      provider: qwen
+      model: qwen-flash
+      variables:
+        question: "start.question"
+
+  - id: general_answer
+    type: generate
+    layer: 2
+    config:
+      template: tpl_general
+      provider: qwen
+      model: qwen-flash
+      variables:
+        question: "start.question"
+
+  - id: response
+    type: response
+    layer: 3
+    config:
+      output:
+        result: "math_solver.answer"
+        general_result: "general_answer.answer"
+
+edges:
+  - from: start
+    to: classifier
+  - from: classifier
+    to: math_solver
+    condition: "classifier.category == 'math'"
+  - from: classifier
+    to: general_answer
+    condition: "classifier.category != 'math'"
+  - from: math_solver
+    to: response
+  - from: general_answer
+    to: response
+
+templates:
+  tpl_classify:
+    user_prompt: |
+      判断以下问题的类型。
+      如果是数学计算题，返回 "math"。
+      否则返回 "general"。
+
+      问题：{{question}}
+    config:
+      temperature: 0.3
+      max_tokens: 50
+    output_schema:
+      - name: category
+        type: string
+
+  tpl_math:
+    user_prompt: "计算这个数学问题：{{question}}"
+    config:
+      temperature: 0.5
+      max_tokens: 100
+    output_schema:
+      - name: answer
+        type: string
+
+  tpl_general:
+    user_prompt: "回答这个问题：{{question}}"
+    config:
+      temperature: 0.7
+      max_tokens: 100
+    output_schema:
+      - name: answer
+        type: string

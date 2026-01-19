@@ -1,0 +1,320 @@
+//! Generate node executor - LLM calls
+
+use std::collections::HashMap;
+use async_trait::async_trait;
+use serde_json::{json, Value};
+
+use crate::schema::YamlNode;
+use crate::state::ExecutionState;
+use crate::engine::ExecutionConfig;
+use crate::error::EngineError;
+use crate::providers::{ChatOptions, Message, MessageContent, ContentPart};
+use super::NodeExecutor;
+
+/// Executor for generate nodes
+pub struct GenerateExecutor;
+
+#[async_trait]
+impl NodeExecutor for GenerateExecutor {
+    async fn execute(
+        &self,
+        node: &YamlNode,
+        state: &ExecutionState,
+        config: &ExecutionConfig,
+    ) -> Result<HashMap<String, Value>, EngineError> {
+        let node_config = &node.config;
+
+        // Get provider and model
+        let provider_id = node_config.provider.as_ref()
+            .ok_or_else(|| EngineError::NodeExecutionFailed("Generate node requires provider".into()))?;
+        let model_id = node_config.model.as_ref()
+            .ok_or_else(|| EngineError::NodeExecutionFailed("Generate node requires model".into()))?;
+
+        // Get provider from registry
+        let provider = config.providers.get(provider_id)
+            .ok_or_else(|| EngineError::ProviderNotFound(provider_id.clone()))?;
+
+        // Get template if specified
+        let template = node_config.template.as_ref()
+            .and_then(|id| config.templates.get(id));
+
+        // Resolve variables from state
+        let mut variables: HashMap<String, Value> = HashMap::new();
+        for (var_name, path) in &node_config.variables {
+            let value = state.read(path).unwrap_or(Value::Null);
+            variables.insert(var_name.clone(), value);
+        }
+
+        // Build prompt
+        let (user_prompt, system_prompt, output_schema) = if let Some(tpl) = template {
+            let user = render_template(&tpl.user_prompt, &variables);
+            let system = tpl.system_prompt.as_ref()
+                .map(|s| render_template(s, &variables));
+            (user, system, Some(&tpl.output_schema))
+        } else {
+            // No template - use variables as prompt
+            let prompt = variables.iter()
+                .map(|(k, v)| format!("{}: {}", k, value_to_string(v)))
+                .collect::<Vec<_>>()
+                .join("\n");
+            (if prompt.is_empty() { "Hello".into() } else { prompt }, None, None)
+        };
+
+        // Build final prompt (append JSON schema if defined)
+        let final_prompt = if let Some(schema) = output_schema {
+            if !schema.is_empty() {
+                let example_json = generate_example_json(schema);
+                format!("{}\n\nRespond in JSON format:\n{}", user_prompt, example_json)
+            } else {
+                user_prompt
+            }
+        } else {
+            user_prompt
+        };
+
+        // Build messages
+        let mut messages = Vec::new();
+
+        if let Some(sys) = system_prompt {
+            messages.push(Message::system(sys));
+        }
+
+        // Check for images in variables (multimodal support)
+        let mut image_parts = Vec::new();
+        for (var_name, value) in &variables {
+            // Variables ending with _image or _image_base64 are treated as images
+            if var_name.ends_with("_image") || var_name.ends_with("_image_base64") {
+                if let Value::String(data) = value {
+                    if !data.is_empty() {
+                        // Determine if it's a URL or base64
+                        let (media_type, image_data) = if data.starts_with("data:") {
+                            // Data URI format: data:image/jpeg;base64,xxx
+                            if let Some(comma_pos) = data.find(',') {
+                                let prefix = &data[..comma_pos];
+                                let base64_data = &data[comma_pos + 1..];
+
+                                // Extract media type from data URI
+                                let media = if let Some(semicolon) = prefix.find(';') {
+                                    prefix[5..semicolon].to_string() // Skip "data:"
+                                } else {
+                                    "image/jpeg".to_string()
+                                };
+
+                                (media, base64_data.to_string())
+                            } else {
+                                ("image/jpeg".to_string(), data.clone())
+                            }
+                        } else if data.starts_with("http://") || data.starts_with("https://") {
+                            // URL format - providers will handle it
+                            ("image/jpeg".to_string(), data.clone())
+                        } else {
+                            // Pure base64 string, assume JPEG
+                            ("image/jpeg".to_string(), data.clone())
+                        };
+
+                        image_parts.push(ContentPart::Image {
+                            media_type,
+                            data: image_data,
+                        });
+                    }
+                }
+            }
+        }
+
+        // Build the user message (multimodal if images present)
+        let user_message = if image_parts.is_empty() {
+            // Pure text message (backward compatible)
+            Message::user(final_prompt.clone())
+        } else {
+            // Multimodal message with text and images
+            let mut content_parts = vec![ContentPart::Text { text: final_prompt.clone() }];
+            content_parts.extend(image_parts);
+
+            Message {
+                role: crate::providers::MessageRole::User,
+                content: MessageContent::Parts(content_parts),
+            }
+        };
+
+        messages.push(user_message);
+
+        // Build chat options
+        let mut options = ChatOptions::new()
+            .with_model(model_id);
+
+        // Apply template config
+        if let Some(tpl) = template {
+            options = options
+                .with_temperature(tpl.config.temperature)
+                .with_max_tokens(tpl.config.max_tokens);
+        }
+
+        // Enable JSON mode if we have output schema
+        if output_schema.map(|s| !s.is_empty()).unwrap_or(false) {
+            options = options.with_json_output();
+        }
+
+        // Make the API call
+        let response = provider.chat(messages, options).await?;
+
+        // Build outputs
+        let mut outputs = HashMap::new();
+
+        // Try to parse JSON if we have a schema
+        if let Some(schema) = output_schema {
+            if !schema.is_empty() {
+                match serde_json::from_str::<Value>(&response.content) {
+                    Ok(parsed) => {
+                        // Map schema fields to outputs
+                        for field in schema {
+                            if !field.name.is_empty() {
+                                let value = parsed.get(&field.name)
+                                    .cloned()
+                                    .unwrap_or_else(|| get_default_for_type(&field.field_type));
+                                outputs.insert(field.name.clone(), value);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "Failed to parse JSON response, using raw content");
+                        outputs.insert("output".to_string(), Value::String(response.content.clone()));
+                    }
+                }
+            } else {
+                outputs.insert("output".to_string(), Value::String(response.content.clone()));
+            }
+        } else {
+            outputs.insert("output".to_string(), Value::String(response.content.clone()));
+        }
+
+        // Add thinking if present
+        if let Some(thinking) = response.thinking {
+            outputs.insert("_thinking".to_string(), Value::String(thinking));
+        }
+
+        // Add usage info (including provider/model for cost tracking)
+        outputs.insert("_usage".to_string(), json!({
+            "provider": provider_id,
+            "model": model_id,
+            "input_tokens": response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+        }));
+
+        // Add actual prompt for debugging
+        outputs.insert("_prompt".to_string(), Value::String(final_prompt));
+
+        Ok(outputs)
+    }
+}
+
+/// Render a template with variable substitution
+fn render_template(template: &str, variables: &HashMap<String, Value>) -> String {
+    let mut result = template.to_string();
+
+    for (name, value) in variables {
+        let pattern = format!("{{{{{}}}}}", name);
+        let replacement = value_to_string(value);
+        result = result.replace(&pattern, &replacement);
+    }
+
+    result
+}
+
+/// Convert a Value to string for template substitution
+fn value_to_string(value: &Value) -> String {
+    match value {
+        Value::Null => "null".to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Number(n) => n.to_string(),
+        Value::String(s) => s.clone(),
+        Value::Array(arr) => serde_json::to_string(arr).unwrap_or_default(),
+        Value::Object(obj) => serde_json::to_string(obj).unwrap_or_default(),
+    }
+}
+
+/// Generate example JSON from output schema
+fn generate_example_json(schema: &[crate::schema::OutputField]) -> String {
+    let mut obj = serde_json::Map::new();
+
+    for field in schema {
+        if field.name.is_empty() {
+            continue;
+        }
+
+        let example = if let Some(ex) = &field.example {
+            // Try to parse example as JSON, fall back to string
+            serde_json::from_str(ex).unwrap_or(Value::String(ex.clone()))
+        } else {
+            get_example_for_type(&field.field_type)
+        };
+
+        obj.insert(field.name.clone(), example);
+    }
+
+    serde_json::to_string_pretty(&obj).unwrap_or_default()
+}
+
+/// Get example value for a field type
+fn get_example_for_type(field_type: &str) -> Value {
+    match field_type {
+        "string" => Value::String("...".to_string()),
+        "number" => json!(0),
+        "boolean" => json!(false),
+        "string[]" => json!(["..."]),
+        "number[]" => json!([0]),
+        "object" => json!({}),
+        "object[]" => json!([{}]),
+        _ => Value::String("...".to_string()),
+    }
+}
+
+/// Get default value for a field type
+fn get_default_for_type(field_type: &str) -> Value {
+    match field_type {
+        "string" => Value::String(String::new()),
+        "number" => json!(0),
+        "boolean" => json!(false),
+        "string[]" | "number[]" | "object[]" => json!([]),
+        "object" => json!({}),
+        _ => Value::Null,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_render_template() {
+        let mut vars = HashMap::new();
+        vars.insert("name".to_string(), Value::String("Alice".to_string()));
+        vars.insert("count".to_string(), json!(42));
+
+        let result = render_template("Hello {{name}}, count is {{count}}", &vars);
+        assert_eq!(result, "Hello Alice, count is 42");
+    }
+
+    #[test]
+    fn test_generate_example_json() {
+        use crate::schema::OutputField;
+
+        let schema = vec![
+            OutputField {
+                name: "answer".to_string(),
+                field_type: "string".to_string(),
+                description: None,
+                example: None,
+            },
+            OutputField {
+                name: "confidence".to_string(),
+                field_type: "number".to_string(),
+                description: None,
+                example: Some("0.95".to_string()),
+            },
+        ];
+
+        let json = generate_example_json(&schema);
+        assert!(json.contains("answer"));
+        assert!(json.contains("confidence"));
+    }
+}

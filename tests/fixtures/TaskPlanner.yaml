@@ -1,0 +1,201 @@
+version: "0.1"
+name: TaskPlanner
+input:
+  fields:
+    - name: user_input
+      type: string
+      required: true
+      description: User input
+nodes:
+  - id: node_1
+    type: start
+    layer: 0
+    config:
+      output:
+        user_input: input.user_input
+  - id: node_2
+    type: supervisor
+    layer: 1
+    config:
+      template: tpl_mkbanzpz_sg5rl
+      provider: qwen
+      model: qwen-flash
+      max_iterations: 10
+      max_retry_per_tool: 3
+      parallel: false
+      tools:
+        - name: Generate_SQL_Query
+          description: "Creates a SQL query based on the provided database schema and instructions. Parameters: `database_schema`
+            - the schema of the database to be used, `instructions` - specific instructions for generating the SQL
+            query."
+          ref: toolbox_1768304309840_05l7n3
+        - name: Generate_Online_Search_Query
+          description: "Creates an online search query based on provided instructions. Parameters: `instruction` - the specific
+            instruction to generate the search query."
+          ref: toolbox_1768304346508_ucpubp
+  - id: node_3
+    type: generate
+    layer: 2
+    config:
+      template: tpl_mkcitvlj_cvdd2
+      provider: qwen
+      model: qwen-flash
+      variables:
+        user_query: node_1.user_input
+        task_result: node_2.task_result
+  - id: node_4
+    type: response
+    layer: 3
+    config:
+      output:
+        response: node_3.response
+edges:
+  - from: node_1
+    to: node_2
+    is_default: true
+  - from: node_2
+    to: node_3
+    exit_reason: default
+  - from: node_3
+    to: node_4
+    is_default: true
+templates:
+  tpl_mkbanzpz_sg5rl:
+    user_prompt: |-
+      ## User Request
+      {{user_input}}
+
+      ## Available Context
+      {{context}}
+
+      ## Available Tools
+      {{tools}}
+
+      Based on the above, create an execution plan. Output only the JSON array of actions.
+    system_prompt: >-
+      You are an expert task planner. Given user input, context, and available tools, create an execution plan.
+
+
+      Your job is to:
+
+      1. Understand the user's request
+
+      2. Identify which tools are needed
+
+      3. Determine the execution order and dependencies
+
+      4. Output a structured todo list
+
+
+      Rules:
+
+      - Each action must have a unique action_id (use descriptive names like "translate_content", "summarize_result")
+
+      - action_called must exactly match one of the available tool names
+
+      - action_prerequest lists dependencies by action_id (empty string "" if no dependencies)
+
+      - action_layer indicates if this can run in parallel with siblings ("parallel") or must run after prerequest
+      ("sequential")
+
+      - action_detail contains parameters the tool needs (as JSON object, or empty object {} if none)
+
+
+      Think step by step about what needs to happen and in what order.
+    config:
+      temperature: 0.3
+      max_tokens: 2048
+    output_schema:
+      - name: todos
+        type: object[]
+        children:
+          - name: action_id
+            type: string
+            example: translate_doc
+          - name: action_called
+            type: string
+            example: translator
+          - name: action_prerequest
+            type: string
+          - name: action_detail
+            type: object
+            example: '{"language": "en"}'
+          - name: action_layer
+            type: string
+            example: parallel
+  tpl_mkcitvlj_cvdd2:
+    user_prompt: please give the response given {{user_query}} and {{task_result}}.
+    output_schema:
+      - name: response
+        type: string
+        example: Here is the response based on your query and the task result.
+  tpl_mkcgu7zy_lr5wq:
+    user_prompt: You are a professional pgsql engineer, please given the {{database_schema}} and the {{instructions}} to
+      generate a SQL query to pull relevant data.
+    output_schema:
+      - name: sql_query
+        type: string
+        example: SELECT * FROM table_name WHERE condition;
+  tpl_mkbzanuh_dok0d:
+    user_prompt: "Given injected information: {{information}}, identify the purpose of it, and mock a result of that."
+    output_schema:
+      - name: purpose
+        type: string
+        example: The purpose of the information is to...
+      - name: mockResult
+        type: string
+        example: Mock result based on the identified purpose.
+  tpl_mkbzfymp_uavkd:
+    user_prompt: "You are a search pro who can search result efficiently, please give the online search query given the
+      instruction: {{instruction}}."
+    output_schema:
+      - name: search_query
+        type: string
+        example: How to improve online search efficiency?
+subgraphs:
+  toolbox_1768304309840_05l7n3:
+    nodes:
+      - id: node_1
+        type: generate
+        layer: 1
+        config:
+          template: tpl_mkcgu7zy_lr5wq
+          provider: qwen
+          model: qwen-flash
+          variables: {}
+      - id: node_2
+        type: generate
+        layer: 2
+        config:
+          template: tpl_mkbzanuh_dok0d
+          provider: qwen
+          model: qwen-flash
+          variables:
+            information: node_1.sql_query
+    edges:
+      - from: node_1
+        to: node_2
+        is_default: true
+  toolbox_1768304346508_ucpubp:
+    nodes:
+      - id: node_1
+        type: generate
+        layer: 1
+        config:
+          template: tpl_mkbzfymp_uavkd
+          provider: qwen
+          model: qwen-flash
+          variables: {}
+      - id: node_2
+        type: generate
+        layer: 2
+        config:
+          template: tpl_mkbzanuh_dok0d
+          provider: qwen
+          model: qwen-flash
+          variables:
+            information: node_1.search_query
+    edges:
+      - from: node_1
+        to: node_2
+        is_default: true
