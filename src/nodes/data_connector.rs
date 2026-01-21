@@ -1,16 +1,16 @@
 //! Data connector node executor
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use async_trait::async_trait;
 use serde_json::Value;
 
-use crate::schema::{YamlNode, DataSourceDef};
+use crate::schema::YamlNode;
 use crate::state::ExecutionState;
-use crate::engine::{ExecutionConfig, ConnectionPools};
+use crate::engine::ExecutionConfig;
 use crate::error::EngineError;
 use super::NodeExecutor;
 use super::connectors;
+use super::connectors::ConnectorContext;
 
 /// Executor for data connector nodes
 pub struct DataConnectorExecutor;
@@ -25,68 +25,49 @@ impl NodeExecutor for DataConnectorExecutor {
     ) -> Result<HashMap<String, Value>, EngineError> {
         let node_config = &node.config;
 
-        // Check if using V2 data source reference
+        // Build unified context
+        let ctx = ConnectorContext {
+            state,
+            config,
+            bindings: &node_config.bindings,
+        };
+
+        // V2 mode: use data_source_id reference
         if let Some(data_source_id) = &node_config.data_source_id {
-            // Get the data source definition
             let data_source = config.data_sources.get(data_source_id)
                 .ok_or_else(|| EngineError::DataSourceNotFound(data_source_id.clone()))?;
 
-            // Execute using data source + operation config + bindings
-            return execute_with_data_source(
-                data_source_id,
-                data_source,
-                &node_config.operation,
-                &node_config.bindings,
-                &config.pools,
-                state
-            ).await;
+            return match data_source.kind.as_str() {
+                "rest_api" => execute_rest_api_v2(&data_source.config, &node_config.operation, state).await,
+                "graphql" => execute_graphql_v2(&data_source.config, &node_config.operation, state).await,
+                "minio" | "s3" => connectors::minio::execute(&data_source.config, &node_config.operation, &ctx).await,
+                "postgresql" | "postgres" => connectors::postgresql::execute(&data_source.config, &node_config.operation, &ctx).await,
+                "qdrant" => connectors::qdrant::execute(&data_source.config, &node_config.operation, &ctx).await,
+                "redis" => connectors::redis::execute(&data_source.config, &node_config.operation, &ctx).await,
+                _ => Err(EngineError::UnsupportedSource(data_source.kind.clone())),
+            };
         }
 
-        // Legacy: use source and connection directly
+        // V1 Legacy mode: use source and connection directly
+        // Convert connection to ds_config format for unified execution
         let source = node_config.source.as_ref()
             .ok_or(EngineError::MissingSource)?;
+        let ds_config = &node_config.connection;
+
+        // For V1 mode, operation info is in connection, so we need to convert it
+        // We'll create an operation HashMap that includes the operation type
+        let operation = ds_config.clone();
 
         match source.as_str() {
             "rest_api" => execute_rest_api(node_config, state).await,
             "graphql" => execute_graphql(node_config, state).await,
-            "minio" | "s3" => connectors::minio::execute(node_config, state).await,
-            "postgresql" | "postgres" => connectors::postgresql::execute(node_config, state).await,
-            "qdrant" => connectors::qdrant::execute(node_config, state).await,
-            "redis" => connectors::redis::execute(node_config, state).await,
-            "mysql" => {
-                Err(EngineError::UnsupportedSource("mysql not implemented yet".to_string()))
-            }
+            "minio" | "s3" => connectors::minio::execute(ds_config, &operation, &ctx).await,
+            "postgresql" | "postgres" => connectors::postgresql::execute(ds_config, &operation, &ctx).await,
+            "qdrant" => connectors::qdrant::execute(ds_config, &operation, &ctx).await,
+            "redis" => connectors::redis::execute(ds_config, &operation, &ctx).await,
+            "mysql" => Err(EngineError::UnsupportedSource("mysql not implemented yet".to_string())),
             _ => Err(EngineError::UnsupportedSource(source.clone())),
         }
-    }
-}
-
-/// Execute using V2 data source + operation config
-async fn execute_with_data_source(
-    data_source_id: &str,
-    data_source: &DataSourceDef,
-    operation: &HashMap<String, Value>,
-    bindings: &HashMap<String, String>,
-    pools: &Arc<ConnectionPools>,
-    state: &ExecutionState,
-) -> Result<HashMap<String, Value>, EngineError> {
-    let kind = &data_source.kind;
-
-    match kind.as_str() {
-        "rest_api" => execute_rest_api_v2(&data_source.config, operation, state).await,
-        "graphql" => execute_graphql_v2(&data_source.config, operation, state).await,
-        "minio" | "s3" => connectors::minio::execute_v2(&data_source.config, operation, bindings, state).await,
-        "postgresql" | "postgres" => {
-            // Use pool if available, otherwise fall back to creating a new connection
-            if let Some(pool) = pools.get_pg_pool(data_source_id) {
-                connectors::postgresql::execute_with_pool(pool, operation, bindings, state).await
-            } else {
-                connectors::postgresql::execute_v2(&data_source.config, operation, state).await
-            }
-        }
-        "qdrant" => connectors::qdrant::execute_v2(&data_source.config, operation, state).await,
-        "redis" => connectors::redis::execute_v2(&data_source.config, operation, bindings, state).await,
-        _ => Err(EngineError::UnsupportedSource(kind.clone())),
     }
 }
 

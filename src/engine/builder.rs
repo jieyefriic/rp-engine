@@ -6,7 +6,11 @@ use std::sync::Arc;
 
 use crate::error::EngineError;
 use crate::nodes::{CustomNode, NodeRegistry};
-use crate::providers::create_registry_with_keys;
+use crate::providers::{
+    create_registry_with_keys,
+    EmbeddingRegistry,
+    DashScopeEmbeddingProvider, OpenAIEmbeddingProvider,
+};
 use crate::schema::{PreparedWorkflow, Template};
 
 use super::engine::Engine;
@@ -48,6 +52,9 @@ pub struct EngineBuilder {
     /// Provider API keys: provider_name -> api_key
     providers: HashMap<String, String>,
 
+    /// Embedding provider API keys: provider_name -> api_key
+    embedding_providers: HashMap<String, String>,
+
     /// Custom node implementations to register
     custom_nodes: Vec<Arc<dyn CustomNode>>,
 
@@ -74,6 +81,7 @@ impl EngineBuilder {
             workflows_dir: None,
             prompts_dir: None,
             providers: HashMap::new(),
+            embedding_providers: HashMap::new(),
             custom_nodes: Vec::new(),
             state_saving: None,
             pool_config: PoolConfig::default(),
@@ -104,6 +112,14 @@ impl EngineBuilder {
     /// Supported providers: openai, anthropic, gemini, deepseek, qwen, xai, zhipu, moonshot
     pub fn provider(mut self, name: &str, api_key: impl Into<String>) -> Self {
         self.providers.insert(name.to_string(), api_key.into());
+        self
+    }
+
+    /// Register an embedding provider with its API key
+    ///
+    /// Supported embedding providers: dashscope, openai
+    pub fn embedding_provider(mut self, name: &str, api_key: impl Into<String>) -> Self {
+        self.embedding_providers.insert(name.to_string(), api_key.into());
         self
     }
 
@@ -181,6 +197,15 @@ impl EngineBuilder {
             self.providers.get("moonshot").cloned(),
         );
 
+        // Build embedding registry
+        let mut embedding_registry = EmbeddingRegistry::new();
+        if let Some(key) = self.embedding_providers.get("dashscope") {
+            embedding_registry.register("dashscope", Arc::new(DashScopeEmbeddingProvider::new(key.clone())));
+        }
+        if let Some(key) = self.embedding_providers.get("openai") {
+            embedding_registry.register("openai", Arc::new(OpenAIEmbeddingProvider::new(key.clone())));
+        }
+
         // Load workflows from directory
         let workflows = if let Some(dir) = &self.workflows_dir {
             load_workflows(dir).await?
@@ -188,7 +213,8 @@ impl EngineBuilder {
             HashMap::new()
         };
 
-        // Load prompts from directory
+        // Load global templates from prompts directory
+        // These are merged with workflow.templates at runtime in Engine.run()
         let templates = if let Some(dir) = &self.prompts_dir {
             load_prompts(dir).await?
         } else {
@@ -199,6 +225,7 @@ impl EngineBuilder {
             workflows,
             templates,
             provider_registry,
+            embedding_registry,
             Arc::new(node_registry),
             Arc::new(self.connection_pools),
             self.state_saving,

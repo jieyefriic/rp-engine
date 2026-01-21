@@ -9,7 +9,7 @@ use serde_json::Value;
 
 use crate::error::EngineError;
 use crate::nodes::NodeRegistry;
-use crate::providers::ProviderRegistry;
+use crate::providers::{ProviderRegistry, EmbeddingRegistry};
 use crate::schema::{PreparedWorkflow, Template};
 
 use super::builder::{EngineBuilder, StateSavingConfig};
@@ -52,6 +52,9 @@ pub struct Engine {
     /// Provider registry for LLM calls
     providers: ProviderRegistry,
 
+    /// Embedding provider registry
+    embedding_providers: EmbeddingRegistry,
+
     /// Custom node registry
     node_registry: Arc<NodeRegistry>,
 
@@ -79,6 +82,7 @@ impl Engine {
         workflows: HashMap<String, PreparedWorkflow>,
         templates: HashMap<String, Template>,
         providers: ProviderRegistry,
+        embedding_providers: EmbeddingRegistry,
         node_registry: Arc<NodeRegistry>,
         pools: Arc<ConnectionPools>,
         state_saving: Option<StateSavingConfig>,
@@ -87,6 +91,7 @@ impl Engine {
             workflows,
             templates,
             providers,
+            embedding_providers,
             node_registry,
             pools,
             state_saving,
@@ -130,6 +135,7 @@ impl Engine {
         // Build execution config
         let mut config = ExecutionConfig::default()
             .with_providers(self.providers.clone())
+            .with_embedding_providers(self.embedding_providers.clone())
             .with_templates(self.templates.clone())
             .with_node_registry(self.node_registry.clone())
             .with_pools(self.pools.clone())
@@ -178,6 +184,7 @@ impl Engine {
         // Build execution config
         let config = ExecutionConfig::default()
             .with_providers(self.providers.clone())
+            .with_embedding_providers(self.embedding_providers.clone())
             .with_templates(self.templates.clone())
             .with_node_registry(self.node_registry.clone())
             .with_pools(self.pools.clone())

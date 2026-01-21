@@ -9,6 +9,22 @@ use std::collections::HashMap;
 use serde_json::Value;
 
 use crate::state::ExecutionState;
+use crate::engine::ExecutionConfig;
+
+/// Unified context for all connector executions.
+///
+/// This provides all connectors with consistent access to:
+/// - Execution state (for reading node outputs)
+/// - Execution config (for embedding providers, pools, data sources, etc.)
+/// - Parameter bindings (for {paramName} -> state path mappings)
+pub struct ConnectorContext<'a> {
+    /// Execution state (read node outputs)
+    pub state: &'a ExecutionState,
+    /// Execution config (embedding providers, pools, etc.)
+    pub config: &'a ExecutionConfig,
+    /// Parameter bindings ({paramName} -> state path mapping)
+    pub bindings: &'a HashMap<String, String>,
+}
 
 /// Helper function to resolve {{variable}} templates in a string
 pub fn resolve_template_vars(template: &str, state: &ExecutionState) -> String {
@@ -51,11 +67,6 @@ pub fn get_optional_string(
 /// Helper to get an optional u64 field
 pub fn get_optional_u64(connection: &HashMap<String, Value>, field: &str) -> Option<u64> {
     connection.get(field).and_then(|v| v.as_u64())
-}
-
-/// Helper to get an optional i64 field
-pub fn get_optional_i64(connection: &HashMap<String, Value>, field: &str) -> Option<i64> {
-    connection.get(field).and_then(|v| v.as_i64())
 }
 
 /// Helper to get an optional bool field
