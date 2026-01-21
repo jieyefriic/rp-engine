@@ -69,6 +69,12 @@ pub struct Engine {
 
     /// Default max iterations for loops
     max_iterations: u32,
+
+    /// Whether to capture actual rendered prompts
+    capture_actual_prompt: bool,
+
+    /// Whether to capture raw LLM response
+    capture_raw_response: bool,
 }
 
 impl Engine {
@@ -86,6 +92,8 @@ impl Engine {
         node_registry: Arc<NodeRegistry>,
         pools: Arc<ConnectionPools>,
         state_saving: Option<StateSavingConfig>,
+        capture_actual_prompt: bool,
+        capture_raw_response: bool,
     ) -> Self {
         Self {
             workflows,
@@ -97,6 +105,8 @@ impl Engine {
             state_saving,
             timeout: Duration::from_secs(300), // 5 minutes default
             max_iterations: 100,
+            capture_actual_prompt,
+            capture_raw_response,
         }
     }
 
@@ -140,7 +150,9 @@ impl Engine {
             .with_node_registry(self.node_registry.clone())
             .with_pools(self.pools.clone())
             .with_timeout(self.timeout)
-            .with_max_iterations(self.max_iterations);
+            .with_max_iterations(self.max_iterations)
+            .with_capture_actual_prompt(self.capture_actual_prompt)
+            .with_capture_raw_response(self.capture_raw_response);
 
         // Merge workflow-specific data sources
         for (id, ds) in &workflow.data_sources {

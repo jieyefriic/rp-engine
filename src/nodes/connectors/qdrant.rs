@@ -1,6 +1,9 @@
 //! Qdrant vector database connector implementation
 //!
 //! Supports operations: search, scroll, get_points, upsert, batch_upsert, delete, create_collection
+//!
+//! The search operation supports auto-embedding: provide "text" instead of "vector"
+//! and the connector will automatically generate embeddings using the configured provider.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -23,7 +26,7 @@ use super::{get_required_string, get_optional_string, get_optional_u64, get_opti
 /// Unified Qdrant execute function
 ///
 /// Takes data source config, operation config, and connector context.
-/// Gets embedding provider from context.config.embedding_providers for upsert operations.
+/// Gets embedding provider from context.config.embedding_providers for search and upsert operations.
 pub async fn execute(
     ds_config: &HashMap<String, Value>,
     operation: &HashMap<String, Value>,
@@ -50,7 +53,7 @@ pub async fn execute(
     };
 
     match op_type {
-        "search" => execute_search(&client, operation, ctx.state).await,
+        "search" => execute_search(&client, operation, ctx.state, embedding_provider.as_deref()).await,
         "scroll" => execute_scroll(&client, operation, ctx.state).await,
         "get_points" => execute_get_points(&client, operation, ctx.state).await,
         "upsert" => execute_upsert(&client, operation, ctx.state, embedding_provider.as_deref()).await,
@@ -210,13 +213,55 @@ fn parse_condition(condition: &Value) -> Option<Condition> {
 }
 
 /// Execute search operation
+///
+/// Supports two modes:
+/// 1. Direct vector: provide "vector" field with pre-computed embeddings
+/// 2. Auto-embedding: provide "text" field and embedding_provider will generate vector
+///
+/// Config:
+/// - collection: target collection name
+/// - vector: pre-computed vector (optional if text is provided)
+/// - text: text to embed for search (optional if vector is provided)
+/// - embedding_provider: provider for auto-embedding (default: dashscope)
+/// - dimension: embedding dimension (optional)
+/// - limit: max results (default: 10)
+/// - score_threshold: minimum similarity score (optional)
+/// - with_payload: include payload in results (default: true)
+/// - with_vectors: include vectors in results (default: false)
+/// - filter: Qdrant filter object (optional)
 async fn execute_search(
     client: &Qdrant,
     connection: &HashMap<String, Value>,
     state: &ExecutionState,
+    embedding_provider: Option<&dyn EmbeddingProvider>,
 ) -> Result<HashMap<String, Value>, EngineError> {
     let collection = get_required_string(connection, "collection", state)?;
-    let vector = parse_vector(connection, state)?;
+
+    // Get vector: either from direct "vector" field or auto-embed from "text" field
+    let vector = if let Ok(v) = parse_vector(connection, state) {
+        v
+    } else if let Some(text) = get_optional_string(connection, "text", state) {
+        // Auto-embed the text
+        let provider = embedding_provider
+            .ok_or_else(|| EngineError::QdrantError("embedding_provider required for text search".to_string()))?;
+
+        let dimension = get_optional_u64(connection, "dimension").map(|d| d as usize);
+        let options = EmbeddingOptions {
+            model: None,
+            dimension,
+        };
+
+        let response = provider.embed(vec![text], options).await
+            .map_err(|e| EngineError::QdrantError(format!("Embedding failed: {}", e)))?;
+
+        response.embeddings.into_iter()
+            .next()
+            .map(|e| e.vector)
+            .ok_or_else(|| EngineError::QdrantError("No embedding returned".to_string()))?
+    } else {
+        return Err(EngineError::MissingField("vector or text required for search".to_string()));
+    };
+
     let limit = get_optional_u64(connection, "limit").unwrap_or(10) as u64;
     let score_threshold = connection.get("score_threshold")
         .and_then(|v| v.as_f64())
