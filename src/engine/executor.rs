@@ -160,6 +160,12 @@ pub struct ExecutionConfig {
 
     /// Connection pools for databases
     pub pools: Arc<ConnectionPools>,
+
+    /// Whether to capture the actual rendered prompts (for observability)
+    pub capture_actual_prompt: bool,
+
+    /// Whether to capture the raw LLM response before parsing (for observability)
+    pub capture_raw_response: bool,
 }
 
 impl Default for ExecutionConfig {
@@ -174,6 +180,8 @@ impl Default for ExecutionConfig {
             data_sources: HashMap::new(),
             node_registry: Arc::new(NodeRegistry::new()),
             pools: Arc::new(ConnectionPools::new()),
+            capture_actual_prompt: false,
+            capture_raw_response: false,
         }
     }
 }
@@ -224,6 +232,18 @@ impl ExecutionConfig {
     /// Set connection pools
     pub fn with_pools(mut self, pools: Arc<ConnectionPools>) -> Self {
         self.pools = pools;
+        self
+    }
+
+    /// Enable/disable capturing of actual rendered prompts
+    pub fn with_capture_actual_prompt(mut self, enabled: bool) -> Self {
+        self.capture_actual_prompt = enabled;
+        self
+    }
+
+    /// Enable/disable capturing of raw LLM response
+    pub fn with_capture_raw_response(mut self, enabled: bool) -> Self {
+        self.capture_raw_response = enabled;
         self
     }
 }
@@ -611,7 +631,11 @@ fn evaluate_edges(
     }
 
     // Regular edge evaluation (for non-Supervisor nodes or when no exit edges matched)
-    let mut matched_conditional = false;
+    //
+    // Edge types and behavior:
+    // 1. is_default: true  → ALWAYS execute (unconditionally)
+    // 2. condition: expr   → Execute if expr evaluates to true
+    // 3. No condition, not default → Execute unconditionally
 
     for edge in &edges {
         // Skip exit edges in regular evaluation
@@ -631,57 +655,27 @@ fn evaluate_edges(
             continue;
         }
 
-        // Evaluate condition
-        let should_take = match &edge.condition {
-            Some(expr) => {
-                match evaluate_expression(expr, state) {
-                    Ok(result) => result,
-                    Err(e) => {
-                        tracing::warn!(expr = %expr, error = %e, "Edge condition evaluation failed");
-                        false
-                    }
+        // Determine if edge should be taken
+        let should_take = if edge.is_default {
+            // Default edges ALWAYS execute
+            true
+        } else if let Some(expr) = &edge.condition {
+            // Conditional edges: evaluate the expression
+            match evaluate_expression(expr, state) {
+                Ok(result) => result,
+                Err(e) => {
+                    tracing::warn!(expr = %expr, error = %e, "Edge condition evaluation failed");
+                    false
                 }
             }
-            None => !edge.is_default, // Unconditional non-default = always take
+        } else {
+            // Unconditional non-default edges: always execute
+            true
         };
 
         if should_take {
-            matched_conditional = true;
             next.push(edge.to.clone());
             state.increment_edge_count(&edge.from, &edge.to);
-        }
-    }
-
-    // If no conditional edges matched, try default edges (all of them)
-    if !matched_conditional {
-        for edge in &edges {
-            // Skip exit edges
-            if edge.exit_reason.is_some() {
-                continue;
-            }
-            if edge.is_default {
-                next.push(edge.to.clone());
-                state.increment_edge_count(&edge.from, &edge.to);
-                // Don't break - allow multiple default edges for parallel execution
-            }
-        }
-
-        // If still no edges and there are unconditional edges, take them
-        if next.is_empty() {
-            for edge in graph.get_outgoing_edges(from_node) {
-                // Skip exit edges
-                if edge.exit_reason.is_some() {
-                    continue;
-                }
-                if edge.condition.is_none() && !edge.is_default {
-                    let edge_max = edge.max_iterations.unwrap_or(config.max_iterations);
-                    let count = state.get_edge_count(&edge.from, &edge.to);
-                    if count < edge_max {
-                        next.push(edge.to.clone());
-                        state.increment_edge_count(&edge.from, &edge.to);
-                    }
-                }
-            }
         }
     }
 

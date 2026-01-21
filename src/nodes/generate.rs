@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use async_trait::async_trait;
+use handlebars::Handlebars;
 use serde_json::{json, Value};
 
 use crate::schema::YamlNode;
@@ -75,8 +76,8 @@ impl NodeExecutor for GenerateExecutor {
         // Build messages
         let mut messages = Vec::new();
 
-        if let Some(sys) = system_prompt {
-            messages.push(Message::system(sys));
+        if let Some(ref sys) = system_prompt {
+            messages.push(Message::system(sys.clone()));
         }
 
         // Check for images in variables (multimodal support)
@@ -200,24 +201,47 @@ impl NodeExecutor for GenerateExecutor {
             "output_tokens": response.usage.output_tokens,
         }));
 
-        // Add actual prompt for debugging
-        outputs.insert("_prompt".to_string(), Value::String(final_prompt));
+        // Add actual prompt for debugging (legacy field, unrendered template)
+        outputs.insert("_prompt".to_string(), Value::String(final_prompt.clone()));
+
+        // Capture actual rendered prompts if enabled (for observability)
+        if config.capture_actual_prompt {
+            if let Some(sys) = &system_prompt {
+                outputs.insert("_actual_system_prompt".to_string(), Value::String(sys.clone()));
+            }
+            outputs.insert("_actual_user_prompt".to_string(), Value::String(final_prompt));
+        }
+
+        // Capture raw response if enabled (for observability)
+        if config.capture_raw_response {
+            outputs.insert("_raw_response".to_string(), Value::String(response.content.clone()));
+        }
 
         Ok(outputs)
     }
 }
 
-/// Render a template with variable substitution
+/// Render a template using Handlebars (supports {{#if}}, {{#each}}, etc.)
 fn render_template(template: &str, variables: &HashMap<String, Value>) -> String {
-    let mut result = template.to_string();
+    let reg = Handlebars::new();
 
-    for (name, value) in variables {
-        let pattern = format!("{{{{{}}}}}", name);
-        let replacement = value_to_string(value);
-        result = result.replace(&pattern, &replacement);
+    // Convert HashMap to Value::Object for Handlebars
+    let context: Value = serde_json::to_value(variables).unwrap_or(Value::Object(Default::default()));
+
+    match reg.render_template(template, &context) {
+        Ok(rendered) => rendered,
+        Err(e) => {
+            tracing::warn!(error = %e, "Handlebars template render failed, falling back to simple substitution");
+            // Fallback to simple substitution
+            let mut result = template.to_string();
+            for (name, value) in variables {
+                let pattern = format!("{{{{{}}}}}", name);
+                let replacement = value_to_string(value);
+                result = result.replace(&pattern, &replacement);
+            }
+            result
+        }
     }
-
-    result
 }
 
 /// Convert a Value to string for template substitution

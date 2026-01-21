@@ -66,6 +66,12 @@ pub struct EngineBuilder {
 
     /// Pre-initialized connection pools
     connection_pools: ConnectionPools,
+
+    /// Whether to capture actual rendered prompts (for observability)
+    capture_actual_prompt: bool,
+
+    /// Whether to capture raw LLM response (for observability)
+    capture_raw_response: bool,
 }
 
 impl Default for EngineBuilder {
@@ -86,6 +92,8 @@ impl EngineBuilder {
             state_saving: None,
             pool_config: PoolConfig::default(),
             connection_pools: ConnectionPools::new(),
+            capture_actual_prompt: false,
+            capture_raw_response: false,
         }
     }
 
@@ -177,6 +185,25 @@ impl EngineBuilder {
         self
     }
 
+    /// Enable capturing of actual rendered prompts (for observability)
+    ///
+    /// When enabled, generate nodes will include `_actual_system_prompt` and
+    /// `_actual_user_prompt` in their outputs, containing the fully rendered
+    /// prompt text that was sent to the LLM.
+    pub fn capture_actual_prompt(mut self, enabled: bool) -> Self {
+        self.capture_actual_prompt = enabled;
+        self
+    }
+
+    /// Enable capturing of raw LLM response (for observability)
+    ///
+    /// When enabled, generate nodes will include `_raw_response` in their
+    /// outputs, containing the raw response text from the LLM before JSON parsing.
+    pub fn capture_raw_response(mut self, enabled: bool) -> Self {
+        self.capture_raw_response = enabled;
+        self
+    }
+
     /// Build the engine with the configured settings
     pub async fn build(self) -> Result<Engine, EngineError> {
         // Build node registry
@@ -229,6 +256,8 @@ impl EngineBuilder {
             Arc::new(node_registry),
             Arc::new(self.connection_pools),
             self.state_saving,
+            self.capture_actual_prompt,
+            self.capture_raw_response,
         ))
     }
 }

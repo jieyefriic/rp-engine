@@ -46,6 +46,9 @@ base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.19.0", features = ["v4"] }
 
+# Template rendering
+handlebars = "6"
+
 [dev-dependencies]
 tokio-test = "0.4"
 wiremock = "0.6"
