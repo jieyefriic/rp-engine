@@ -12,7 +12,7 @@ use crate::error::EngineError;
 use crate::schema::{PreparedWorkflow, Template, YamlNode, NodeType, ExitReason, DataSourceDef};
 use crate::state::{ExecutionState, ExecutionRecord};
 use crate::expression::evaluate_expression;
-use crate::providers::ProviderRegistry;
+use crate::providers::{ProviderRegistry, EmbeddingRegistry};
 use crate::nodes::{create_executor, NodeRegistry};
 use super::graph::ExecutionGraph;
 
@@ -137,6 +137,9 @@ pub struct ExecutionConfig {
     /// Provider registry for LLM calls
     pub providers: ProviderRegistry,
 
+    /// Embedding provider registry for embedding calls
+    pub embedding_providers: EmbeddingRegistry,
+
     /// Global timeout
     pub timeout: Duration,
 
@@ -163,6 +166,7 @@ impl Default for ExecutionConfig {
     fn default() -> Self {
         Self {
             providers: ProviderRegistry::new(),
+            embedding_providers: EmbeddingRegistry::new(),
             timeout: Duration::from_secs(300), // 5 minutes
             max_iterations: 100,
             templates: HashMap::new(),
@@ -178,6 +182,12 @@ impl ExecutionConfig {
     /// Create config with providers
     pub fn with_providers(mut self, providers: ProviderRegistry) -> Self {
         self.providers = providers;
+        self
+    }
+
+    /// Set embedding providers
+    pub fn with_embedding_providers(mut self, embedding_providers: EmbeddingRegistry) -> Self {
+        self.embedding_providers = embedding_providers;
         self
     }
 

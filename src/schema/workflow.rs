@@ -226,14 +226,8 @@ impl PreparedWorkflow {
             }
         }
 
-        // Validate template references
-        for node in &self.nodes {
-            if let Some(template_id) = &node.config.template {
-                if !self.templates.contains_key(template_id) {
-                    return Err(ValidationError::InvalidTemplateRef(template_id.clone()));
-                }
-            }
-        }
+        // Note: Template reference validation is done at Engine level,
+        // since templates can come from workflow.templates or global templates
 
         Ok(())
     }

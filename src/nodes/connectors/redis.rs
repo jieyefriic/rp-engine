@@ -1,6 +1,6 @@
 //! Redis data connector implementation
 //!
-//! Simplified operations: get, set, del
+//! Simplified operations: get, set, del, publish, append_history
 //!
 //! Supports both legacy `key` field and new `key_template` with parameter bindings.
 
@@ -8,10 +8,9 @@ use std::collections::HashMap;
 use redis::AsyncCommands;
 use serde_json::Value;
 
-use crate::schema::NodeConfig;
 use crate::state::ExecutionState;
 use crate::error::EngineError;
-use super::{get_required_string, get_optional_string, get_optional_u64};
+use super::{get_required_string, get_optional_string, get_optional_u64, ConnectorContext};
 
 /// Resolve {paramName} patterns in a template using bindings
 ///
@@ -85,18 +84,17 @@ fn get_value(
     get_required_string(operation, "value", state)
 }
 
-/// Execute a Redis operation (legacy inline config)
+/// Unified Redis execute function
+///
+/// Takes data source config, operation config, and connector context.
+/// Uses bindings from context for parameter resolution.
 pub async fn execute(
-    config: &NodeConfig,
-    state: &ExecutionState,
+    ds_config: &HashMap<String, Value>,
+    operation: &HashMap<String, Value>,
+    ctx: &ConnectorContext<'_>,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let connection = &config.connection;
-
-    // Get connection URL or build from components
-    let url = get_connection_url(connection, state)?;
-
-    // Get operation
-    let operation = get_required_string(connection, "operation", state)?;
+    // Get connection URL from data source config
+    let url = get_connection_url(ds_config, ctx.state)?;
 
     // Create Redis client
     let client = redis::Client::open(url.as_str())
@@ -105,11 +103,18 @@ pub async fn execute(
     let mut conn = client.get_multiplexed_async_connection().await
         .map_err(|e| EngineError::RedisError(e.to_string()))?;
 
-    match operation.as_str() {
-        "get" => execute_get(&mut conn, connection, state).await,
-        "set" => execute_set(&mut conn, connection, state).await,
-        "del" => execute_del(&mut conn, connection, state).await,
-        _ => Err(EngineError::InvalidOperation(format!("Unknown Redis operation: {}", operation))),
+    // Get operation type
+    let op_type = operation.get("operation")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
+
+    match op_type {
+        "get" => execute_get_v2(&mut conn, operation, ctx.bindings, ctx.state).await,
+        "set" => execute_set_v2(&mut conn, operation, ctx.bindings, ctx.state).await,
+        "del" => execute_del_v2(&mut conn, operation, ctx.bindings, ctx.state).await,
+        "publish" => execute_publish_v2(&mut conn, operation, ctx.bindings, ctx.state).await,
+        "append_history" => execute_append_history_v2(&mut conn, operation, ctx.bindings, ctx.state).await,
+        _ => Err(EngineError::InvalidOperation(format!("Unknown Redis operation: {}", op_type))),
     }
 }
 
@@ -139,106 +144,8 @@ fn get_connection_url(
     Ok(url)
 }
 
-/// Execute GET operation
-/// Returns the value as JSON (parsed if valid JSON, otherwise as string)
-/// If output_schema is defined, extracts fields according to schema
-async fn execute_get(
-    conn: &mut redis::aio::MultiplexedConnection,
-    operation: &HashMap<String, Value>,
-    state: &ExecutionState,
-) -> Result<HashMap<String, Value>, EngineError> {
-    let key = get_required_string(operation, "key", state)?;
-
-    let result: Option<String> = conn.get(&key).await
-        .map_err(|e| EngineError::RedisError(e.to_string()))?;
-
-    let mut outputs = HashMap::new();
-
-    match result {
-        Some(value) => {
-            // Try to parse as JSON
-            let parsed_value = serde_json::from_str::<Value>(&value)
-                .unwrap_or(Value::String(value.clone()));
-
-            // Check if output_schema is defined
-            if let Some(schema) = operation.get("output_schema") {
-                if let Value::Array(fields) = schema {
-                    // Extract fields according to schema
-                    if let Value::Object(obj) = &parsed_value {
-                        for field_def in fields {
-                            if let Some(field_name) = field_def.get("name").and_then(|n| n.as_str()) {
-                                if let Some(field_value) = obj.get(field_name) {
-                                    outputs.insert(field_name.to_string(), field_value.clone());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Always include raw value and exists flag
-            outputs.insert("value".to_string(), parsed_value);
-            outputs.insert("exists".to_string(), Value::Bool(true));
-        }
-        None => {
-            outputs.insert("value".to_string(), Value::Null);
-            outputs.insert("exists".to_string(), Value::Bool(false));
-        }
-    }
-
-    Ok(outputs)
-}
-
-/// Execute SET operation
-/// Supports optional TTL (time-to-live in seconds)
-async fn execute_set(
-    conn: &mut redis::aio::MultiplexedConnection,
-    operation: &HashMap<String, Value>,
-    state: &ExecutionState,
-) -> Result<HashMap<String, Value>, EngineError> {
-    let key = get_required_string(operation, "key", state)?;
-    let value = get_required_string(operation, "value", state)?;
-
-    // Get optional TTL
-    let ttl = get_optional_u64(operation, "ttl");
-
-    let result: bool = if let Some(seconds) = ttl {
-        conn.set_ex(&key, &value, seconds)
-            .await
-            .map(|_: ()| true)
-            .map_err(|e| EngineError::RedisError(e.to_string()))?
-    } else {
-        conn.set(&key, &value)
-            .await
-            .map(|_: ()| true)
-            .map_err(|e| EngineError::RedisError(e.to_string()))?
-    };
-
-    let mut outputs = HashMap::new();
-    outputs.insert("ok".to_string(), Value::Bool(result));
-    Ok(outputs)
-}
-
-/// Execute DEL operation
-async fn execute_del(
-    conn: &mut redis::aio::MultiplexedConnection,
-    operation: &HashMap<String, Value>,
-    state: &ExecutionState,
-) -> Result<HashMap<String, Value>, EngineError> {
-    let key = get_required_string(operation, "key", state)?;
-
-    let deleted: i64 = conn.del(&key)
-        .await
-        .map_err(|e| EngineError::RedisError(e.to_string()))?;
-
-    let mut outputs = HashMap::new();
-    outputs.insert("deleted".to_string(), Value::Number(deleted.into()));
-    outputs.insert("ok".to_string(), Value::Bool(deleted > 0));
-    Ok(outputs)
-}
-
 // ============================================
-// V2 Operations with bindings support
+// Operations with bindings support
 // ============================================
 
 /// Execute GET operation (V2 with bindings)
@@ -460,37 +367,6 @@ async fn execute_append_history_v2(
     Ok(outputs)
 }
 
-/// Execute Redis with V2 config (data source + operation + bindings)
-pub async fn execute_v2(
-    ds_config: &HashMap<String, Value>,
-    operation: &HashMap<String, Value>,
-    bindings: &HashMap<String, String>,
-    state: &ExecutionState,
-) -> Result<HashMap<String, Value>, EngineError> {
-    // Get connection URL from data source config
-    let url = get_connection_url(ds_config, state)?;
-
-    // Create Redis client
-    let client = redis::Client::open(url.as_str())
-        .map_err(|e| EngineError::RedisError(e.to_string()))?;
-
-    let mut conn = client.get_multiplexed_async_connection().await
-        .map_err(|e| EngineError::RedisError(e.to_string()))?;
-
-    // Get operation type
-    let op_type = operation.get("operation")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
-
-    match op_type {
-        "get" => execute_get_v2(&mut conn, operation, bindings, state).await,
-        "set" => execute_set_v2(&mut conn, operation, bindings, state).await,
-        "del" => execute_del_v2(&mut conn, operation, bindings, state).await,
-        "publish" => execute_publish_v2(&mut conn, operation, bindings, state).await,
-        "append_history" => execute_append_history_v2(&mut conn, operation, bindings, state).await,
-        _ => Err(EngineError::InvalidOperation(format!("Unknown Redis operation: {}", op_type))),
-    }
-}
 
 #[cfg(test)]
 mod tests {

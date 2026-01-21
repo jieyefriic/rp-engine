@@ -10,10 +10,9 @@ use std::collections::HashMap;
 use tokio_postgres::{NoTls, Row, types::ToSql};
 use serde_json::Value;
 
-use crate::schema::NodeConfig;
 use crate::state::ExecutionState;
 use crate::error::EngineError;
-use super::{get_required_string, get_optional_string, get_optional_u64, resolve_template_vars};
+use super::{get_required_string, get_optional_string, get_optional_u64, resolve_template_vars, ConnectorContext};
 
 /// Resolve {paramName} patterns in a SQL template using bindings
 ///
@@ -52,38 +51,90 @@ fn resolve_sql_with_bindings(
     }).to_string()
 }
 
-/// Execute a PostgreSQL operation
+/// Unified PostgreSQL execute function
+///
+/// Takes data source config, operation config, and connector context.
+/// Uses connection pool from context if available for better performance.
 pub async fn execute(
-    config: &NodeConfig,
-    state: &ExecutionState,
+    ds_config: &HashMap<String, Value>,
+    operation: &HashMap<String, Value>,
+    ctx: &ConnectorContext<'_>,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let connection_config = &config.connection;
+    // Get operation type
+    let op_type = operation.get("operation")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
 
-    // Get operation
-    let operation = get_required_string(connection_config, "operation", state)?;
+    // Try to find a matching pool from ExecutionConfig
+    // We need to find which data_source_id matches this ds_config
+    let pool_opt = find_pool_for_config(ds_config, ctx);
 
-    // Build connection string
-    let conn_string = get_connection_string(connection_config, state)?;
+    if let Some(pool) = pool_opt {
+        // Use pooled connection (preferred)
+        execute_with_pool_internal(pool, operation, ctx).await
+    } else {
+        // Fall back to creating a new connection
+        let conn_string = get_connection_string(ds_config, ctx.state)?;
+        let (client, db_connection) = tokio_postgres::connect(&conn_string, NoTls)
+            .await
+            .map_err(|e| EngineError::DatabaseError(e.to_string()))?;
 
-    // Connect to database
-    let (client, db_connection) = tokio_postgres::connect(&conn_string, NoTls)
-        .await
-        .map_err(|e| EngineError::DatabaseError(e.to_string()))?;
+        tokio::spawn(async move {
+            if let Err(e) = db_connection.await {
+                tracing::error!("PostgreSQL connection error: {}", e);
+            }
+        });
 
-    // Spawn connection task
-    tokio::spawn(async move {
-        if let Err(e) = db_connection.await {
-            tracing::error!("PostgreSQL connection error: {}", e);
+        match op_type {
+            "query" => execute_query_internal(&client, operation, ctx.bindings, ctx.state).await,
+            "insert" => execute_insert_internal(&client, operation, ctx.state).await,
+            "select" => execute_select_internal(&client, operation, ctx.state).await,
+            "update" => execute_update_internal(&client, operation, ctx.state).await,
+            "delete" => execute_delete_internal(&client, operation, ctx.state).await,
+            _ => Err(EngineError::InvalidOperation(format!("Unknown PostgreSQL operation: {}", op_type))),
         }
-    });
+    }
+}
 
-    match operation.as_str() {
-        "query" => execute_query(&client, connection_config, state).await,
-        "insert" => execute_insert(&client, connection_config, state).await,
-        "select" => execute_select(&client, connection_config, state).await,
-        "update" => execute_update(&client, connection_config, state).await,
-        "delete" => execute_delete(&client, connection_config, state).await,
-        _ => Err(EngineError::InvalidOperation(format!("Unknown PostgreSQL operation: {}", operation))),
+/// Try to find a connection pool for the given data source config
+fn find_pool_for_config<'a>(
+    ds_config: &HashMap<String, Value>,
+    ctx: &'a ConnectorContext<'_>,
+) -> Option<&'a deadpool_postgres::Pool> {
+    // Look through data_sources in config to find a matching one
+    for (ds_id, ds_def) in &ctx.config.data_sources {
+        if ds_def.kind == "postgresql" || ds_def.kind == "postgres" {
+            // Check if this is the same config by comparing URLs
+            let ds_url = get_optional_string(&ds_def.config, "url", ctx.state);
+            let cfg_url = get_optional_string(ds_config, "url", ctx.state);
+            if ds_url == cfg_url && ds_url.is_some() {
+                return ctx.config.pools.get_pg_pool(ds_id);
+            }
+        }
+    }
+    None
+}
+
+/// Execute with pooled connection
+async fn execute_with_pool_internal(
+    pool: &deadpool_postgres::Pool,
+    operation: &HashMap<String, Value>,
+    ctx: &ConnectorContext<'_>,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let client = pool.get().await
+        .map_err(|e| EngineError::DatabaseError(format!("Failed to get connection from pool: {}", e)))?;
+
+    let op_type = operation.get("operation")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
+
+    match op_type {
+        "query" => execute_query_pooled(&client, operation, ctx.bindings, ctx.state).await,
+        "insert" => execute_insert_pooled(&client, operation, ctx.state).await,
+        "select" => execute_select_pooled(&client, operation, ctx.state).await,
+        "update" => execute_update_pooled(&client, operation, ctx.state).await,
+        "delete" => execute_delete_pooled(&client, operation, ctx.state).await,
+        _ => Err(EngineError::InvalidOperation(format!("Unknown PostgreSQL operation: {}", op_type))),
     }
 }
 
@@ -111,23 +162,32 @@ fn get_connection_string(
     ))
 }
 
-/// Execute raw SQL query
-async fn execute_query(
+/// Execute raw SQL query (non-pooled client)
+async fn execute_query_internal(
     client: &tokio_postgres::Client,
-    connection: &HashMap<String, Value>,
+    operation: &HashMap<String, Value>,
+    bindings: &HashMap<String, String>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let sql = get_required_string(connection, "sql", state)?;
+    let sql_template = get_required_string(operation, "sql", state)?;
 
-    // Parse parameters
-    let params = parse_query_params(connection, state)?;
-    let param_refs: Vec<&(dyn ToSql + Sync)> = params.iter()
-        .map(|p| p as &(dyn ToSql + Sync))
-        .collect();
-
-    let rows = client.query(&sql, &param_refs)
-        .await
-        .map_err(|e| EngineError::DatabaseError(e.to_string()))?;
+    // If bindings are provided, resolve {paramName} placeholders in SQL
+    let rows = if !bindings.is_empty() {
+        let sql = resolve_sql_with_bindings(&sql_template, bindings, state);
+        tracing::debug!("Executing SQL with bindings: {}", sql);
+        client.query(&sql, &[])
+            .await
+            .map_err(|e| EngineError::DatabaseError(e.to_string()))?
+    } else {
+        // Legacy params mode
+        let params = parse_query_params(operation, state)?;
+        let param_refs: Vec<&(dyn ToSql + Sync)> = params.iter()
+            .map(|p| p as &(dyn ToSql + Sync))
+            .collect();
+        client.query(&sql_template, &param_refs)
+            .await
+            .map_err(|e| EngineError::DatabaseError(e.to_string()))?
+    };
 
     let json_rows = rows_to_json(&rows);
 
@@ -135,19 +195,28 @@ async fn execute_query(
     outputs.insert("rows".to_string(), Value::Array(json_rows.clone()));
     outputs.insert("count".to_string(), Value::Number(json_rows.len().into()));
 
+    // Flatten first row fields to top level for convenience
+    if let Some(first_row) = json_rows.first() {
+        if let Value::Object(obj) = first_row {
+            for (key, value) in obj {
+                outputs.insert(key.clone(), value.clone());
+            }
+        }
+    }
+
     Ok(outputs)
 }
 
-/// Execute INSERT operation (CRUD)
-async fn execute_insert(
+/// Execute INSERT operation (non-pooled client)
+async fn execute_insert_internal(
     client: &tokio_postgres::Client,
-    connection: &HashMap<String, Value>,
+    operation: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let table = get_required_string(connection, "table", state)?;
+    let table = get_required_string(operation, "table", state)?;
 
     // Get data to insert
-    let data = connection.get("data")
+    let data = operation.get("data")
         .and_then(|v| v.as_object())
         .ok_or_else(|| EngineError::MissingField("data".to_string()))?;
 
@@ -167,7 +236,7 @@ async fn execute_insert(
     }
 
     // Build RETURNING clause
-    let returning = connection.get("returning")
+    let returning = operation.get("returning")
         .and_then(|v| v.as_array())
         .map(|arr| {
             let cols: Vec<String> = arr.iter()
@@ -203,16 +272,16 @@ async fn execute_insert(
     Ok(outputs)
 }
 
-/// Execute SELECT operation (CRUD)
-async fn execute_select(
+/// Execute SELECT operation (non-pooled client)
+async fn execute_select_internal(
     client: &tokio_postgres::Client,
-    connection: &HashMap<String, Value>,
+    operation: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let table = get_required_string(connection, "table", state)?;
+    let table = get_required_string(operation, "table", state)?;
 
     // Get columns (default to *)
-    let columns = connection.get("columns")
+    let columns = operation.get("columns")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
@@ -224,20 +293,20 @@ async fn execute_select(
         .unwrap_or_else(|| "*".to_string());
 
     // Build WHERE clause
-    let (where_clause, params) = build_where_clause(connection, state)?;
+    let (where_clause, params) = build_where_clause(operation, state)?;
 
     // Get ORDER BY
-    let order_by = get_optional_string(connection, "order_by", state)
+    let order_by = get_optional_string(operation, "order_by", state)
         .map(|o| format!(" ORDER BY {}", o))
         .unwrap_or_default();
 
     // Get LIMIT
-    let limit = get_optional_u64(connection, "limit")
+    let limit = get_optional_u64(operation, "limit")
         .map(|l| format!(" LIMIT {}", l))
         .unwrap_or_default();
 
     // Get OFFSET
-    let offset = get_optional_u64(connection, "offset")
+    let offset = get_optional_u64(operation, "offset")
         .map(|o| format!(" OFFSET {}", o))
         .unwrap_or_default();
 
@@ -263,16 +332,16 @@ async fn execute_select(
     Ok(outputs)
 }
 
-/// Execute UPDATE operation (CRUD)
-async fn execute_update(
+/// Execute UPDATE operation (non-pooled client)
+async fn execute_update_internal(
     client: &tokio_postgres::Client,
-    connection: &HashMap<String, Value>,
+    operation: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let table = get_required_string(connection, "table", state)?;
+    let table = get_required_string(operation, "table", state)?;
 
     // Get SET data
-    let set_data = connection.get("set")
+    let set_data = operation.get("set")
         .and_then(|v| v.as_object())
         .ok_or_else(|| EngineError::MissingField("set".to_string()))?;
 
@@ -299,11 +368,11 @@ async fn execute_update(
     }
 
     // Build WHERE clause
-    let (where_clause, where_params) = build_where_clause_with_offset(connection, state, params.len())?;
+    let (where_clause, where_params) = build_where_clause_with_offset(operation, state, params.len())?;
     params.extend(where_params);
 
     // Build RETURNING clause
-    let returning = connection.get("returning")
+    let returning = operation.get("returning")
         .and_then(|v| v.as_array())
         .map(|arr| {
             let cols: Vec<String> = arr.iter()
@@ -339,16 +408,16 @@ async fn execute_update(
     Ok(outputs)
 }
 
-/// Execute DELETE operation (CRUD)
-async fn execute_delete(
+/// Execute DELETE operation (non-pooled client)
+async fn execute_delete_internal(
     client: &tokio_postgres::Client,
-    connection: &HashMap<String, Value>,
+    operation: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let table = get_required_string(connection, "table", state)?;
+    let table = get_required_string(operation, "table", state)?;
 
     // Build WHERE clause (required for safety)
-    let (where_clause, params) = build_where_clause(connection, state)?;
+    let (where_clause, params) = build_where_clause(operation, state)?;
 
     if where_clause.is_empty() {
         return Err(EngineError::DatabaseError("DELETE requires WHERE clause for safety".to_string()));
@@ -474,73 +543,6 @@ fn row_value_to_json(row: &Row, idx: usize, pg_type: &tokio_postgres::types::Typ
         _ => row.get::<_, Option<String>>(idx)
             .map(Value::String)
             .unwrap_or(Value::Null),
-    }
-}
-
-/// Execute PostgreSQL with V2 config (data source + operation)
-pub async fn execute_v2(
-    ds_config: &HashMap<String, Value>,
-    operation: &HashMap<String, Value>,
-    state: &ExecutionState,
-) -> Result<HashMap<String, Value>, EngineError> {
-    // Build connection string from data source config
-    let conn_string = get_connection_string(ds_config, state)?;
-
-    // Connect to database
-    let (client, db_connection) = tokio_postgres::connect(&conn_string, NoTls)
-        .await
-        .map_err(|e| EngineError::DatabaseError(e.to_string()))?;
-
-    // Spawn connection task
-    tokio::spawn(async move {
-        if let Err(e) = db_connection.await {
-            tracing::error!("PostgreSQL connection error: {}", e);
-        }
-    });
-
-    // Get operation type
-    let op_type = operation.get("operation")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
-
-    match op_type {
-        "query" => execute_query(&client, operation, state).await,
-        "insert" => execute_insert(&client, operation, state).await,
-        "select" => execute_select(&client, operation, state).await,
-        "update" => execute_update(&client, operation, state).await,
-        "delete" => execute_delete(&client, operation, state).await,
-        _ => Err(EngineError::InvalidOperation(format!("Unknown PostgreSQL operation: {}", op_type))),
-    }
-}
-
-/// Execute PostgreSQL with connection pool (preferred for production)
-///
-/// Uses a connection from the pool instead of creating a new connection each time.
-/// This provides better performance and resource management.
-///
-/// Supports `bindings` for `{paramName}` syntax in SQL queries.
-pub async fn execute_with_pool(
-    pool: &deadpool_postgres::Pool,
-    operation: &HashMap<String, Value>,
-    bindings: &HashMap<String, String>,
-    state: &ExecutionState,
-) -> Result<HashMap<String, Value>, EngineError> {
-    // Get a connection from the pool
-    let client = pool.get().await
-        .map_err(|e| EngineError::DatabaseError(format!("Failed to get connection from pool: {}", e)))?;
-
-    // Get operation type
-    let op_type = operation.get("operation")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
-
-    match op_type {
-        "query" => execute_query_pooled(&client, operation, bindings, state).await,
-        "insert" => execute_insert_pooled(&client, operation, state).await,
-        "select" => execute_select_pooled(&client, operation, state).await,
-        "update" => execute_update_pooled(&client, operation, state).await,
-        "delete" => execute_delete_pooled(&client, operation, state).await,
-        _ => Err(EngineError::InvalidOperation(format!("Unknown PostgreSQL operation: {}", op_type))),
     }
 }
 

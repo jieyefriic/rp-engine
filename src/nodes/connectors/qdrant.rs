@@ -1,43 +1,63 @@
 //! Qdrant vector database connector implementation
 //!
-//! Supports operations: search, scroll, get_points
+//! Supports operations: search, scroll, get_points, upsert, batch_upsert, delete, create_collection
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use qdrant_client::Qdrant;
 use qdrant_client::qdrant::{
     SearchPointsBuilder, ScrollPointsBuilder, GetPointsBuilder,
     Filter, Condition, PointId,
     condition::ConditionOneOf, FieldCondition, r#match::MatchValue, Match,
+    UpsertPointsBuilder, PointStruct, DeletePointsBuilder,
+    CreateCollectionBuilder, VectorParamsBuilder, Distance,
+    PointsIdsList,
 };
 use serde_json::Value;
 
-use crate::schema::NodeConfig;
 use crate::state::ExecutionState;
 use crate::error::EngineError;
-use super::{get_required_string, get_optional_string, get_optional_u64, get_optional_bool};
+use crate::providers::{EmbeddingProvider, EmbeddingOptions};
+use super::{get_required_string, get_optional_string, get_optional_u64, get_optional_bool, ConnectorContext};
 
-/// Execute a Qdrant operation
+/// Unified Qdrant execute function
+///
+/// Takes data source config, operation config, and connector context.
+/// Gets embedding provider from context.config.embedding_providers for upsert operations.
 pub async fn execute(
-    config: &NodeConfig,
-    state: &ExecutionState,
+    ds_config: &HashMap<String, Value>,
+    operation: &HashMap<String, Value>,
+    ctx: &ConnectorContext<'_>,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let connection = &config.connection;
-
-    // Get connection parameters
-    let url = get_required_string(connection, "url", state)?;
-    let api_key = get_optional_string(connection, "api_key", state);
-
-    // Get operation
-    let operation = get_required_string(connection, "operation", state)?;
+    // Get connection parameters from data source config
+    let url = get_required_string(ds_config, "url", ctx.state)?;
+    let api_key = get_optional_string(ds_config, "api_key", ctx.state);
 
     // Create Qdrant client
     let client = create_qdrant_client(&url, api_key.as_deref()).await?;
 
-    match operation.as_str() {
-        "search" => execute_search(&client, connection, state).await,
-        "scroll" => execute_scroll(&client, connection, state).await,
-        "get_points" => execute_get_points(&client, connection, state).await,
-        _ => Err(EngineError::InvalidOperation(format!("Unknown Qdrant operation: {}", operation))),
+    // Get operation type
+    let op_type = operation.get("operation")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
+
+    // Get embedding provider for upsert operations if configured
+    let embedding_provider: Option<Arc<dyn EmbeddingProvider>> = {
+        let provider_name = operation.get("embedding_provider")
+            .and_then(|v| v.as_str())
+            .unwrap_or("dashscope");
+        ctx.config.embedding_providers.get(provider_name)
+    };
+
+    match op_type {
+        "search" => execute_search(&client, operation, ctx.state).await,
+        "scroll" => execute_scroll(&client, operation, ctx.state).await,
+        "get_points" => execute_get_points(&client, operation, ctx.state).await,
+        "upsert" => execute_upsert(&client, operation, ctx.state, embedding_provider.as_deref()).await,
+        "batch_upsert" => execute_batch_upsert(&client, operation, ctx.state, embedding_provider.as_deref()).await,
+        "delete" => execute_delete(&client, operation, ctx.state).await,
+        "create_collection" => execute_create_collection(&client, operation, ctx.state).await,
+        _ => Err(EngineError::InvalidOperation(format!("Unknown Qdrant operation: {}", op_type))),
     }
 }
 
@@ -412,28 +432,374 @@ fn qdrant_value_to_json(value: &qdrant_client::qdrant::Value) -> Value {
     }
 }
 
-/// Execute Qdrant with V2 config (data source + operation)
-pub async fn execute_v2(
-    ds_config: &HashMap<String, Value>,
-    operation: &HashMap<String, Value>,
+/// Convert serde_json Value to Qdrant Value
+fn json_to_qdrant_value(value: &Value) -> qdrant_client::qdrant::Value {
+    use qdrant_client::qdrant::{value::Kind, ListValue, Struct};
+
+    let kind = match value {
+        Value::Null => Kind::NullValue(0),
+        Value::Bool(b) => Kind::BoolValue(*b),
+        Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Kind::IntegerValue(i)
+            } else if let Some(f) = n.as_f64() {
+                Kind::DoubleValue(f)
+            } else {
+                Kind::NullValue(0)
+            }
+        }
+        Value::String(s) => Kind::StringValue(s.clone()),
+        Value::Array(arr) => Kind::ListValue(ListValue {
+            values: arr.iter().map(json_to_qdrant_value).collect(),
+        }),
+        Value::Object(obj) => Kind::StructValue(Struct {
+            fields: obj.iter()
+                .map(|(k, v)| (k.clone(), json_to_qdrant_value(v)))
+                .collect(),
+        }),
+    };
+
+    qdrant_client::qdrant::Value { kind: Some(kind) }
+}
+
+/// Execute upsert operation
+async fn execute_upsert(
+    client: &Qdrant,
+    connection: &HashMap<String, Value>,
+    state: &ExecutionState,
+    embedding_provider: Option<&dyn EmbeddingProvider>,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let collection = get_required_string(connection, "collection", state)?;
+
+    // Get points to upsert
+    let points_value = connection.get("points")
+        .ok_or_else(|| EngineError::MissingField("points".to_string()))?;
+
+    let points_array = points_value.as_array()
+        .ok_or_else(|| EngineError::QdrantError("points must be an array".to_string()))?;
+
+    // Get embedding config if text field needs auto-embedding
+    let text_field = get_optional_string(connection, "text_field", state);
+    let dimension = get_optional_u64(connection, "dimension").map(|d| d as usize);
+
+    // Collect texts for batch embedding
+    let mut texts_to_embed: Vec<(usize, String)> = Vec::new();
+    if let Some(ref field) = text_field {
+        for (idx, point) in points_array.iter().enumerate() {
+            if let Some(payload) = point.get("payload").and_then(|p| p.as_object()) {
+                if let Some(text) = payload.get(field).and_then(|t| t.as_str()) {
+                    texts_to_embed.push((idx, text.to_string()));
+                }
+            }
+        }
+    }
+
+    // Generate embeddings if needed
+    let mut embeddings: HashMap<usize, Vec<f32>> = HashMap::new();
+    if !texts_to_embed.is_empty() {
+        if let Some(provider) = embedding_provider {
+            let texts: Vec<String> = texts_to_embed.iter().map(|(_, t)| t.clone()).collect();
+            let options = EmbeddingOptions {
+                model: None,
+                dimension,
+            };
+
+            let response = provider.embed(texts, options).await
+                .map_err(|e| EngineError::QdrantError(format!("Embedding failed: {}", e)))?;
+
+            for (i, (idx, _)) in texts_to_embed.iter().enumerate() {
+                if let Some(embedding) = response.embeddings.get(i) {
+                    embeddings.insert(*idx, embedding.vector.clone());
+                }
+            }
+        }
+    }
+
+    // Build point structs
+    let mut point_structs: Vec<PointStruct> = Vec::new();
+    for (idx, point) in points_array.iter().enumerate() {
+        // Parse ID
+        let id = point.get("id")
+            .ok_or_else(|| EngineError::QdrantError("Point missing id".to_string()))?;
+
+        let point_id: PointId = match id {
+            Value::Number(n) => {
+                let num = n.as_u64()
+                    .ok_or_else(|| EngineError::QdrantError("Invalid numeric id".to_string()))?;
+                PointId::from(num)
+            }
+            Value::String(s) => PointId::from(s.clone()),
+            _ => return Err(EngineError::QdrantError("Invalid id type".to_string())),
+        };
+
+        // Get vector - either from point or from embedding
+        let vector: Vec<f32> = if let Some(v) = embeddings.get(&idx) {
+            v.clone()
+        } else if let Some(vector_value) = point.get("vector") {
+            vector_value.as_array()
+                .ok_or_else(|| EngineError::QdrantError("vector must be an array".to_string()))?
+                .iter()
+                .map(|v| v.as_f64()
+                    .map(|f| f as f32)
+                    .ok_or_else(|| EngineError::QdrantError("Invalid vector value".to_string())))
+                .collect::<Result<Vec<f32>, _>>()?
+        } else {
+            return Err(EngineError::QdrantError("Point missing vector".to_string()));
+        };
+
+        // Parse payload
+        let payload: HashMap<String, qdrant_client::qdrant::Value> = point.get("payload")
+            .and_then(|p| p.as_object())
+            .map(|obj| {
+                obj.iter()
+                    .map(|(k, v)| (k.clone(), json_to_qdrant_value(v)))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        point_structs.push(PointStruct::new(point_id, vector, payload));
+    }
+
+    // Execute upsert
+    let upsert_builder = UpsertPointsBuilder::new(&collection, point_structs);
+
+    client.upsert_points(upsert_builder).await
+        .map_err(|e| EngineError::QdrantError(e.to_string()))?;
+
+    let mut outputs = HashMap::new();
+    outputs.insert("success".to_string(), Value::Bool(true));
+    outputs.insert("count".to_string(), Value::Number(points_array.len().into()));
+
+    Ok(outputs)
+}
+
+/// Execute batch_upsert operation
+///
+/// Takes an array of texts, embeds each one, and stores them as separate points
+/// with shared payload. Used for storing sentences with their full text context.
+///
+/// Config:
+/// - collection: target collection name
+/// - texts: array of strings to embed (resolved from state path or literal)
+/// - text_field_name: field name for storing individual text in payload
+/// - shared_payload: additional payload fields shared by all points
+/// - embedding_provider: provider to use for embeddings (default: dashscope)
+/// - dimension: embedding dimension (optional)
+async fn execute_batch_upsert(
+    client: &Qdrant,
+    connection: &HashMap<String, Value>,
+    state: &ExecutionState,
+    embedding_provider: Option<&dyn EmbeddingProvider>,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let collection = get_required_string(connection, "collection", state)?;
+
+    // Get text field name (defaults to "text")
+    let text_field_name = get_optional_string(connection, "text_field_name", state)
+        .unwrap_or_else(|| "text".to_string());
+
+    // Get dimension for embedding
+    let dimension = get_optional_u64(connection, "dimension").map(|d| d as usize);
+
+    // Get texts to embed - resolve from state path or literal array
+    let texts: Vec<String> = {
+        let texts_value = connection.get("texts")
+            .ok_or_else(|| EngineError::MissingField("texts".to_string()))?;
+
+        match texts_value {
+            Value::Array(arr) => {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect()
+            }
+            Value::String(path) => {
+                // Resolve from state
+                let resolved = super::resolve_template_vars(path, state);
+                state.read(&resolved)
+                    .and_then(|v| {
+                        v.as_array().map(|arr| {
+                            arr.iter()
+                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                .collect()
+                        })
+                    })
+                    .ok_or_else(|| EngineError::QdrantError(format!("texts not found in state at path: {}", resolved)))?
+            }
+            _ => return Err(EngineError::QdrantError("texts must be an array or state path".to_string())),
+        }
+    };
+
+    if texts.is_empty() {
+        let mut outputs = HashMap::new();
+        outputs.insert("success".to_string(), Value::Bool(true));
+        outputs.insert("count".to_string(), Value::Number(0.into()));
+        outputs.insert("point_ids".to_string(), Value::Array(vec![]));
+        return Ok(outputs);
+    }
+
+    // Get shared payload
+    let shared_payload: HashMap<String, Value> = connection.get("shared_payload")
+        .and_then(|v| v.as_object())
+        .map(|obj| {
+            obj.iter()
+                .map(|(k, v)| {
+                    // Resolve any template variables in payload values
+                    let resolved_value = match v {
+                        Value::String(s) => {
+                            let resolved = super::resolve_template_vars(s, state);
+                            // Try to get from state, if not found use the resolved string
+                            state.read(&resolved)
+                                .unwrap_or_else(|| Value::String(resolved))
+                        }
+                        _ => v.clone(),
+                    };
+                    (k.clone(), resolved_value)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // Generate embeddings for all texts
+    let embeddings = if let Some(provider) = embedding_provider {
+        let options = EmbeddingOptions {
+            model: None,
+            dimension,
+        };
+
+        let response = provider.embed(texts.clone(), options).await
+            .map_err(|e| EngineError::QdrantError(format!("Embedding failed: {}", e)))?;
+
+        response.embeddings.into_iter()
+            .map(|e| e.vector)
+            .collect::<Vec<Vec<f32>>>()
+    } else {
+        return Err(EngineError::QdrantError("embedding_provider required for batch_upsert".to_string()));
+    };
+
+    if embeddings.len() != texts.len() {
+        return Err(EngineError::QdrantError(format!(
+            "Embedding count mismatch: got {} embeddings for {} texts",
+            embeddings.len(),
+            texts.len()
+        )));
+    }
+
+    // Build point structs
+    let mut point_structs: Vec<PointStruct> = Vec::new();
+    let mut point_ids: Vec<Value> = Vec::new();
+
+    for (text, vector) in texts.iter().zip(embeddings.into_iter()) {
+        // Generate UUID for each point
+        let uuid = uuid::Uuid::new_v4().to_string();
+        let point_id = PointId::from(uuid.clone());
+        point_ids.push(Value::String(uuid));
+
+        // Build payload: text_field_name -> text, plus shared_payload
+        let mut payload: HashMap<String, qdrant_client::qdrant::Value> = HashMap::new();
+
+        // Add the individual text
+        payload.insert(
+            text_field_name.clone(),
+            json_to_qdrant_value(&Value::String(text.clone())),
+        );
+
+        // Add shared payload fields
+        for (key, value) in &shared_payload {
+            payload.insert(key.to_string(), json_to_qdrant_value(value));
+        }
+
+        point_structs.push(PointStruct::new(point_id, vector, payload));
+    }
+
+    // Execute upsert
+    let upsert_builder = UpsertPointsBuilder::new(&collection, point_structs);
+
+    client.upsert_points(upsert_builder).await
+        .map_err(|e| EngineError::QdrantError(e.to_string()))?;
+
+    let mut outputs = HashMap::new();
+    outputs.insert("success".to_string(), Value::Bool(true));
+    outputs.insert("count".to_string(), Value::Number(texts.len().into()));
+    outputs.insert("point_ids".to_string(), Value::Array(point_ids));
+
+    Ok(outputs)
+}
+
+/// Execute delete operation
+async fn execute_delete(
+    client: &Qdrant,
+    connection: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    // Get connection parameters from data source config
-    let url = get_required_string(ds_config, "url", state)?;
-    let api_key = get_optional_string(ds_config, "api_key", state);
+    let collection = get_required_string(connection, "collection", state)?;
 
-    // Create Qdrant client
-    let client = create_qdrant_client(&url, api_key.as_deref()).await?;
+    // Get points selector - either IDs or filter
+    let delete_builder = if let Some(ids_value) = connection.get("ids") {
+        let ids: Vec<PointId> = ids_value.as_array()
+            .ok_or_else(|| EngineError::QdrantError("ids must be an array".to_string()))?
+            .iter()
+            .filter_map(|v| match v {
+                Value::Number(n) => n.as_u64().map(PointId::from),
+                Value::String(s) => Some(PointId::from(s.clone())),
+                _ => None,
+            })
+            .collect();
 
-    // Get operation type
-    let op_type = operation.get("operation")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
+        DeletePointsBuilder::new(&collection)
+            .points(PointsIdsList { ids })
+    } else if let Some(filter) = parse_filter(connection) {
+        DeletePointsBuilder::new(&collection)
+            .points(filter)
+    } else {
+        return Err(EngineError::MissingField("ids or filter required for delete".to_string()));
+    };
 
-    match op_type {
-        "search" => execute_search(&client, operation, state).await,
-        "scroll" => execute_scroll(&client, operation, state).await,
-        "get_points" => execute_get_points(&client, operation, state).await,
-        _ => Err(EngineError::InvalidOperation(format!("Unknown Qdrant operation: {}", op_type))),
-    }
+    // Execute delete
+    client.delete_points(delete_builder).await
+        .map_err(|e| EngineError::QdrantError(e.to_string()))?;
+
+    let mut outputs = HashMap::new();
+    outputs.insert("success".to_string(), Value::Bool(true));
+
+    Ok(outputs)
 }
+
+/// Execute create_collection operation
+async fn execute_create_collection(
+    client: &Qdrant,
+    connection: &HashMap<String, Value>,
+    state: &ExecutionState,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let collection = get_required_string(connection, "collection", state)?;
+
+    // Get vector configuration
+    let dimension = get_optional_u64(connection, "dimension")
+        .ok_or_else(|| EngineError::MissingField("dimension".to_string()))? as u64;
+
+    let distance_str = get_optional_string(connection, "distance", state)
+        .unwrap_or_else(|| "Cosine".to_string());
+
+    let distance = match distance_str.to_lowercase().as_str() {
+        "cosine" => Distance::Cosine,
+        "euclid" | "euclidean" => Distance::Euclid,
+        "dot" | "dotproduct" => Distance::Dot,
+        "manhattan" => Distance::Manhattan,
+        _ => return Err(EngineError::QdrantError(format!("Unknown distance: {}", distance_str))),
+    };
+
+    // Build vector params
+    let vector_params = VectorParamsBuilder::new(dimension, distance);
+
+    // Create collection
+    let create_builder = CreateCollectionBuilder::new(&collection)
+        .vectors_config(vector_params);
+
+    client.create_collection(create_builder).await
+        .map_err(|e| EngineError::QdrantError(e.to_string()))?;
+
+    let mut outputs = HashMap::new();
+    outputs.insert("success".to_string(), Value::Bool(true));
+    outputs.insert("collection".to_string(), Value::String(collection));
+
+    Ok(outputs)
+}
+

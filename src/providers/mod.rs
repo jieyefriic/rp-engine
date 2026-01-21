@@ -1,7 +1,10 @@
 //! LLM Provider implementations
 //!
-//! Supports 8 providers: OpenAI, Anthropic, Gemini, DeepSeek, xAI, Qwen, Zhipu, Moonshot
-//! All providers implement the LLMProvider trait with chat() and stream() methods.
+//! Supports 8 LLM providers: OpenAI, Anthropic, Gemini, DeepSeek, xAI, Qwen, Zhipu, Moonshot
+//! All LLM providers implement the LLMProvider trait with chat() and stream() methods.
+//!
+//! Also supports Embedding providers: DashScope, OpenAI
+//! Embedding providers implement the EmbeddingProvider trait with embed() method.
 
 mod content;
 mod streaming;
@@ -15,6 +18,11 @@ mod qwen;
 mod zhipu;
 mod moonshot;
 
+// Embedding providers
+pub mod embedding;
+mod embedding_dashscope;
+mod embedding_openai;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use async_trait::async_trait;
@@ -22,7 +30,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::ProviderError;
 
-// Re-export providers
+// Re-export LLM providers
 pub use openai::OpenAIProvider;
 pub use anthropic::AnthropicProvider;
 pub use gemini::GeminiProvider;
@@ -32,6 +40,11 @@ pub use xai::XAIProvider;
 pub use qwen::QwenProvider;
 pub use zhipu::ZhipuProvider;
 pub use moonshot::MoonshotProvider;
+
+// Re-export Embedding providers and types
+pub use embedding::{EmbeddingProvider, EmbeddingRegistry, EmbeddingOptions, EmbeddingResponse, Embedding, EmbeddingUsage};
+pub use embedding_dashscope::DashScopeEmbeddingProvider;
+pub use embedding_openai::OpenAIEmbeddingProvider;
 
 // Re-export content formatting
 pub use content::{format_openai_content, format_anthropic_content, format_gemini_parts};

@@ -9,37 +9,40 @@ use aws_sdk_s3::primitives::ByteStream;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde_json::Value;
 
-use crate::schema::NodeConfig;
 use crate::state::ExecutionState;
 use crate::error::EngineError;
-use super::{get_required_string, get_optional_string, get_optional_u64};
+use super::{get_required_string, get_optional_string, get_optional_u64, ConnectorContext};
 
-/// Execute a MinIO operation
+/// Unified MinIO execute function
+///
+/// Takes data source config, operation config, and connector context.
+/// Uses bindings from context for parameter resolution.
 pub async fn execute(
-    config: &NodeConfig,
-    state: &ExecutionState,
+    ds_config: &HashMap<String, Value>,
+    operation: &HashMap<String, Value>,
+    ctx: &ConnectorContext<'_>,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let connection = &config.connection;
-
-    // Get connection parameters
-    let endpoint = get_required_string(connection, "endpoint", state)?;
-    let access_key = get_required_string(connection, "access_key", state)?;
-    let secret_key = get_required_string(connection, "secret_key", state)?;
-    let region = get_optional_string(connection, "region", state)
+    // Get connection parameters from data source config
+    let endpoint = get_required_string(ds_config, "endpoint", ctx.state)?;
+    let access_key = get_required_string(ds_config, "access_key", ctx.state)?;
+    let secret_key = get_required_string(ds_config, "secret_key", ctx.state)?;
+    let region = get_optional_string(ds_config, "region", ctx.state)
         .unwrap_or_else(|| "us-east-1".to_string());
-
-    // Get operation
-    let operation = get_required_string(connection, "operation", state)?;
 
     // Create S3 client for MinIO
     let client = create_minio_client(&endpoint, &access_key, &secret_key, &region).await?;
 
-    match operation.as_str() {
-        "get_object" => execute_get_object(&client, connection, state).await,
-        "put_object" => execute_put_object(&client, connection, state).await,
-        "list_objects" => execute_list_objects(&client, connection, state).await,
-        "delete_object" => execute_delete_object(&client, connection, state).await,
-        _ => Err(EngineError::InvalidOperation(format!("Unknown MinIO operation: {}", operation))),
+    // Get operation type
+    let op_type = operation.get("operation")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
+
+    match op_type {
+        "get_object" => execute_get_object(&client, operation, ctx.state).await,
+        "put_object" => execute_put_object_v2(&client, &endpoint, operation, ctx.bindings, ctx.state).await,
+        "list_objects" => execute_list_objects(&client, operation, ctx.state).await,
+        "delete_object" => execute_delete_object(&client, operation, ctx.state).await,
+        _ => Err(EngineError::InvalidOperation(format!("Unknown MinIO operation: {}", op_type))),
     }
 }
 
@@ -127,41 +130,7 @@ async fn execute_get_object(
     Ok(outputs)
 }
 
-/// Execute put_object operation
-async fn execute_put_object(
-    client: &Client,
-    connection: &HashMap<String, Value>,
-    state: &ExecutionState,
-) -> Result<HashMap<String, Value>, EngineError> {
-    let bucket = get_required_string(connection, "bucket", state)?;
-    let key = get_required_string(connection, "key", state)?;
-    let content = get_required_string(connection, "content", state)?;
-    let content_type = get_optional_string(connection, "content_type", state)
-        .unwrap_or_else(|| "application/octet-stream".to_string());
-
-    let body = ByteStream::from(content.into_bytes());
-
-    let response = client.put_object()
-        .bucket(&bucket)
-        .key(&key)
-        .body(body)
-        .content_type(&content_type)
-        .send()
-        .await
-        .map_err(|e| EngineError::MinIOError(e.to_string()))?;
-
-    let mut outputs = HashMap::new();
-    outputs.insert("etag".to_string(),
-        Value::String(response.e_tag().unwrap_or_default().to_string()));
-    outputs.insert("version_id".to_string(),
-        response.version_id()
-            .map(|v| Value::String(v.to_string()))
-            .unwrap_or(Value::Null));
-
-    Ok(outputs)
-}
-
-/// Execute put_object operation with V2 config (bindings support)
+/// Execute put_object operation with bindings support
 /// Supports:
 /// - bucket: can be a template like "{userId}" resolved from bindings
 /// - prefix: directory prefix
@@ -345,33 +314,3 @@ async fn execute_delete_object(
     Ok(outputs)
 }
 
-/// Execute MinIO with V2 config (data source + operation + bindings)
-pub async fn execute_v2(
-    ds_config: &HashMap<String, Value>,
-    operation: &HashMap<String, Value>,
-    bindings: &HashMap<String, String>,
-    state: &ExecutionState,
-) -> Result<HashMap<String, Value>, EngineError> {
-    // Get connection parameters from data source config
-    let endpoint = get_required_string(ds_config, "endpoint", state)?;
-    let access_key = get_required_string(ds_config, "access_key", state)?;
-    let secret_key = get_required_string(ds_config, "secret_key", state)?;
-    let region = get_optional_string(ds_config, "region", state)
-        .unwrap_or_else(|| "us-east-1".to_string());
-
-    // Create S3 client for MinIO
-    let client = create_minio_client(&endpoint, &access_key, &secret_key, &region).await?;
-
-    // Get operation type
-    let op_type = operation.get("operation")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
-
-    match op_type {
-        "get_object" => execute_get_object(&client, operation, state).await,
-        "put_object" => execute_put_object_v2(&client, &endpoint, operation, bindings, state).await,
-        "list_objects" => execute_list_objects(&client, operation, state).await,
-        "delete_object" => execute_delete_object(&client, operation, state).await,
-        _ => Err(EngineError::InvalidOperation(format!("Unknown MinIO operation: {}", op_type))),
-    }
-}

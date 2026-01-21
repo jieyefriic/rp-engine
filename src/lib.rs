@@ -55,6 +55,9 @@ pub use providers::{
     OpenAICompatibleProvider,
     // Registry helper
     create_registry_with_keys,
+    // Embedding types
+    EmbeddingProvider, EmbeddingRegistry, EmbeddingOptions, EmbeddingResponse, Embedding, EmbeddingUsage,
+    DashScopeEmbeddingProvider, OpenAIEmbeddingProvider,
 };
 
 // Legacy (deprecated) - kept for backward compatibility
