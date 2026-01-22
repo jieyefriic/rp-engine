@@ -43,8 +43,8 @@ use super::executor::{execute_workflow, ExecutionConfig, ExecutionResult, Connec
 /// }
 /// ```
 pub struct Engine {
-    /// Loaded workflows: name -> PreparedWorkflow
-    workflows: HashMap<String, PreparedWorkflow>,
+    /// Loaded workflows: name -> PreparedWorkflow (Arc for sub-workflow sharing)
+    workflows: Arc<HashMap<String, PreparedWorkflow>>,
 
     /// Loaded templates: template_id -> Template
     templates: HashMap<String, Template>,
@@ -96,7 +96,7 @@ impl Engine {
         capture_raw_response: bool,
     ) -> Self {
         Self {
-            workflows,
+            workflows: Arc::new(workflows),
             templates,
             providers,
             embedding_providers,
@@ -152,7 +152,8 @@ impl Engine {
             .with_timeout(self.timeout)
             .with_max_iterations(self.max_iterations)
             .with_capture_actual_prompt(self.capture_actual_prompt)
-            .with_capture_raw_response(self.capture_raw_response);
+            .with_capture_raw_response(self.capture_raw_response)
+            .with_workflows(self.workflows.clone());
 
         // Merge workflow-specific data sources
         for (id, ds) in &workflow.data_sources {
@@ -201,7 +202,8 @@ impl Engine {
             .with_node_registry(self.node_registry.clone())
             .with_pools(self.pools.clone())
             .with_timeout(self.timeout)
-            .with_max_iterations(self.max_iterations);
+            .with_max_iterations(self.max_iterations)
+            .with_workflows(self.workflows.clone());
 
         execute_workflow(&workflow, input_map, config).await
     }

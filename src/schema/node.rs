@@ -153,4 +153,10 @@ pub struct NodeConfig {
     /// Tool arguments
     #[serde(default)]
     pub arguments: HashMap<String, String>,
+
+    // Workflow node fields
+    /// Sub-workflow reference (only used by workflow type nodes)
+    /// References another workflow by name to execute as a sub-workflow
+    #[serde(default)]
+    pub workflow: Option<String>,
 }

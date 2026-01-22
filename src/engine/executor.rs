@@ -166,6 +166,9 @@ pub struct ExecutionConfig {
 
     /// Whether to capture the raw LLM response before parsing (for observability)
     pub capture_raw_response: bool,
+
+    /// All loaded workflows (for sub-workflow execution)
+    pub workflows: Arc<HashMap<String, PreparedWorkflow>>,
 }
 
 impl Default for ExecutionConfig {
@@ -182,6 +185,7 @@ impl Default for ExecutionConfig {
             pools: Arc::new(ConnectionPools::new()),
             capture_actual_prompt: false,
             capture_raw_response: false,
+            workflows: Arc::new(HashMap::new()),
         }
     }
 }
@@ -245,6 +249,17 @@ impl ExecutionConfig {
     pub fn with_capture_raw_response(mut self, enabled: bool) -> Self {
         self.capture_raw_response = enabled;
         self
+    }
+
+    /// Set workflows for sub-workflow execution
+    pub fn with_workflows(mut self, workflows: Arc<HashMap<String, PreparedWorkflow>>) -> Self {
+        self.workflows = workflows;
+        self
+    }
+
+    /// Get a workflow by name (for sub-workflow execution)
+    pub fn get_workflow(&self, name: &str) -> Option<&PreparedWorkflow> {
+        self.workflows.get(name)
     }
 }
 

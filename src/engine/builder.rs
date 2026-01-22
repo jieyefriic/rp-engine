@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::error::EngineError;
-use crate::nodes::{CustomNode, NodeRegistry};
+use crate::nodes::{CustomNode, NodeRegistry, WorkflowNode};
 use crate::providers::{
     create_registry_with_keys,
     EmbeddingRegistry,
@@ -208,6 +208,11 @@ impl EngineBuilder {
     pub async fn build(self) -> Result<Engine, EngineError> {
         // Build node registry
         let mut node_registry = NodeRegistry::new();
+
+        // Register built-in workflow node for sub-workflow execution
+        node_registry.register(Arc::new(WorkflowNode::new()));
+
+        // Register user-provided custom nodes
         for node in self.custom_nodes {
             node_registry.register(node);
         }
