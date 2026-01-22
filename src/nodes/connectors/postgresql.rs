@@ -9,6 +9,7 @@
 use std::collections::HashMap;
 use tokio_postgres::{NoTls, Row, types::ToSql};
 use serde_json::Value;
+use tracing::{debug, error};
 
 use crate::state::ExecutionState;
 use crate::error::EngineError;
@@ -63,7 +64,18 @@ pub async fn execute(
     // Get operation type
     let op_type = operation.get("operation")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
+        .ok_or_else(|| {
+            error!(
+                operation_config = ?operation,
+                "PostgreSQL operation type not specified"
+            );
+            EngineError::MissingField("operation".to_string())
+        })?;
+
+    debug!(
+        operation = %op_type,
+        "Starting PostgreSQL operation"
+    );
 
     // Try to find a matching pool from ExecutionConfig
     // We need to find which data_source_id matches this ds_config
@@ -71,17 +83,30 @@ pub async fn execute(
 
     if let Some(pool) = pool_opt {
         // Use pooled connection (preferred)
+        debug!(operation = %op_type, "Using pooled connection");
         execute_with_pool_internal(pool, operation, ctx).await
     } else {
         // Fall back to creating a new connection
+        debug!(operation = %op_type, "Creating new connection (no pool available)");
         let conn_string = get_connection_string(ds_config, ctx.state)?;
         let (client, db_connection) = tokio_postgres::connect(&conn_string, NoTls)
             .await
-            .map_err(|e| EngineError::DatabaseError(e.to_string()))?;
+            .map_err(|e| {
+                error!(
+                    error = %e,
+                    host = ds_config.get("host").and_then(|v| v.as_str()).unwrap_or("unknown"),
+                    database = ds_config.get("database").and_then(|v| v.as_str()).unwrap_or("unknown"),
+                    "Failed to connect to PostgreSQL"
+                );
+                EngineError::DatabaseError(format!(
+                    "Connection failed to PostgreSQL: {}",
+                    e
+                ))
+            })?;
 
         tokio::spawn(async move {
             if let Err(e) = db_connection.await {
-                tracing::error!("PostgreSQL connection error: {}", e);
+                error!(error = %e, "PostgreSQL connection error during execution");
             }
         });
 
@@ -91,7 +116,10 @@ pub async fn execute(
             "select" => execute_select_internal(&client, operation, ctx.state).await,
             "update" => execute_update_internal(&client, operation, ctx.state).await,
             "delete" => execute_delete_internal(&client, operation, ctx.state).await,
-            _ => Err(EngineError::InvalidOperation(format!("Unknown PostgreSQL operation: {}", op_type))),
+            _ => {
+                error!(operation = %op_type, "Unknown PostgreSQL operation type");
+                Err(EngineError::InvalidOperation(format!("Unknown PostgreSQL operation: {}", op_type)))
+            }
         }
     }
 }
@@ -122,7 +150,20 @@ async fn execute_with_pool_internal(
     ctx: &ConnectorContext<'_>,
 ) -> Result<HashMap<String, Value>, EngineError> {
     let client = pool.get().await
-        .map_err(|e| EngineError::DatabaseError(format!("Failed to get connection from pool: {}", e)))?;
+        .map_err(|e| {
+            let pool_status = pool.status();
+            error!(
+                error = %e,
+                pool_size = pool_status.size,
+                pool_available = pool_status.available,
+                pool_waiting = pool_status.waiting,
+                "Failed to get connection from PostgreSQL pool"
+            );
+            EngineError::DatabaseError(format!(
+                "Failed to get connection from pool (size: {}, available: {}, waiting: {}): {}",
+                pool_status.size, pool_status.available, pool_status.waiting, e
+            ))
+        })?;
 
     let op_type = operation.get("operation")
         .and_then(|v| v.as_str())
@@ -134,7 +175,10 @@ async fn execute_with_pool_internal(
         "select" => execute_select_pooled(&client, operation, ctx.state).await,
         "update" => execute_update_pooled(&client, operation, ctx.state).await,
         "delete" => execute_delete_pooled(&client, operation, ctx.state).await,
-        _ => Err(EngineError::InvalidOperation(format!("Unknown PostgreSQL operation: {}", op_type))),
+        _ => {
+            error!(operation = %op_type, "Unknown PostgreSQL operation type");
+            Err(EngineError::InvalidOperation(format!("Unknown PostgreSQL operation: {}", op_type)))
+        }
     }
 }
 
@@ -174,22 +218,58 @@ async fn execute_query_internal(
     // If bindings are provided, resolve {paramName} placeholders in SQL
     let rows = if !bindings.is_empty() {
         let sql = resolve_sql_with_bindings(&sql_template, bindings, state);
-        tracing::debug!("Executing SQL with bindings: {}", sql);
+        debug!(
+            sql = %sql,
+            bindings = ?bindings,
+            "Executing SQL with bindings (non-pooled)"
+        );
         client.query(&sql, &[])
             .await
-            .map_err(|e| EngineError::DatabaseError(e.to_string()))?
+            .map_err(|e| {
+                error!(
+                    error = %e,
+                    sql = %sql,
+                    bindings = ?bindings,
+                    "PostgreSQL query failed (non-pooled)"
+                );
+                EngineError::DatabaseError(format!(
+                    "Query failed: {} | SQL: {} | Bindings: {:?}",
+                    e, sql, bindings
+                ))
+            })?
     } else {
         // Legacy params mode
         let params = parse_query_params(operation, state)?;
         let param_refs: Vec<&(dyn ToSql + Sync)> = params.iter()
             .map(|p| p as &(dyn ToSql + Sync))
             .collect();
+        debug!(
+            sql = %sql_template,
+            params = ?params,
+            "Executing SQL with params (non-pooled)"
+        );
         client.query(&sql_template, &param_refs)
             .await
-            .map_err(|e| EngineError::DatabaseError(e.to_string()))?
+            .map_err(|e| {
+                error!(
+                    error = %e,
+                    sql = %sql_template,
+                    params = ?params,
+                    "PostgreSQL query failed (non-pooled)"
+                );
+                EngineError::DatabaseError(format!(
+                    "Query failed: {} | SQL: {} | Params: {:?}",
+                    e, sql_template, params
+                ))
+            })?
     };
 
     let json_rows = rows_to_json(&rows);
+
+    debug!(
+        row_count = json_rows.len(),
+        "PostgreSQL query completed successfully"
+    );
 
     let mut outputs = HashMap::new();
     outputs.insert("rows".to_string(), Value::Array(json_rows.clone()));
@@ -569,11 +649,26 @@ async fn execute_query_pooled(
     let rows = if !bindings.is_empty() {
         // Bindings mode: replace {paramName} with actual values
         let sql = resolve_sql_with_bindings(&sql_template, bindings, state);
-        tracing::debug!("Executing SQL with bindings: {}", sql);
+        debug!(
+            sql = %sql,
+            bindings = ?bindings,
+            "Executing SQL with bindings"
+        );
 
         client.query(&sql, &[])
             .await
-            .map_err(|e| EngineError::DatabaseError(e.to_string()))?
+            .map_err(|e| {
+                error!(
+                    error = %e,
+                    sql = %sql,
+                    bindings = ?bindings,
+                    "PostgreSQL query failed"
+                );
+                EngineError::DatabaseError(format!(
+                    "Query failed: {} | SQL: {} | Bindings: {:?}",
+                    e, sql, bindings
+                ))
+            })?
     } else {
         // Legacy params mode: use $1, $2... with params array
         let params = parse_query_params(operation, state)?;
@@ -581,9 +676,26 @@ async fn execute_query_pooled(
             .map(|p| p as &(dyn ToSql + Sync))
             .collect();
 
+        debug!(
+            sql = %sql_template,
+            params = ?params,
+            "Executing SQL with params"
+        );
+
         client.query(&sql_template, &param_refs)
             .await
-            .map_err(|e| EngineError::DatabaseError(e.to_string()))?
+            .map_err(|e| {
+                error!(
+                    error = %e,
+                    sql = %sql_template,
+                    params = ?params,
+                    "PostgreSQL query failed"
+                );
+                EngineError::DatabaseError(format!(
+                    "Query failed: {} | SQL: {} | Params: {:?}",
+                    e, sql_template, params
+                ))
+            })?
     };
 
     let json_rows = rows_to_json(&rows);

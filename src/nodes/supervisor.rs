@@ -484,11 +484,15 @@ async fn call_planner(
         response.usage.output_tokens,
     );
 
-    // Debug: log raw response
-    tracing::info!(raw_response = %response.content, "Planner LLM response");
-    println!("[DEBUG] Planner raw response: {}", response.content);
-    println!("[DEBUG] Planner token usage: provider={}, model={}, input={}, output={}",
-        usage.provider, usage.model, usage.input_tokens, usage.output_tokens);
+    // Log planner response and usage
+    tracing::debug!(
+        provider = %usage.provider,
+        model = %usage.model,
+        input_tokens = usage.input_tokens,
+        output_tokens = usage.output_tokens,
+        response_preview = %response.content.chars().take(500).collect::<String>(),
+        "Planner LLM response received"
+    );
 
     // Parse response
     let todos = parse_planner_response(&response.content)?;
@@ -662,12 +666,12 @@ async fn execute_subgraph(
             format!("Subgraph '{}' not found for tool '{}'", subgraph_ref, todo.action_called)
         ))?;
 
-    tracing::info!(
+    tracing::debug!(
         tool = %todo.action_called,
         subgraph = %subgraph_ref,
-        "Executing subgraph"
+        action_detail = ?todo.action_detail,
+        "Executing subgraph for tool"
     );
-    println!("[DEBUG] Executing subgraph '{}' for tool '{}'", subgraph_ref, todo.action_called);
 
     // Build input from action_detail
     // action_detail contains the parameters that the subgraph needs
@@ -725,8 +729,16 @@ async fn execute_subgraph(
                 LLMCallUsage::default()
             };
 
-            println!("[DEBUG] Subgraph node '{}' (layer {}) timing={}ms, usage: provider={}, model={}, input={}, output={}",
-                node.id, layer, node_timing_ms, node_usage.provider, node_usage.model, node_usage.input_tokens, node_usage.output_tokens);
+            tracing::debug!(
+                node = %node.id,
+                layer = layer,
+                timing_ms = node_timing_ms,
+                provider = %node_usage.provider,
+                model = %node_usage.model,
+                input_tokens = node_usage.input_tokens,
+                output_tokens = node_usage.output_tokens,
+                "Subgraph node executed"
+            );
 
             // Accumulate total usage (aggregated without provider/model)
             total_usage.add_from_llm_call(&node_usage);
@@ -749,8 +761,13 @@ async fn execute_subgraph(
         }
     }
 
-    println!("[DEBUG] Subgraph total usage: input={}, output={}",
-        total_usage.input_tokens, total_usage.output_tokens);
+    tracing::debug!(
+        subgraph = %subgraph_ref,
+        total_input_tokens = total_usage.input_tokens,
+        total_output_tokens = total_usage.output_tokens,
+        execution_count = executions.len(),
+        "Subgraph execution completed"
+    );
 
     // Return the result
     Ok(SubgraphResult {

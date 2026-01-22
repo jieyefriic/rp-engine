@@ -6,6 +6,7 @@
 use async_trait::async_trait;
 use reqwest::Client;
 use serde_json::{json, Value};
+use tracing::{debug, error};
 
 use crate::error::ProviderError;
 use super::{
@@ -141,6 +142,16 @@ impl LLMProvider for OpenAICompatibleProvider {
         messages: Vec<Message>,
         options: ChatOptions,
     ) -> Result<ChatResponse, ProviderError> {
+        let model = options.model.as_deref().unwrap_or(&self.default_model);
+
+        debug!(
+            provider = %self.provider_name,
+            model = %model,
+            message_count = messages.len(),
+            json_output = options.json_output,
+            "Starting LLM chat request"
+        );
+
         let body = self.build_request_body(&messages, &options, false);
 
         let response = self.client
@@ -150,20 +161,64 @@ impl LLMProvider for OpenAICompatibleProvider {
             .json(&body)
             .send()
             .await
-            .map_err(|e| ProviderError::RequestFailed(e.to_string()))?;
+            .map_err(|e| {
+                error!(
+                    provider = %self.provider_name,
+                    model = %model,
+                    url = %self.base_url,
+                    error = %e,
+                    "HTTP request failed"
+                );
+                ProviderError::RequestFailed(format!("{} request to {} failed: {}", self.provider_name, self.base_url, e))
+            })?;
 
         let status = response.status().as_u16();
         let text = response.text().await
-            .map_err(|e| ProviderError::RequestFailed(e.to_string()))?;
+            .map_err(|e| {
+                error!(
+                    provider = %self.provider_name,
+                    model = %model,
+                    error = %e,
+                    "Failed to read response body"
+                );
+                ProviderError::RequestFailed(format!("Failed to read response: {}", e))
+            })?;
 
         if status >= 400 {
+            error!(
+                provider = %self.provider_name,
+                model = %model,
+                status = status,
+                response_preview = %text.chars().take(500).collect::<String>(),
+                "API returned error status"
+            );
             return Err(self.handle_error(status, &text));
         }
 
         let data: Value = serde_json::from_str(&text)
-            .map_err(|e| ProviderError::InvalidResponse(e.to_string()))?;
+            .map_err(|e| {
+                error!(
+                    provider = %self.provider_name,
+                    model = %model,
+                    error = %e,
+                    response_preview = %text.chars().take(300).collect::<String>(),
+                    "Failed to parse JSON response"
+                );
+                ProviderError::InvalidResponse(format!("JSON parse error: {} | Response: {}", e, text.chars().take(200).collect::<String>()))
+            })?;
 
-        self.parse_response(data)
+        let result = self.parse_response(data)?;
+
+        debug!(
+            provider = %self.provider_name,
+            model = %result.model,
+            input_tokens = result.usage.input_tokens,
+            output_tokens = result.usage.output_tokens,
+            response_len = result.content.len(),
+            "LLM chat request completed"
+        );
+
+        Ok(result)
     }
 
     async fn stream(
