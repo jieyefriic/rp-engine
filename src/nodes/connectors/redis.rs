@@ -7,6 +7,7 @@
 use std::collections::HashMap;
 use redis::AsyncCommands;
 use serde_json::Value;
+use tracing::{debug, error};
 
 use crate::state::ExecutionState;
 use crate::error::EngineError;
@@ -96,26 +97,62 @@ pub async fn execute(
     // Get connection URL from data source config
     let url = get_connection_url(ds_config, ctx.state)?;
 
-    // Create Redis client
-    let client = redis::Client::open(url.as_str())
-        .map_err(|e| EngineError::RedisError(e.to_string()))?;
-
-    let mut conn = client.get_multiplexed_async_connection().await
-        .map_err(|e| EngineError::RedisError(e.to_string()))?;
-
     // Get operation type
     let op_type = operation.get("operation")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
+        .ok_or_else(|| {
+            error!(operation_config = ?operation, "Redis operation type not specified");
+            EngineError::MissingField("operation".to_string())
+        })?;
 
-    match op_type {
+    debug!(
+        operation = %op_type,
+        "Starting Redis operation"
+    );
+
+    // Create Redis client
+    let client = redis::Client::open(url.as_str())
+        .map_err(|e| {
+            error!(
+                error = %e,
+                url = %url,
+                "Failed to create Redis client"
+            );
+            EngineError::RedisError(format!("Failed to create Redis client: {}", e))
+        })?;
+
+    let mut conn = client.get_multiplexed_async_connection().await
+        .map_err(|e| {
+            error!(
+                error = %e,
+                url = %url,
+                "Failed to connect to Redis"
+            );
+            EngineError::RedisError(format!("Failed to connect to Redis: {}", e))
+        })?;
+
+    let result = match op_type {
         "get" => execute_get_v2(&mut conn, operation, ctx.bindings, ctx.state).await,
         "set" => execute_set_v2(&mut conn, operation, ctx.bindings, ctx.state).await,
         "del" => execute_del_v2(&mut conn, operation, ctx.bindings, ctx.state).await,
         "publish" => execute_publish_v2(&mut conn, operation, ctx.bindings, ctx.state).await,
         "append_history" => execute_append_history_v2(&mut conn, operation, ctx.bindings, ctx.state).await,
-        _ => Err(EngineError::InvalidOperation(format!("Unknown Redis operation: {}", op_type))),
-    }
+        _ => {
+            error!(operation = %op_type, "Unknown Redis operation type");
+            Err(EngineError::InvalidOperation(format!("Unknown Redis operation: {}", op_type)))
+        }
+    };
+
+    result.map_err(|e| {
+        let key = get_key(operation, ctx.bindings, ctx.state).unwrap_or_else(|_| "(unknown)".to_string());
+        error!(
+            operation = %op_type,
+            key = %key,
+            error = %e,
+            "Redis operation failed"
+        );
+        e
+    })
 }
 
 /// Build Redis connection URL from config

@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use async_trait::async_trait;
 use serde_json::Value;
+use tracing::{debug, error};
 
 use crate::schema::YamlNode;
 use crate::state::ExecutionState;
@@ -24,6 +25,7 @@ impl NodeExecutor for DataConnectorExecutor {
         config: &ExecutionConfig,
     ) -> Result<HashMap<String, Value>, EngineError> {
         let node_config = &node.config;
+        let node_id = &node.id;
 
         // Build unified context
         let ctx = ConnectorContext {
@@ -35,17 +37,57 @@ impl NodeExecutor for DataConnectorExecutor {
         // V2 mode: use data_source_id reference
         if let Some(data_source_id) = &node_config.data_source_id {
             let data_source = config.data_sources.get(data_source_id)
-                .ok_or_else(|| EngineError::DataSourceNotFound(data_source_id.clone()))?;
+                .ok_or_else(|| {
+                    error!(
+                        node = %node_id,
+                        data_source_id = %data_source_id,
+                        available_data_sources = ?config.data_sources.keys().collect::<Vec<_>>(),
+                        "Data source not found"
+                    );
+                    EngineError::DataSourceNotFound(data_source_id.clone())
+                })?;
 
-            return match data_source.kind.as_str() {
+            let operation_type = node_config.operation.get("operation")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+
+            debug!(
+                node = %node_id,
+                data_source = %data_source_id,
+                kind = %data_source.kind,
+                operation = %operation_type,
+                "Executing data connector"
+            );
+
+            let result = match data_source.kind.as_str() {
                 "rest_api" => execute_rest_api_v2(&data_source.config, &node_config.operation, state).await,
                 "graphql" => execute_graphql_v2(&data_source.config, &node_config.operation, state).await,
                 "minio" | "s3" => connectors::minio::execute(&data_source.config, &node_config.operation, &ctx).await,
                 "postgresql" | "postgres" => connectors::postgresql::execute(&data_source.config, &node_config.operation, &ctx).await,
                 "qdrant" => connectors::qdrant::execute(&data_source.config, &node_config.operation, &ctx).await,
                 "redis" => connectors::redis::execute(&data_source.config, &node_config.operation, &ctx).await,
-                _ => Err(EngineError::UnsupportedSource(data_source.kind.clone())),
+                _ => {
+                    error!(
+                        node = %node_id,
+                        data_source = %data_source_id,
+                        kind = %data_source.kind,
+                        "Unsupported data source type"
+                    );
+                    Err(EngineError::UnsupportedSource(data_source.kind.clone()))
+                }
             };
+
+            return result.map_err(|e| {
+                error!(
+                    node = %node_id,
+                    data_source = %data_source_id,
+                    kind = %data_source.kind,
+                    operation = %operation_type,
+                    error = %e,
+                    "Data connector execution failed"
+                );
+                e
+            });
         }
 
         // V1 Legacy mode: use source and connection directly

@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tracing::{debug, info, error};
 
 use crate::error::EngineError;
 use crate::nodes::{CustomNode, NodeRegistry, WorkflowNode};
@@ -284,41 +285,68 @@ fn expand_env_vars(content: &str) -> String {
 async fn load_workflows(dir: &PathBuf) -> Result<HashMap<String, PreparedWorkflow>, EngineError> {
     let mut workflows = HashMap::new();
 
+    debug!(directory = %dir.display(), "Loading workflows from directory");
+
     if !dir.exists() {
+        error!(directory = %dir.display(), "Workflows directory does not exist");
         return Err(EngineError::InvalidWorkflow(
             format!("Workflows directory does not exist: {}", dir.display())
         ));
     }
 
     let entries = std::fs::read_dir(dir)
-        .map_err(|e| EngineError::InvalidWorkflow(format!("Failed to read workflows directory: {}", e)))?;
+        .map_err(|e| {
+            error!(directory = %dir.display(), error = %e, "Failed to read workflows directory");
+            EngineError::InvalidWorkflow(format!("Failed to read workflows directory {}: {}", dir.display(), e))
+        })?;
 
     for entry in entries {
         let entry = entry
-            .map_err(|e| EngineError::InvalidWorkflow(format!("Failed to read directory entry: {}", e)))?;
+            .map_err(|e| {
+                error!(directory = %dir.display(), error = %e, "Failed to read directory entry");
+                EngineError::InvalidWorkflow(format!("Failed to read directory entry: {}", e))
+            })?;
         let path = entry.path();
 
         // Only process .yaml files
         if path.extension().map(|e| e == "yaml" || e == "yml").unwrap_or(false) {
             let name = path.file_stem()
                 .and_then(|s| s.to_str())
-                .ok_or_else(|| EngineError::InvalidWorkflow("Invalid workflow file name".into()))?
+                .ok_or_else(|| {
+                    error!(path = %path.display(), "Invalid workflow file name");
+                    EngineError::InvalidWorkflow(format!("Invalid workflow file name: {}", path.display()))
+                })?
                 .to_string();
 
             let content = std::fs::read_to_string(&path)
-                .map_err(|e| EngineError::InvalidWorkflow(format!("Failed to read workflow {}: {}", name, e)))?;
+                .map_err(|e| {
+                    error!(workflow = %name, path = %path.display(), error = %e, "Failed to read workflow file");
+                    EngineError::InvalidWorkflow(format!("Failed to read workflow {} from {}: {}", name, path.display(), e))
+                })?;
 
             // Expand environment variables in the content
             let content = expand_env_vars(&content);
 
             let workflow = PreparedWorkflow::from_yaml(&content)
-                .map_err(|e| EngineError::InvalidWorkflow(format!("Failed to parse workflow {}: {}", name, e)))?;
+                .map_err(|e| {
+                    error!(
+                        workflow = %name,
+                        path = %path.display(),
+                        error = %e,
+                        "Failed to parse workflow YAML"
+                    );
+                    EngineError::InvalidWorkflow(format!(
+                        "Failed to parse workflow {} from {}: {}",
+                        name, path.display(), e
+                    ))
+                })?;
 
-            tracing::info!(workflow = %name, path = %path.display(), "Loaded workflow");
+            info!(workflow = %name, path = %path.display(), "Loaded workflow");
             workflows.insert(name, workflow);
         }
     }
 
+    info!(count = workflows.len(), "Workflows loaded successfully");
     Ok(workflows)
 }
 
@@ -326,38 +354,65 @@ async fn load_workflows(dir: &PathBuf) -> Result<HashMap<String, PreparedWorkflo
 async fn load_prompts(dir: &PathBuf) -> Result<HashMap<String, Template>, EngineError> {
     let mut templates = HashMap::new();
 
+    debug!(directory = %dir.display(), "Loading prompt templates from directory");
+
     if !dir.exists() {
+        error!(directory = %dir.display(), "Prompts directory does not exist");
         return Err(EngineError::InvalidWorkflow(
             format!("Prompts directory does not exist: {}", dir.display())
         ));
     }
 
     let entries = std::fs::read_dir(dir)
-        .map_err(|e| EngineError::InvalidWorkflow(format!("Failed to read prompts directory: {}", e)))?;
+        .map_err(|e| {
+            error!(directory = %dir.display(), error = %e, "Failed to read prompts directory");
+            EngineError::InvalidWorkflow(format!("Failed to read prompts directory {}: {}", dir.display(), e))
+        })?;
 
     for entry in entries {
         let entry = entry
-            .map_err(|e| EngineError::InvalidWorkflow(format!("Failed to read directory entry: {}", e)))?;
+            .map_err(|e| {
+                error!(directory = %dir.display(), error = %e, "Failed to read directory entry");
+                EngineError::InvalidWorkflow(format!("Failed to read directory entry: {}", e))
+            })?;
         let path = entry.path();
 
         // Only process .yaml files
         if path.extension().map(|e| e == "yaml" || e == "yml").unwrap_or(false) {
             let template_id = path.file_stem()
                 .and_then(|s| s.to_str())
-                .ok_or_else(|| EngineError::InvalidWorkflow("Invalid template file name".into()))?
+                .ok_or_else(|| {
+                    error!(path = %path.display(), "Invalid template file name");
+                    EngineError::InvalidWorkflow(format!("Invalid template file name: {}", path.display()))
+                })?
                 .to_string();
 
             let content = std::fs::read_to_string(&path)
-                .map_err(|e| EngineError::InvalidWorkflow(format!("Failed to read template {}: {}", template_id, e)))?;
+                .map_err(|e| {
+                    error!(template = %template_id, path = %path.display(), error = %e, "Failed to read template file");
+                    EngineError::InvalidWorkflow(format!("Failed to read template {} from {}: {}", template_id, path.display(), e))
+                })?;
 
             let template: Template = serde_yaml::from_str(&content)
-                .map_err(|e| EngineError::InvalidWorkflow(format!("Failed to parse template {}: {}", template_id, e)))?;
+                .map_err(|e| {
+                    error!(
+                        template = %template_id,
+                        path = %path.display(),
+                        error = %e,
+                        "Failed to parse template YAML"
+                    );
+                    EngineError::InvalidWorkflow(format!(
+                        "Failed to parse template {} from {}: {}",
+                        template_id, path.display(), e
+                    ))
+                })?;
 
-            tracing::info!(template = %template_id, path = %path.display(), "Loaded template");
+            info!(template = %template_id, path = %path.display(), "Loaded template");
             templates.insert(template_id, template);
         }
     }
 
+    info!(count = templates.len(), "Templates loaded successfully");
     Ok(templates)
 }
 

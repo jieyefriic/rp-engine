@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::RwLock;
 use deadpool_postgres::{Pool as PgPool, Config as PgConfig, Runtime};
+use tracing::{debug, info, warn, error, instrument};
 
 use crate::error::EngineError;
 use crate::schema::{PreparedWorkflow, Template, YamlNode, NodeType, ExitReason, DataSourceDef};
@@ -115,7 +116,27 @@ impl ConnectionPools {
 
         // Create pool
         let pool = pg_cfg.create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
-            .map_err(|e| EngineError::DatabaseError(format!("Failed to create pool: {}", e)))?;
+            .map_err(|e| {
+                let host = pg_cfg.host.as_deref().unwrap_or("(from url)");
+                let dbname = pg_cfg.dbname.as_deref().unwrap_or("(from url)");
+                error!(
+                    host = %host,
+                    database = %dbname,
+                    error = %e,
+                    "Failed to create PostgreSQL connection pool"
+                );
+                EngineError::DatabaseError(format!(
+                    "Failed to create pool for {}@{}: {}",
+                    dbname, host, e
+                ))
+            })?;
+
+        debug!(
+            host = pg_cfg.host.as_deref().unwrap_or("(from url)"),
+            database = pg_cfg.dbname.as_deref().unwrap_or("(from url)"),
+            max_size = pool_config.max_size,
+            "PostgreSQL connection pool created"
+        );
 
         Ok(pool)
     }
@@ -310,6 +331,16 @@ pub async fn execute(
 }
 
 /// Execute a parsed workflow with layer-based parallel execution
+#[instrument(
+    name = "execute_workflow",
+    skip(workflow, input, config),
+    fields(
+        workflow_name = %workflow.name,
+        workflow_version = %workflow.version,
+        node_count = workflow.nodes.len(),
+        edge_count = workflow.edges.len(),
+    )
+)]
 pub async fn execute_workflow(
     workflow: &PreparedWorkflow,
     input: HashMap<String, Value>,
@@ -317,8 +348,23 @@ pub async fn execute_workflow(
 ) -> Result<ExecutionResult, EngineError> {
     let start_time = Instant::now();
 
+    info!(
+        workflow = %workflow.name,
+        input_keys = ?input.keys().collect::<Vec<_>>(),
+        "Starting workflow execution"
+    );
+
     // Validate input against workflow schema
-    workflow.input.validate(&input)?;
+    if let Err(e) = workflow.input.validate(&input) {
+        error!(
+            workflow = %workflow.name,
+            error = %e,
+            expected_schema = ?workflow.input,
+            provided_keys = ?input.keys().collect::<Vec<_>>(),
+            "Input validation failed"
+        );
+        return Err(e);
+    }
 
     // Merge workflow templates into config
     for (id, template) in &workflow.templates {
@@ -364,12 +410,25 @@ pub async fn execute_workflow(
     while !pending_nodes.is_empty() || current_layer <= max_layer {
         // Check timeout
         if start_time.elapsed() > config.timeout {
+            let elapsed_ms = start_time.elapsed().as_millis();
+            error!(
+                workflow = %workflow.name,
+                elapsed_ms = elapsed_ms,
+                timeout_ms = config.timeout.as_millis(),
+                current_layer = current_layer,
+                pending_nodes = ?pending_nodes,
+                executed_nodes = ?executed,
+                "Workflow execution timeout"
+            );
             let state_guard = state.read().await;
             return Ok(ExecutionResult {
                 status: ExecutionStatus::Timeout,
                 executions: state_guard.get_executions().clone(),
                 output: final_output,
-                error: Some("Execution timeout".into()),
+                error: Some(format!(
+                    "Execution timeout after {}ms (limit: {}ms) at layer {}. Pending: {:?}",
+                    elapsed_ms, config.timeout.as_millis(), current_layer, pending_nodes
+                )),
                 timing,
                 token_usage,
                 exit_reason: None,
@@ -407,13 +466,33 @@ pub async fn execute_workflow(
 
         let layer_start = Instant::now();
 
+        debug!(
+            workflow = %workflow.name,
+            layer = current_layer,
+            nodes = ?ready_nodes,
+            "Executing layer with parallel nodes"
+        );
+
         // Execute all ready nodes in this layer in PARALLEL
-        let results = execute_nodes_parallel(
+        let results = match execute_nodes_parallel(
             &ready_nodes,
             &graph,
             state.clone(),
             config.clone(),
-        ).await?;
+            &workflow.name,
+        ).await {
+            Ok(r) => r,
+            Err(e) => {
+                error!(
+                    workflow = %workflow.name,
+                    layer = current_layer,
+                    nodes = ?ready_nodes,
+                    error = %e,
+                    "Layer execution failed"
+                );
+                return Err(e);
+            }
+        };
 
         // Record layer timing
         timing.per_layer.insert(current_layer, layer_start.elapsed().as_millis() as u64);
@@ -451,7 +530,14 @@ pub async fn execute_workflow(
 
             // Write outputs to state
             let short_id = state_guard.write(&result.node_id, result.outputs.clone());
-            tracing::debug!(node = %result.node_id, short_id = %short_id, layer = current_layer, "Node executed");
+            debug!(
+                workflow = %workflow.name,
+                node = %result.node_id,
+                short_id = %short_id,
+                layer = current_layer,
+                timing_ms = result.timing_ms,
+                "Node state recorded"
+            );
 
             // If this is a response node, capture final output
             if graph.is_response_node(&result.node_id) {
@@ -475,6 +561,15 @@ pub async fn execute_workflow(
     }
 
     timing.total_ms = start_time.elapsed().as_millis() as u64;
+
+    info!(
+        workflow = %workflow.name,
+        total_ms = timing.total_ms,
+        total_input_tokens = token_usage.total_input_tokens,
+        total_output_tokens = token_usage.total_output_tokens,
+        executed_nodes = executed.len(),
+        "Workflow execution completed successfully"
+    );
 
     let state_guard = state.read().await;
     Ok(ExecutionResult {
@@ -503,6 +598,7 @@ async fn execute_nodes_parallel(
     graph: &ExecutionGraph<'_>,
     state: Arc<RwLock<ExecutionState>>,
     config: Arc<ExecutionConfig>,
+    workflow_name: &str,
 ) -> Result<Vec<NodeResult>, EngineError> {
     use futures::future::join_all;
 
@@ -512,32 +608,65 @@ async fn execute_nodes_parallel(
         let node = graph.get_node(&node_id).unwrap().clone();
         let state = state.clone();
         let config = config.clone();
+        let wf_name = workflow_name.to_string();
 
         async move {
-            execute_single_node(node, state, config).await
+            execute_single_node(node, state, config, &wf_name).await
         }
     }).collect();
 
     // Execute all in parallel
     let results = join_all(tasks).await;
 
-    // Collect results, fail on first error
+    // Collect results, fail on first error with detailed logging
     let mut node_results = Vec::new();
-    for result in results {
-        node_results.push(result?);
+    for (i, result) in results.into_iter().enumerate() {
+        match result {
+            Ok(r) => node_results.push(r),
+            Err(e) => {
+                let failed_node = &node_ids[i];
+                error!(
+                    workflow = %workflow_name,
+                    node = %failed_node,
+                    parallel_batch = ?node_ids,
+                    error = %e,
+                    "Node execution failed in parallel batch"
+                );
+                return Err(e);
+            }
+        }
     }
 
     Ok(node_results)
 }
 
 /// Execute a single node
+#[instrument(
+    name = "execute_node",
+    skip(state, config),
+    fields(
+        node_id = %node.id,
+        node_type = ?node.node_type,
+        layer = node.layer,
+    )
+)]
 async fn execute_single_node(
     node: YamlNode,
     state: Arc<RwLock<ExecutionState>>,
     config: Arc<ExecutionConfig>,
+    workflow_name: &str,
 ) -> Result<NodeResult, EngineError> {
     let node_start = Instant::now();
     let node_id = node.id.clone();
+    let node_type = format!("{:?}", node.node_type);
+
+    debug!(
+        workflow = %workflow_name,
+        node = %node_id,
+        node_type = %node_type,
+        layer = node.layer,
+        "Starting node execution"
+    );
 
     // Get read-only snapshot of state for execution
     let state_snapshot = {
@@ -551,24 +680,63 @@ async fn execute_single_node(
             // Look up custom node in registry
             match config.node_registry.get(type_name) {
                 Some(custom_node) => {
+                    debug!(
+                        node = %node_id,
+                        custom_type = %type_name,
+                        "Executing custom node"
+                    );
                     // Execute custom node directly with NodeConfig
-                    custom_node.execute(&node.config, &state_snapshot, &config).await?
+                    custom_node.execute(&node.config, &state_snapshot, &config).await
+                        .map_err(|e| {
+                            error!(
+                                workflow = %workflow_name,
+                                node = %node_id,
+                                custom_type = %type_name,
+                                error = %e,
+                                "Custom node execution failed"
+                            );
+                            e
+                        })?
                 }
                 None => {
-                    // Fall back to built-in executor (which will return an error)
-                    let executor = create_executor(&node.node_type);
-                    executor.execute(&node, &state_snapshot, &config).await?
+                    error!(
+                        workflow = %workflow_name,
+                        node = %node_id,
+                        custom_type = %type_name,
+                        "Custom node type not found in registry"
+                    );
+                    return Err(EngineError::NodeExecutionFailed(
+                        format!("Node '{}': Custom node type '{}' not found in registry", node_id, type_name)
+                    ));
                 }
             }
         }
         _ => {
             // Use built-in executor for standard node types
             let executor = create_executor(&node.node_type);
-            executor.execute(&node, &state_snapshot, &config).await?
+            executor.execute(&node, &state_snapshot, &config).await
+                .map_err(|e| {
+                    error!(
+                        workflow = %workflow_name,
+                        node = %node_id,
+                        node_type = %node_type,
+                        error = %e,
+                        "Built-in node execution failed"
+                    );
+                    e
+                })?
         }
     };
 
     let timing_ms = node_start.elapsed().as_millis() as u64;
+
+    debug!(
+        workflow = %workflow_name,
+        node = %node_id,
+        timing_ms = timing_ms,
+        output_keys = ?outputs.keys().collect::<Vec<_>>(),
+        "Node execution completed"
+    );
 
     Ok(NodeResult {
         node_id,
@@ -677,9 +845,24 @@ fn evaluate_edges(
         } else if let Some(expr) = &edge.condition {
             // Conditional edges: evaluate the expression
             match evaluate_expression(expr, state) {
-                Ok(result) => result,
+                Ok(result) => {
+                    debug!(
+                        from = %edge.from,
+                        to = %edge.to,
+                        condition = %expr,
+                        result = result,
+                        "Edge condition evaluated"
+                    );
+                    result
+                },
                 Err(e) => {
-                    tracing::warn!(expr = %expr, error = %e, "Edge condition evaluation failed");
+                    warn!(
+                        from = %edge.from,
+                        to = %edge.to,
+                        condition = %expr,
+                        error = %e,
+                        "Edge condition evaluation failed, treating as false"
+                    );
                     false
                 }
             }

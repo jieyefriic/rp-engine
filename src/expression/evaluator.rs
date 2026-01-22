@@ -1,6 +1,7 @@
 //! Expression evaluator
 
 use serde_json::Value;
+use tracing::{trace, warn};
 
 use crate::error::ExprError;
 use crate::state::ExecutionState;
@@ -9,10 +10,38 @@ use super::parser::{Expr, PathExpr, CompareOp, PathSegment, parse};
 
 /// Evaluate an expression string against the execution state
 pub fn evaluate_expression(expr: &str, state: &ExecutionState) -> Result<bool, ExprError> {
+    trace!(expression = %expr, "Evaluating expression");
+
     let mut lexer = Lexer::new(expr);
-    let tokens = lexer.tokenize()?;
-    let ast = parse(tokens)?;
-    eval_ast(&ast, state)
+    let tokens = lexer.tokenize().map_err(|e| {
+        warn!(
+            expression = %expr,
+            error = %e,
+            "Expression tokenization failed"
+        );
+        e
+    })?;
+
+    let ast = parse(tokens).map_err(|e| {
+        warn!(
+            expression = %expr,
+            error = %e,
+            "Expression parsing failed"
+        );
+        e
+    })?;
+
+    let result = eval_ast(&ast, state).map_err(|e| {
+        warn!(
+            expression = %expr,
+            error = %e,
+            "Expression evaluation failed"
+        );
+        e
+    })?;
+
+    trace!(expression = %expr, result = result, "Expression evaluated");
+    Ok(result)
 }
 
 /// Evaluate the AST to a boolean
@@ -76,7 +105,14 @@ fn eval_to_value(expr: &Expr, state: &ExecutionState) -> Result<Value, ExprError
 /// Resolve a path expression to a Value
 fn resolve_path(path: &PathExpr, state: &ExecutionState) -> Result<Value, ExprError> {
     let path_str = path_to_string(path);
-    state.resolve_path(&path_str)
+    state.resolve_path(&path_str).map_err(|e| {
+        trace!(
+            path = %path_str,
+            error = %e,
+            "Path resolution failed"
+        );
+        e
+    })
 }
 
 /// Convert PathExpr to string for state resolution

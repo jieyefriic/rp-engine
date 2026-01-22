@@ -17,6 +17,7 @@ use qdrant_client::qdrant::{
     PointsIdsList,
 };
 use serde_json::Value;
+use tracing::{debug, error};
 
 use crate::state::ExecutionState;
 use crate::error::EngineError;
@@ -36,13 +37,34 @@ pub async fn execute(
     let url = get_required_string(ds_config, "url", ctx.state)?;
     let api_key = get_optional_string(ds_config, "api_key", ctx.state);
 
-    // Create Qdrant client
-    let client = create_qdrant_client(&url, api_key.as_deref()).await?;
-
     // Get operation type
     let op_type = operation.get("operation")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
+        .ok_or_else(|| {
+            error!(operation_config = ?operation, "Qdrant operation type not specified");
+            EngineError::MissingField("operation".to_string())
+        })?;
+
+    let collection = get_optional_string(operation, "collection", ctx.state)
+        .unwrap_or_else(|| "(not specified)".to_string());
+
+    debug!(
+        operation = %op_type,
+        collection = %collection,
+        url = %url,
+        "Starting Qdrant operation"
+    );
+
+    // Create Qdrant client
+    let client = create_qdrant_client(&url, api_key.as_deref()).await
+        .map_err(|e| {
+            error!(
+                error = %e,
+                url = %url,
+                "Failed to create Qdrant client"
+            );
+            e
+        })?;
 
     // Get embedding provider for upsert operations if configured
     let embedding_provider: Option<Arc<dyn EmbeddingProvider>> = {
@@ -52,7 +74,7 @@ pub async fn execute(
         ctx.config.embedding_providers.get(provider_name)
     };
 
-    match op_type {
+    let result = match op_type {
         "search" => execute_search(&client, operation, ctx.state, embedding_provider.as_deref()).await,
         "scroll" => execute_scroll(&client, operation, ctx.state).await,
         "get_points" => execute_get_points(&client, operation, ctx.state).await,
@@ -60,8 +82,21 @@ pub async fn execute(
         "batch_upsert" => execute_batch_upsert(&client, operation, ctx.state, embedding_provider.as_deref()).await,
         "delete" => execute_delete(&client, operation, ctx.state).await,
         "create_collection" => execute_create_collection(&client, operation, ctx.state).await,
-        _ => Err(EngineError::InvalidOperation(format!("Unknown Qdrant operation: {}", op_type))),
-    }
+        _ => {
+            error!(operation = %op_type, "Unknown Qdrant operation type");
+            Err(EngineError::InvalidOperation(format!("Unknown Qdrant operation: {}", op_type)))
+        }
+    };
+
+    result.map_err(|e| {
+        error!(
+            operation = %op_type,
+            collection = %collection,
+            error = %e,
+            "Qdrant operation failed"
+        );
+        e
+    })
 }
 
 /// Create Qdrant client

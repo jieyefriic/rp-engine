@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use handlebars::Handlebars;
 use serde_json::{json, Value};
+use tracing::{debug, warn, error};
 
 use crate::schema::YamlNode;
 use crate::state::ExecutionState;
@@ -24,20 +25,54 @@ impl NodeExecutor for GenerateExecutor {
         config: &ExecutionConfig,
     ) -> Result<HashMap<String, Value>, EngineError> {
         let node_config = &node.config;
+        let node_id = &node.id;
+
+        debug!(
+            node = %node_id,
+            "Starting generate node execution"
+        );
 
         // Get provider and model
         let provider_id = node_config.provider.as_ref()
-            .ok_or_else(|| EngineError::NodeExecutionFailed("Generate node requires provider".into()))?;
+            .ok_or_else(|| {
+                error!(node = %node_id, "Generate node requires provider but none specified");
+                EngineError::NodeExecutionFailed(
+                    format!("Node '{}': Generate node requires provider", node_id)
+                )
+            })?;
         let model_id = node_config.model.as_ref()
-            .ok_or_else(|| EngineError::NodeExecutionFailed("Generate node requires model".into()))?;
+            .ok_or_else(|| {
+                error!(node = %node_id, provider = %provider_id, "Generate node requires model but none specified");
+                EngineError::NodeExecutionFailed(
+                    format!("Node '{}': Generate node requires model", node_id)
+                )
+            })?;
 
         // Get provider from registry
         let provider = config.providers.get(provider_id)
-            .ok_or_else(|| EngineError::ProviderNotFound(provider_id.clone()))?;
+            .ok_or_else(|| {
+                error!(
+                    node = %node_id,
+                    provider = %provider_id,
+                    "Provider not found in registry"
+                );
+                EngineError::ProviderNotFound(provider_id.clone())
+            })?;
 
         // Get template if specified
         let template = node_config.template.as_ref()
-            .and_then(|id| config.templates.get(id));
+            .and_then(|id| {
+                let t = config.templates.get(id);
+                if t.is_none() {
+                    warn!(
+                        node = %node_id,
+                        template = %id,
+                        available_templates = ?config.templates.keys().collect::<Vec<_>>(),
+                        "Template not found, will use variables as prompt"
+                    );
+                }
+                t
+            });
 
         // Resolve variables from state
         let mut variables: HashMap<String, Value> = HashMap::new();
@@ -123,7 +158,8 @@ impl NodeExecutor for GenerateExecutor {
         }
 
         // Build the user message (multimodal if images present)
-        let user_message = if image_parts.is_empty() {
+        let has_images = !image_parts.is_empty();
+        let user_message = if !has_images {
             // Pure text message (backward compatible)
             Message::user(final_prompt.clone())
         } else {
@@ -155,8 +191,41 @@ impl NodeExecutor for GenerateExecutor {
             options = options.with_json_output();
         }
 
+        debug!(
+            node = %node_id,
+            provider = %provider_id,
+            model = %model_id,
+            template = node_config.template.as_deref().unwrap_or("(none)"),
+            has_images = has_images,
+            "Making LLM API call"
+        );
+
         // Make the API call
-        let response = provider.chat(messages, options).await?;
+        let response = match provider.chat(messages, options).await {
+            Ok(r) => {
+                debug!(
+                    node = %node_id,
+                    provider = %provider_id,
+                    model = %model_id,
+                    input_tokens = r.usage.input_tokens,
+                    output_tokens = r.usage.output_tokens,
+                    response_len = r.content.len(),
+                    "LLM call completed successfully"
+                );
+                r
+            }
+            Err(e) => {
+                error!(
+                    node = %node_id,
+                    provider = %provider_id,
+                    model = %model_id,
+                    template = node_config.template.as_deref().unwrap_or("(none)"),
+                    error = %e,
+                    "LLM API call failed"
+                );
+                return Err(EngineError::ProviderError(e));
+            }
+        };
 
         // Build outputs
         let mut outputs = HashMap::new();
@@ -177,7 +246,12 @@ impl NodeExecutor for GenerateExecutor {
                         }
                     }
                     Err(e) => {
-                        tracing::warn!(error = %e, "Failed to parse JSON response, using raw content");
+                        warn!(
+                            node = %node_id,
+                            error = %e,
+                            raw_content_preview = %response.content.chars().take(200).collect::<String>(),
+                            "Failed to parse JSON response, using raw content"
+                        );
                         outputs.insert("output".to_string(), Value::String(response.content.clone()));
                     }
                 }
@@ -231,7 +305,12 @@ fn render_template(template: &str, variables: &HashMap<String, Value>) -> String
     match reg.render_template(template, &context) {
         Ok(rendered) => rendered,
         Err(e) => {
-            tracing::warn!(error = %e, "Handlebars template render failed, falling back to simple substitution");
+            warn!(
+                error = %e,
+                template_preview = %template.chars().take(100).collect::<String>(),
+                available_vars = ?variables.keys().collect::<Vec<_>>(),
+                "Handlebars template render failed, falling back to simple substitution"
+            );
             // Fallback to simple substitution
             let mut result = template.to_string();
             for (name, value) in variables {
