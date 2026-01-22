@@ -6,6 +6,7 @@ mod generate;
 mod data_connector;
 mod supervisor;
 mod connectors;
+mod workflow_node;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -22,6 +23,7 @@ pub use response::ResponseExecutor;
 pub use generate::GenerateExecutor;
 pub use data_connector::DataConnectorExecutor;
 pub use supervisor::SupervisorExecutor;
+pub use workflow_node::WorkflowNode;
 
 // ============================================================================
 // Custom Node Support

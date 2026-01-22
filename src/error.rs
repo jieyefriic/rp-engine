@@ -66,6 +66,9 @@ pub enum EngineError {
     #[error("Supervisor subgraph not found: {0}")]
     SupervisorSubgraphNotFound(String),
 
+    #[error("Sub-workflow not found: {0}")]
+    WorkflowNotFound(String),
+
     #[error("Supervisor planner failed to generate valid todos")]
     SupervisorPlannerFailed,
 
