@@ -198,17 +198,8 @@ impl PreparedWorkflow {
             }
         }
 
-        // Validate layer order: from.layer < to.layer OR edge has max_iterations (loop)
-        for edge in &self.edges {
-            if let (Some(from_node), Some(to_node)) = (self.get_node(&edge.from), self.get_node(&edge.to)) {
-                if from_node.layer >= to_node.layer && edge.max_iterations.is_none() {
-                    return Err(ValidationError::InvalidEdge {
-                        from: edge.from.clone(),
-                        to: edge.to.clone(),
-                    });
-                }
-            }
-        }
+        // Note: Layer-based validation removed. Execution now uses input-based dependency checking.
+        // Cycles are protected by max_iterations on edges.
 
         // Validate generate nodes have provider and model
         for node in &self.nodes {

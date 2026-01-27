@@ -3,6 +3,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::schema::{PreparedWorkflow, YamlNode, YamlEdge, NodeType};
+use crate::state::ExecutionState;
 use crate::error::EngineError;
 
 /// Execution graph built from workflow definition
@@ -83,7 +84,7 @@ impl<'a> ExecutionGraph<'a> {
             .unwrap_or_default()
     }
 
-    /// Check if all dependencies for a node are satisfied
+    /// Check if all dependencies for a node are satisfied (legacy edge-based)
     ///
     /// A node's dependencies are satisfied when all incoming edges
     /// have their source nodes executed.
@@ -98,6 +99,103 @@ impl<'a> ExecutionGraph<'a> {
         // For non-start nodes, at least one incoming edge's source must be executed
         // This allows for conditional branches where only one path is taken
         incoming.iter().any(|edge| executed.contains(&edge.from))
+    }
+
+    /// Check if all input variables for a node are satisfied
+    ///
+    /// A node's inputs are satisfied when:
+    /// 1. All paths in config.variables can be resolved from the current execution state
+    /// 2. At least one incoming edge's condition is satisfied (if edges have conditions)
+    ///
+    /// This enables fine-grained dependency checking based on actual data flow
+    /// AND respects conditional edges to prevent nodes from executing when their
+    /// entry conditions are not met.
+    pub fn inputs_satisfied(&self, node_id: &str, state: &ExecutionState) -> bool {
+        let node = match self.get_node(node_id) {
+            Ok(n) => n,
+            Err(_) => return false,
+        };
+
+        // Start node always satisfied (no inputs)
+        if node.node_type == NodeType::Start {
+            return true;
+        }
+
+        // Check incoming edges - at least one must be "active"
+        // An edge is active when:
+        // 1. Its source node has been executed, AND
+        // 2. Its condition (if any) evaluates to true
+        let incoming = self.get_incoming_edges(node_id);
+        if !incoming.is_empty() {
+            let has_active_edge = incoming.iter().any(|edge| {
+                // Source must have output
+                if !state.has_node_output(&edge.from) {
+                    return false;
+                }
+
+                // Check edge condition if present
+                if let Some(condition) = &edge.condition {
+                    match crate::expression::evaluate_expression(condition, state) {
+                        Ok(result) => result,
+                        Err(_) => false, // Condition evaluation failed, treat as false
+                    }
+                } else if edge.is_default {
+                    // Default edges are always active when source is executed
+                    true
+                } else {
+                    // No condition, not default -> unconditionally active
+                    true
+                }
+            });
+
+            if !has_active_edge {
+                return false;
+            }
+        }
+
+        // If no variables configured, edge check above is sufficient
+        if node.config.variables.is_empty() {
+            return true;
+        }
+
+        // Check each variable binding
+        for (_var_name, binding) in &node.config.variables {
+            // Skip empty bindings
+            if binding.is_empty() {
+                continue;
+            }
+
+            let sources = binding.sources();
+
+            // Filter to only path references (contain ".") - literals like "2", "true" are always available
+            let path_sources: Vec<_> = sources.iter()
+                .filter(|path| !path.is_empty() && path.contains('.'))
+                .collect();
+
+            // If no path sources (all literals), this binding is satisfied
+            if path_sources.is_empty() {
+                continue;
+            }
+
+            // Check if any source has a value
+            let has_value = path_sources.iter().any(|path| {
+                state.has_output(path)
+            });
+
+            // If binding has a default value, it's optional and doesn't block execution
+            if binding.has_default() {
+                // Optional binding: don't block even if no value
+                // The resolve logic will use the default value at runtime
+                continue;
+            }
+
+            // Required binding (Single or Multiple without default): must have at least one value
+            if !has_value {
+                return false;
+            }
+        }
+
+        true
     }
 
     /// Get all node IDs
@@ -184,16 +282,13 @@ name: "Test"
 nodes:
   - id: start
     type: start
-    layer: 0
   - id: gen
     type: generate
-    layer: 1
     config:
       provider: qwen
       model: qwen-flash
   - id: response
     type: response
-    layer: 2
 edges:
   - from: start
     to: gen

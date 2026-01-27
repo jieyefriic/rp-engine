@@ -2,7 +2,7 @@
 //!
 //! Simplified operations: get, set, del, publish, append_history
 //!
-//! Supports both legacy `key` field and new `key_template` with parameter bindings.
+//! Supports both legacy `key` field and new `key_template` with pre-resolved variables.
 
 use std::collections::HashMap;
 use redis::AsyncCommands;
@@ -13,35 +13,31 @@ use crate::state::ExecutionState;
 use crate::error::EngineError;
 use super::{get_required_string, get_optional_string, get_optional_u64, ConnectorContext};
 
-/// Resolve {paramName} patterns in a template using bindings
+/// Resolve {paramName} patterns in a template using pre-resolved variables
 ///
 /// For example, with:
 /// - template: "user:{userId}"
-/// - bindings: {"userId": "start.user_id"}
-/// - state contains: {"start.user_id": "123"}
+/// - variables: {"userId": Value::String("123")}
 ///
 /// Returns: "user:123"
 fn resolve_param_template(
     template: &str,
-    bindings: &HashMap<String, String>,
-    state: &ExecutionState,
+    variables: &HashMap<String, Value>,
 ) -> String {
     let re = regex_lite::Regex::new(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}").unwrap();
 
     re.replace_all(template, |caps: &regex_lite::Captures| {
         let param_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
 
-        // Look up the binding for this parameter
-        if let Some(state_path) = bindings.get(param_name) {
-            // Resolve the state path to get the actual value
-            state.read(state_path)
-                .map(|v| match v {
-                    Value::String(s) => s,
-                    other => other.to_string(),
-                })
-                .unwrap_or_else(|| format!("{{{}}}", param_name))
+        // Look up the pre-resolved value for this parameter
+        if let Some(value) = variables.get(param_name) {
+            match value {
+                Value::String(s) => s.clone(),
+                Value::Null => String::new(),
+                other => other.to_string(),
+            }
         } else {
-            // No binding found, leave the placeholder as-is
+            // No variable found, leave the placeholder as-is
             format!("{{{}}}", param_name)
         }
     }).to_string()
@@ -51,15 +47,15 @@ fn resolve_param_template(
 ///
 /// Supports both:
 /// - Legacy: "key" field with {{node.field}} syntax
-/// - New: "key_template" field with {paramName} syntax + bindings
+/// - New: "key_template" field with {paramName} syntax + pre-resolved variables
 fn get_key(
     operation: &HashMap<String, Value>,
-    bindings: &HashMap<String, String>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<String, EngineError> {
     // Try new key_template first
     if let Some(template) = operation.get("key_template").and_then(|v| v.as_str()) {
-        return Ok(resolve_param_template(template, bindings, state));
+        return Ok(resolve_param_template(template, variables));
     }
 
     // Fall back to legacy key
@@ -70,15 +66,15 @@ fn get_key(
 ///
 /// Supports both:
 /// - Legacy: "value" field with {{node.field}} syntax
-/// - New: "value_template" field with {paramName} syntax + bindings
+/// - New: "value_template" field with {paramName} syntax + pre-resolved variables
 fn get_value(
     operation: &HashMap<String, Value>,
-    bindings: &HashMap<String, String>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<String, EngineError> {
     // Try new value_template first
     if let Some(template) = operation.get("value_template").and_then(|v| v.as_str()) {
-        return Ok(resolve_param_template(template, bindings, state));
+        return Ok(resolve_param_template(template, variables));
     }
 
     // Fall back to legacy value
@@ -88,7 +84,7 @@ fn get_value(
 /// Unified Redis execute function
 ///
 /// Takes data source config, operation config, and connector context.
-/// Uses bindings from context for parameter resolution.
+/// Uses pre-resolved variables from context for parameter resolution.
 pub async fn execute(
     ds_config: &HashMap<String, Value>,
     operation: &HashMap<String, Value>,
@@ -132,11 +128,11 @@ pub async fn execute(
         })?;
 
     let result = match op_type {
-        "get" => execute_get_v2(&mut conn, operation, ctx.bindings, ctx.state).await,
-        "set" => execute_set_v2(&mut conn, operation, ctx.bindings, ctx.state).await,
-        "del" => execute_del_v2(&mut conn, operation, ctx.bindings, ctx.state).await,
-        "publish" => execute_publish_v2(&mut conn, operation, ctx.bindings, ctx.state).await,
-        "append_history" => execute_append_history_v2(&mut conn, operation, ctx.bindings, ctx.state).await,
+        "get" => execute_get_v2(&mut conn, operation, ctx.variables, ctx.state).await,
+        "set" => execute_set_v2(&mut conn, operation, ctx.variables, ctx.state).await,
+        "del" => execute_del_v2(&mut conn, operation, ctx.variables, ctx.state).await,
+        "publish" => execute_publish_v2(&mut conn, operation, ctx.variables, ctx.state).await,
+        "append_history" => execute_append_history_v2(&mut conn, operation, ctx.variables).await,
         _ => {
             error!(operation = %op_type, "Unknown Redis operation type");
             Err(EngineError::InvalidOperation(format!("Unknown Redis operation: {}", op_type)))
@@ -144,7 +140,7 @@ pub async fn execute(
     };
 
     result.map_err(|e| {
-        let key = get_key(operation, ctx.bindings, ctx.state).unwrap_or_else(|_| "(unknown)".to_string());
+        let key = get_key(operation, ctx.variables, ctx.state).unwrap_or_else(|_| "(unknown)".to_string());
         error!(
             operation = %op_type,
             key = %key,
@@ -182,17 +178,17 @@ fn get_connection_url(
 }
 
 // ============================================
-// Operations with bindings support
+// Operations with variables support
 // ============================================
 
-/// Execute GET operation (V2 with bindings)
+/// Execute GET operation (V2 with pre-resolved variables)
 async fn execute_get_v2(
     conn: &mut redis::aio::MultiplexedConnection,
     operation: &HashMap<String, Value>,
-    bindings: &HashMap<String, String>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let key = get_key(operation, bindings, state)?;
+    let key = get_key(operation, variables, state)?;
 
     let result: Option<String> = conn.get(&key).await
         .map_err(|e| EngineError::RedisError(e.to_string()))?;
@@ -211,9 +207,24 @@ async fn execute_get_v2(
                     // Extract fields according to schema
                     if let Value::Object(obj) = &parsed_value {
                         for field_def in fields {
-                            if let Some(field_name) = field_def.get("name").and_then(|n| n.as_str()) {
+                            if let (Some(field_name), Some(field_type)) = (
+                                field_def.get("name").and_then(|n| n.as_str()),
+                                field_def.get("type").and_then(|t| t.as_str()),
+                            ) {
                                 if let Some(field_value) = obj.get(field_name) {
+                                    // Field exists in Redis data
                                     outputs.insert(field_name.to_string(), field_value.clone());
+                                } else {
+                                    // Field defined in schema but not in Redis data - return empty value
+                                    let empty_value = match field_type {
+                                        "array" => Value::Array(vec![]),
+                                        "string" => Value::String(String::new()),
+                                        "number" => Value::Number(0.into()),
+                                        "boolean" => Value::Bool(false),
+                                        "object" => Value::Object(serde_json::Map::new()),
+                                        _ => Value::Null,
+                                    };
+                                    outputs.insert(field_name.to_string(), empty_value);
                                 }
                             }
                         }
@@ -228,21 +239,44 @@ async fn execute_get_v2(
         None => {
             outputs.insert("value".to_string(), Value::Null);
             outputs.insert("exists".to_string(), Value::Bool(false));
+
+            // TODO: Optimize Redis connector to support partial field reads and lazy loading
+            // For now, return empty values based on output_schema so downstream nodes can execute
+            if let Some(schema) = operation.get("output_schema") {
+                if let Value::Array(fields) = schema {
+                    for field_def in fields {
+                        if let (Some(field_name), Some(field_type)) = (
+                            field_def.get("name").and_then(|n| n.as_str()),
+                            field_def.get("type").and_then(|t| t.as_str()),
+                        ) {
+                            let empty_value = match field_type {
+                                "array" => Value::Array(vec![]),
+                                "string" => Value::String(String::new()),
+                                "number" => Value::Number(0.into()),
+                                "boolean" => Value::Bool(false),
+                                "object" => Value::Object(serde_json::Map::new()),
+                                _ => Value::Null,
+                            };
+                            outputs.insert(field_name.to_string(), empty_value);
+                        }
+                    }
+                }
+            }
         }
     }
 
     Ok(outputs)
 }
 
-/// Execute SET operation (V2 with bindings)
+/// Execute SET operation (V2 with pre-resolved variables)
 async fn execute_set_v2(
     conn: &mut redis::aio::MultiplexedConnection,
     operation: &HashMap<String, Value>,
-    bindings: &HashMap<String, String>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let key = get_key(operation, bindings, state)?;
-    let value = get_value(operation, bindings, state)?;
+    let key = get_key(operation, variables, state)?;
+    let value = get_value(operation, variables, state)?;
 
     // Get optional TTL
     let ttl = get_optional_u64(operation, "ttl");
@@ -264,14 +298,14 @@ async fn execute_set_v2(
     Ok(outputs)
 }
 
-/// Execute DEL operation (V2 with bindings)
+/// Execute DEL operation (V2 with pre-resolved variables)
 async fn execute_del_v2(
     conn: &mut redis::aio::MultiplexedConnection,
     operation: &HashMap<String, Value>,
-    bindings: &HashMap<String, String>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let key = get_key(operation, bindings, state)?;
+    let key = get_key(operation, variables, state)?;
 
     let deleted: i64 = conn.del(&key)
         .await
@@ -283,16 +317,16 @@ async fn execute_del_v2(
     Ok(outputs)
 }
 
-/// Execute PUBLISH operation (V2 with bindings)
+/// Execute PUBLISH operation (V2 with pre-resolved variables)
 /// Uses key_template as the channel and value_template as the message
 async fn execute_publish_v2(
     conn: &mut redis::aio::MultiplexedConnection,
     operation: &HashMap<String, Value>,
-    bindings: &HashMap<String, String>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let channel = get_key(operation, bindings, state)?; // key_template is the channel
-    let message = get_value(operation, bindings, state)?; // value_template is the message
+    let channel = get_key(operation, variables, state)?; // key_template is the channel
+    let message = get_value(operation, variables, state)?; // value_template is the message
 
     let subscribers: i64 = conn.publish(&channel, &message)
         .await
@@ -304,50 +338,49 @@ async fn execute_publish_v2(
     Ok(outputs)
 }
 
-/// Execute APPEND_HISTORY operation (V2 with bindings)
+/// Execute APPEND_HISTORY operation (V2 with pre-resolved variables)
 /// Appends messages to chat_history array in a JSON object
 ///
+/// Expected variables:
+/// - userId/characterId: Used in key_template
+/// - userMessage: User message to append
+/// - assistantMessage: Assistant message to append
+/// - messageType: Type of user message (text/voice/image)
+///
 /// Expected operation config:
-/// - key_template: Redis key
-/// - user_message: User message to append (resolved from bindings)
-/// - assistant_message: Assistant message to append (resolved from bindings)
-/// - message_type: Type of user message (text/voice/image)
+/// - key_template: Redis key with {paramName} placeholders
 /// - ttl: Optional TTL in seconds
 async fn execute_append_history_v2(
     conn: &mut redis::aio::MultiplexedConnection,
     operation: &HashMap<String, Value>,
-    bindings: &HashMap<String, String>,
-    state: &ExecutionState,
+    variables: &HashMap<String, Value>,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let key = get_key(operation, bindings, state)?;
+    // Get key from key_template + variables, no state needed for legacy fallback
+    let key = if let Some(template) = operation.get("key_template").and_then(|v| v.as_str()) {
+        resolve_param_template(template, variables)
+    } else {
+        return Err(EngineError::MissingField("key_template".to_string()));
+    };
 
-    // Get message content from bindings
-    let user_message = if let Some(path) = bindings.get("userMessage") {
-        state.read(path).map(|v| match v {
-            Value::String(s) => s,
-            other => other.to_string(),
+    // Get message content from pre-resolved variables
+    let user_message = variables.get("userMessage").and_then(|v| match v {
+        Value::String(s) if !s.is_empty() => Some(s.clone()),
+        Value::Null => None,
+        _ => None,
+    });
+
+    let assistant_message = variables.get("assistantMessage").and_then(|v| match v {
+        Value::String(s) if !s.is_empty() => Some(s.clone()),
+        Value::Null => None,
+        _ => None,
+    });
+
+    let message_type = variables.get("messageType")
+        .and_then(|v| match v {
+            Value::String(s) => Some(s.clone()),
+            _ => None,
         })
-    } else {
-        None
-    };
-
-    let assistant_message = if let Some(path) = bindings.get("assistantMessage") {
-        state.read(path).map(|v| match v {
-            Value::String(s) => s,
-            other => other.to_string(),
-        })
-    } else {
-        None
-    };
-
-    let message_type = if let Some(path) = bindings.get("messageType") {
-        state.read(path).map(|v| match v {
-            Value::String(s) => s,
-            other => other.to_string(),
-        }).unwrap_or_else(|| "text".to_string())
-    } else {
-        "text".to_string()
-    };
+        .unwrap_or_else(|| "text".to_string());
 
     // Read existing value
     let existing: Option<String> = conn.get(&key).await
@@ -436,52 +469,41 @@ mod tests {
 
     #[test]
     fn test_resolve_param_template() {
-        // Setup state with test data
-        let mut state = ExecutionState::new(HashMap::new());
-        let mut start_outputs = HashMap::new();
-        start_outputs.insert("user_id".to_string(), Value::String("123".to_string()));
-        start_outputs.insert("region".to_string(), Value::String("us-west".to_string()));
-        state.write("start", start_outputs);
-
-        // Setup bindings
-        let mut bindings = HashMap::new();
-        bindings.insert("userId".to_string(), "start.user_id".to_string());
-        bindings.insert("region".to_string(), "start.region".to_string());
+        // Setup pre-resolved variables
+        let mut variables = HashMap::new();
+        variables.insert("userId".to_string(), Value::String("123".to_string()));
+        variables.insert("region".to_string(), Value::String("us-west".to_string()));
 
         // Test single parameter
-        let result = resolve_param_template("user:{userId}", &bindings, &state);
+        let result = resolve_param_template("user:{userId}", &variables);
         assert_eq!(result, "user:123");
 
         // Test multiple parameters
-        let result = resolve_param_template("cache:{region}:{userId}", &bindings, &state);
+        let result = resolve_param_template("cache:{region}:{userId}", &variables);
         assert_eq!(result, "cache:us-west:123");
 
         // Test no parameters
-        let result = resolve_param_template("static_key", &bindings, &state);
+        let result = resolve_param_template("static_key", &variables);
         assert_eq!(result, "static_key");
 
         // Test unbound parameter (should keep placeholder)
-        let result = resolve_param_template("user:{unknownParam}", &bindings, &state);
+        let result = resolve_param_template("user:{unknownParam}", &variables);
         assert_eq!(result, "user:{unknownParam}");
     }
 
     #[test]
     fn test_get_key_with_template() {
-        // Setup state with test data
-        let mut state = ExecutionState::new(HashMap::new());
-        let mut start_outputs = HashMap::new();
-        start_outputs.insert("user_id".to_string(), Value::String("456".to_string()));
-        state.write("start", start_outputs);
+        let state = ExecutionState::new(HashMap::new());
 
-        // Setup bindings
-        let mut bindings = HashMap::new();
-        bindings.insert("userId".to_string(), "start.user_id".to_string());
+        // Setup pre-resolved variables
+        let mut variables = HashMap::new();
+        variables.insert("userId".to_string(), Value::String("456".to_string()));
 
         // Test with key_template
         let mut operation = HashMap::new();
         operation.insert("key_template".to_string(), Value::String("user:{userId}".to_string()));
 
-        let result = get_key(&operation, &bindings, &state).unwrap();
+        let result = get_key(&operation, &variables, &state).unwrap();
         assert_eq!(result, "user:456");
     }
 
@@ -493,14 +515,14 @@ mod tests {
         start_outputs.insert("user_id".to_string(), Value::String("789".to_string()));
         state.write("start", start_outputs);
 
-        // Empty bindings (legacy mode)
-        let bindings = HashMap::new();
+        // Empty variables (legacy mode uses state directly via {{}} syntax)
+        let variables = HashMap::new();
 
         // Test with legacy key using {{}} syntax
         let mut operation = HashMap::new();
         operation.insert("key".to_string(), Value::String("user:{{start.user_id}}".to_string()));
 
-        let result = get_key(&operation, &bindings, &state).unwrap();
+        let result = get_key(&operation, &variables, &state).unwrap();
         assert_eq!(result, "user:789");
     }
 }

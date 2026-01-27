@@ -4,14 +4,12 @@ name: "Conditional Flow"
 nodes:
   - id: start
     type: start
-    layer: 0
     config:
       output:
         question: "input.question"
 
   - id: classifier
     type: generate
-    layer: 1
     config:
       template: tpl_classify
       provider: qwen
@@ -21,7 +19,6 @@ nodes:
 
   - id: math_solver
     type: generate
-    layer: 2
     config:
       template: tpl_math
       provider: qwen
@@ -31,7 +28,6 @@ nodes:
 
   - id: general_answer
     type: generate
-    layer: 2
     config:
       template: tpl_general
       provider: qwen
@@ -41,7 +37,6 @@ nodes:
 
   - id: response
     type: response
-    layer: 3
     config:
       output:
         result: "math_solver.answer"

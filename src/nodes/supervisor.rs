@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::schema::{YamlNode, ExitReason, Template};
+use crate::schema::{YamlNode, ExitReason, Template, VariableBinding};
 use crate::state::ExecutionState;
 use crate::engine::ExecutionConfig;
 use crate::error::EngineError;
@@ -415,11 +415,17 @@ fn build_tools_description(tools: &[crate::schema::ToolRef]) -> String {
 }
 
 /// Resolve user_input variable from state
-fn resolve_user_input(state: &ExecutionState, variables: &HashMap<String, String>) -> String {
+fn resolve_user_input(state: &ExecutionState, variables: &HashMap<String, VariableBinding>) -> String {
     // Try to find user_input in variables
-    if let Some(path) = variables.get("user_input") {
-        if let Some(value) = state.read(path) {
-            return value_to_string(&value);
+    if let Some(binding) = variables.get("user_input") {
+        // For array bindings, use the first source that has a value
+        for path in binding.sources() {
+            if path.is_empty() { continue; }
+            if let Some(value) = state.read(path) {
+                if !value.is_null() {
+                    return value_to_string(&value);
+                }
+            }
         }
     }
     // Fallback: try input.user_input
@@ -685,21 +691,87 @@ async fn execute_subgraph(
     // Create mutable execution state with the input
     let mut state = crate::state::ExecutionState::new(input.clone());
 
-    // Sort nodes by layer and find max layer
-    let mut nodes_by_layer: std::collections::BTreeMap<u32, Vec<&crate::schema::YamlNode>> =
-        std::collections::BTreeMap::new();
-    for node in &subgraph.nodes {
-        nodes_by_layer.entry(node.layer).or_default().push(node);
-    }
-    let max_layer = nodes_by_layer.keys().max().copied().unwrap_or(0);
+    // Build node map and edge maps for dependency checking
+    let node_map: HashMap<&str, &crate::schema::YamlNode> = subgraph.nodes.iter()
+        .map(|n| (n.id.as_str(), n))
+        .collect();
+    let incoming_edges: HashMap<&str, Vec<&crate::schema::YamlEdge>> = {
+        let mut map: HashMap<&str, Vec<&crate::schema::YamlEdge>> = HashMap::new();
+        for edge in &subgraph.edges {
+            map.entry(edge.to.as_str()).or_default().push(edge);
+        }
+        map
+    };
 
-    // Execute nodes layer by layer
+    // Helper to check if node inputs are satisfied
+    let inputs_satisfied = |node_id: &str, state: &crate::state::ExecutionState| -> bool {
+        let node = match node_map.get(node_id) {
+            Some(n) => *n,
+            None => return false,
+        };
+
+        // Start node always satisfied
+        if node.node_type == crate::schema::NodeType::Start {
+            return true;
+        }
+
+        // If has variables, check each binding
+        if !node.config.variables.is_empty() {
+            for (_var_name, binding) in &node.config.variables {
+                if binding.is_empty() {
+                    continue;
+                }
+
+                // If binding has a default value, it's optional and doesn't block execution
+                if binding.has_default() {
+                    continue;
+                }
+
+                // For array bindings: ANY source having value is sufficient
+                let has_value = binding.sources().iter().any(|path| {
+                    !path.is_empty() && state.has_output(path)
+                });
+                if !has_value {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Fall back to edge-based check
+        let edges = incoming_edges.get(node_id).map(|v| v.as_slice()).unwrap_or(&[]);
+        if edges.is_empty() {
+            return true;
+        }
+        edges.iter().any(|e| state.has_node_output(&e.from))
+    };
+
+    // Initialize: all nodes pending
+    let mut pending: std::collections::HashSet<String> = subgraph.nodes.iter()
+        .map(|n| n.id.clone())
+        .collect();
+    let mut executed: std::collections::HashSet<String> = std::collections::HashSet::new();
+
     let mut final_outputs: HashMap<String, Value> = HashMap::new();
     let mut total_usage = SupervisorTokenUsage::default();
     let mut executions: Vec<SubgraphNodeExecution> = Vec::new();
 
-    for (layer, nodes) in &nodes_by_layer {
-        for node in nodes {
+    // Execute nodes in dependency order
+    while !pending.is_empty() {
+        // Find ready nodes
+        let ready: Vec<String> = pending.iter()
+            .filter(|id| !executed.contains(*id) && inputs_satisfied(id, &state))
+            .cloned()
+            .collect();
+
+        if ready.is_empty() {
+            // No more nodes can execute
+            break;
+        }
+
+        for node_id in ready {
+            let node = node_map.get(node_id.as_str()).unwrap();
+
             // Get the executor for this node type
             let executor = crate::nodes::create_executor(&node.node_type);
 
@@ -708,7 +780,7 @@ async fn execute_subgraph(
             let outputs = executor.execute(node, &state, config).await?;
             let node_timing_ms = node_start.elapsed().as_millis() as u64;
 
-            // Extract token usage from _usage field if present (now includes provider/model)
+            // Extract token usage from _usage field if present
             let node_usage = if let Some(usage_val) = outputs.get("_usage") {
                 let provider = usage_val.get("provider")
                     .and_then(|v| v.as_str())
@@ -731,7 +803,6 @@ async fn execute_subgraph(
 
             tracing::debug!(
                 node = %node.id,
-                layer = layer,
                 timing_ms = node_timing_ms,
                 provider = %node_usage.provider,
                 model = %node_usage.model,
@@ -740,7 +811,7 @@ async fn execute_subgraph(
                 "Subgraph node executed"
             );
 
-            // Accumulate total usage (aggregated without provider/model)
+            // Accumulate total usage
             total_usage.add_from_llm_call(&node_usage);
 
             // Record execution details
@@ -751,13 +822,19 @@ async fn execute_subgraph(
                 outputs: json!(outputs.clone()),
             });
 
-            // Write outputs to state so next nodes can read them
+            // Write outputs to state
             state.write(&node.id, outputs.clone());
 
-            // If this is the last layer, save outputs for return
-            if *layer == max_layer {
+            // Track final outputs (response node or last executed)
+            if node.node_type == crate::schema::NodeType::Response {
+                final_outputs = outputs;
+            } else if final_outputs.is_empty() {
                 final_outputs = outputs;
             }
+
+            // Mark as executed
+            executed.insert(node_id.clone());
+            pending.remove(&node_id);
         }
     }
 

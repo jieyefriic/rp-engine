@@ -4,14 +4,12 @@ name: "Parallel Flow"
 nodes:
   - id: start
     type: start
-    layer: 0
     config:
       output:
         topic: "input.topic"
 
   - id: gen_chinese
     type: generate
-    layer: 1
     config:
       template: tpl_chinese
       provider: qwen
@@ -21,7 +19,6 @@ nodes:
 
   - id: gen_english
     type: generate
-    layer: 1
     config:
       template: tpl_english
       provider: qwen
@@ -31,7 +28,6 @@ nodes:
 
   - id: response
     type: response
-    layer: 2
     config:
       output:
         chinese: "gen_chinese.text"

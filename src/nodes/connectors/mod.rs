@@ -16,14 +16,14 @@ use crate::engine::ExecutionConfig;
 /// This provides all connectors with consistent access to:
 /// - Execution state (for reading node outputs)
 /// - Execution config (for embedding providers, pools, data sources, etc.)
-/// - Parameter bindings (for {paramName} -> state path mappings)
+/// - Pre-resolved variables (for {paramName} placeholder replacement)
 pub struct ConnectorContext<'a> {
     /// Execution state (read node outputs)
     pub state: &'a ExecutionState,
     /// Execution config (embedding providers, pools, etc.)
     pub config: &'a ExecutionConfig,
-    /// Parameter bindings ({paramName} -> state path mapping)
-    pub bindings: &'a HashMap<String, String>,
+    /// Pre-resolved variables ({paramName} -> resolved Value)
+    pub variables: &'a HashMap<String, Value>,
 }
 
 /// Helper function to resolve {{variable}} templates in a string
