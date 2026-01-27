@@ -9,13 +9,11 @@ input:
 nodes:
   - id: node_1
     type: start
-    layer: 0
     config:
       output:
         user_input: input.user_input
   - id: node_2
     type: supervisor
-    layer: 1
     config:
       template: tpl_mkbanzpz_sg5rl
       provider: qwen
@@ -35,7 +33,6 @@ nodes:
           ref: toolbox_1768304346508_ucpubp
   - id: node_3
     type: generate
-    layer: 2
     config:
       template: tpl_mkcitvlj_cvdd2
       provider: qwen
@@ -45,7 +42,6 @@ nodes:
         task_result: node_2.task_result
   - id: node_4
     type: response
-    layer: 3
     config:
       output:
         response: node_3.response
@@ -157,7 +153,6 @@ subgraphs:
     nodes:
       - id: node_1
         type: generate
-        layer: 1
         config:
           template: tpl_mkcgu7zy_lr5wq
           provider: qwen
@@ -165,7 +160,6 @@ subgraphs:
           variables: {}
       - id: node_2
         type: generate
-        layer: 2
         config:
           template: tpl_mkbzanuh_dok0d
           provider: qwen
@@ -180,7 +174,6 @@ subgraphs:
     nodes:
       - id: node_1
         type: generate
-        layer: 1
         config:
           template: tpl_mkbzfymp_uavkd
           provider: qwen
@@ -188,7 +181,6 @@ subgraphs:
           variables: {}
       - id: node_2
         type: generate
-        layer: 2
         config:
           template: tpl_mkbzanuh_dok0d
           provider: qwen

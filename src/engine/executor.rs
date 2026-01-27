@@ -1,6 +1,6 @@
-//! Main execution engine with layer-based parallel execution
+//! Main execution engine with input-based dependency execution
 
-use std::collections::{HashMap, HashSet, BTreeMap};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
@@ -32,8 +32,6 @@ pub struct ExecutionTiming {
     pub total_ms: u64,
     /// Time per node: node_id -> milliseconds
     pub per_node: HashMap<String, u64>,
-    /// Time per layer: layer -> milliseconds
-    pub per_layer: HashMap<u32, u64>,
 }
 
 /// Token usage tracking
@@ -330,7 +328,10 @@ pub async fn execute(
     execute_workflow(&workflow, input, config).await
 }
 
-/// Execute a parsed workflow with layer-based parallel execution
+/// Execute a parsed workflow with input-based dependency execution
+///
+/// Nodes are executed as soon as their input dependencies are satisfied,
+/// enabling fine-grained parallelism without layer-based constraints.
 #[instrument(
     name = "execute_workflow",
     skip(workflow, input, config),
@@ -387,27 +388,18 @@ pub async fn execute_workflow(
     let state = Arc::new(RwLock::new(ExecutionState::new(input)));
     let graph = ExecutionGraph::from_workflow(workflow);
 
-    // Build layer map: layer -> Vec<node_id>
-    let layer_map = build_layer_map(workflow);
-    let max_layer = layer_map.keys().max().copied().unwrap_or(0);
-
+    // Initialize: all nodes are pending
+    let mut pending_nodes: HashSet<String> = workflow.nodes.iter()
+        .map(|n| n.id.clone())
+        .collect();
     let mut executed: HashSet<String> = HashSet::new();
+    let mut in_flight: HashSet<String> = HashSet::new();
     let mut timing = ExecutionTiming::default();
     let mut token_usage = TokenUsage::default();
     let mut final_output: HashMap<String, Value> = HashMap::new();
-    let mut pending_nodes: HashSet<String> = HashSet::new();
 
-    // Start with layer 0
-    if let Some(nodes) = layer_map.get(&0) {
-        for node_id in nodes {
-            pending_nodes.insert(node_id.clone());
-        }
-    }
-
-    // Execute layers in order
-    let mut current_layer = 0u32;
-
-    while !pending_nodes.is_empty() || current_layer <= max_layer {
+    // Main execution loop - input-based dependency checking
+    loop {
         // Check timeout
         if start_time.elapsed() > config.timeout {
             let elapsed_ms = start_time.elapsed().as_millis();
@@ -415,8 +407,8 @@ pub async fn execute_workflow(
                 workflow = %workflow.name,
                 elapsed_ms = elapsed_ms,
                 timeout_ms = config.timeout.as_millis(),
-                current_layer = current_layer,
                 pending_nodes = ?pending_nodes,
+                in_flight_nodes = ?in_flight,
                 executed_nodes = ?executed,
                 "Workflow execution timeout"
             );
@@ -426,8 +418,8 @@ pub async fn execute_workflow(
                 executions: state_guard.get_executions().clone(),
                 output: final_output,
                 error: Some(format!(
-                    "Execution timeout after {}ms (limit: {}ms) at layer {}. Pending: {:?}",
-                    elapsed_ms, config.timeout.as_millis(), current_layer, pending_nodes
+                    "Execution timeout after {}ms (limit: {}ms). Pending: {:?}, In-flight: {:?}",
+                    elapsed_ms, config.timeout.as_millis(), pending_nodes, in_flight
                 )),
                 timing,
                 token_usage,
@@ -435,45 +427,56 @@ pub async fn execute_workflow(
             });
         }
 
-        // Get nodes ready to execute in this layer
+        // Find all ready nodes (inputs satisfied, not executed, not in-flight)
         let ready_nodes: Vec<String> = {
-            let _state_guard = state.read().await;
+            let state_guard = state.read().await;
             pending_nodes.iter()
                 .filter(|node_id| {
-                    let node = graph.get_node(node_id).ok();
-                    node.map(|n| n.layer == current_layer).unwrap_or(false)
-                        && graph.dependencies_met(node_id, &executed)
-                        && !executed.contains(*node_id)
+                    !executed.contains(*node_id)
+                        && !in_flight.contains(*node_id)
+                        && graph.inputs_satisfied(node_id, &state_guard)
                 })
                 .cloned()
                 .collect()
         };
 
-        if ready_nodes.is_empty() {
-            // No nodes ready in this layer, move to next
-            current_layer += 1;
-
-            // Check if there are any pending nodes in higher layers
-            let has_pending_in_higher = pending_nodes.iter().any(|id| {
-                graph.get_node(id).map(|n| n.layer >= current_layer).unwrap_or(false)
-            });
-
-            if !has_pending_in_higher && current_layer > max_layer {
+        // Check if we're done or stuck
+        if ready_nodes.is_empty() && in_flight.is_empty() {
+            // No more nodes to execute
+            if pending_nodes.is_empty() {
+                break; // Successfully completed
+            } else {
+                // Stuck - some nodes never became ready
+                warn!(
+                    workflow = %workflow.name,
+                    stuck_nodes = ?pending_nodes,
+                    "Some nodes never became ready, completing with partial execution"
+                );
                 break;
             }
+        }
+
+        if ready_nodes.is_empty() {
+            // Wait for in-flight nodes to complete
+            tokio::time::sleep(Duration::from_millis(10)).await;
             continue;
         }
 
-        let layer_start = Instant::now();
-
         debug!(
             workflow = %workflow.name,
-            layer = current_layer,
-            nodes = ?ready_nodes,
-            "Executing layer with parallel nodes"
+            ready_nodes = ?ready_nodes,
+            in_flight = in_flight.len(),
+            pending = pending_nodes.len(),
+            "Executing ready nodes"
         );
 
-        // Execute all ready nodes in this layer in PARALLEL
+        // Mark nodes as in-flight
+        for node_id in &ready_nodes {
+            in_flight.insert(node_id.clone());
+            pending_nodes.remove(node_id);
+        }
+
+        // Execute all ready nodes in PARALLEL
         let results = match execute_nodes_parallel(
             &ready_nodes,
             &graph,
@@ -485,17 +488,13 @@ pub async fn execute_workflow(
             Err(e) => {
                 error!(
                     workflow = %workflow.name,
-                    layer = current_layer,
                     nodes = ?ready_nodes,
                     error = %e,
-                    "Layer execution failed"
+                    "Parallel execution failed"
                 );
                 return Err(e);
             }
         };
-
-        // Record layer timing
-        timing.per_layer.insert(current_layer, layer_start.elapsed().as_millis() as u64);
 
         // Process results
         let mut state_guard = state.write().await;
@@ -534,7 +533,6 @@ pub async fn execute_workflow(
                 workflow = %workflow.name,
                 node = %result.node_id,
                 short_id = %short_id,
-                layer = current_layer,
                 timing_ms = result.timing_ms,
                 "Node state recorded"
             );
@@ -544,14 +542,14 @@ pub async fn execute_workflow(
                 final_output = result.outputs;
             }
 
-            // Mark as executed
+            // Mark as executed, remove from in-flight
             executed.insert(result.node_id.clone());
-            pending_nodes.remove(&result.node_id);
+            in_flight.remove(&result.node_id);
 
             // Evaluate outgoing edges and add next nodes to pending
             let next_nodes = evaluate_edges(&graph, &result.node_id, &mut state_guard, &config, exit_reason)?;
             for next in next_nodes {
-                if !executed.contains(&next) {
+                if !executed.contains(&next) && !in_flight.contains(&next) {
                     pending_nodes.insert(next);
                 }
             }
@@ -581,15 +579,6 @@ pub async fn execute_workflow(
         token_usage,
         exit_reason: None,
     })
-}
-
-/// Build a map of layer -> node_ids
-fn build_layer_map(workflow: &PreparedWorkflow) -> BTreeMap<u32, Vec<String>> {
-    let mut map: BTreeMap<u32, Vec<String>> = BTreeMap::new();
-    for node in &workflow.nodes {
-        map.entry(node.layer).or_default().push(node.id.clone());
-    }
-    map
 }
 
 /// Execute multiple nodes in parallel
@@ -647,7 +636,6 @@ async fn execute_nodes_parallel(
     fields(
         node_id = %node.id,
         node_type = ?node.node_type,
-        layer = node.layer,
     )
 )]
 async fn execute_single_node(
@@ -664,7 +652,6 @@ async fn execute_single_node(
         workflow = %workflow_name,
         node = %node_id,
         node_type = %node_type,
-        layer = node.layer,
         "Starting node execution"
     );
 
@@ -892,13 +879,11 @@ name: "Simple"
 nodes:
   - id: start
     type: start
-    layer: 0
     config:
       output:
         message: "input.query"
   - id: response
     type: response
-    layer: 1
 edges:
   - from: start
     to: response

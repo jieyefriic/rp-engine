@@ -16,6 +16,36 @@ use super::connectors::ConnectorContext;
 /// Executor for data connector nodes
 pub struct DataConnectorExecutor;
 
+/// Resolve variables from node config, converting VariableBinding paths to actual Values
+fn resolve_variables(
+    node: &YamlNode,
+    state: &ExecutionState,
+) -> HashMap<String, Value> {
+    let mut resolved = HashMap::new();
+
+    for (name, binding) in &node.config.variables {
+        // For each variable, try to get the first available value from its sources
+        let value = binding.sources()
+            .iter()
+            .filter_map(|path| {
+                if path.is_empty() || !path.contains('.') {
+                    // Literal value, not a state path
+                    None
+                } else {
+                    // Only return non-null values
+                    state.read(path).filter(|v| !v.is_null())
+                }
+            })
+            .next()
+            .or_else(|| binding.default_value().cloned())
+            .unwrap_or(Value::Null);
+
+        resolved.insert(name.clone(), value);
+    }
+
+    resolved
+}
+
 #[async_trait]
 impl NodeExecutor for DataConnectorExecutor {
     async fn execute(
@@ -27,11 +57,14 @@ impl NodeExecutor for DataConnectorExecutor {
         let node_config = &node.config;
         let node_id = &node.id;
 
-        // Build unified context
+        // Resolve variables from config (pre-resolve all paths to values)
+        let resolved_variables = resolve_variables(node, state);
+
+        // Build unified context with pre-resolved variables
         let ctx = ConnectorContext {
             state,
             config,
-            bindings: &node_config.bindings,
+            variables: &resolved_variables,
         };
 
         // V2 mode: use data_source_id reference

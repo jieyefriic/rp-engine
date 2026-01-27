@@ -76,12 +76,20 @@ impl CustomNode for WorkflowNode {
         // 3. Build sub-workflow input from parent state
         //    Read values from parent state using config.variables mapping
         let mut child_input = HashMap::new();
-        for (param, path_expr) in &config.variables {
+        for (param, binding) in &config.variables {
             // Skip special variables like capture_child_state
             if param == "capture_child_state" {
                 continue;
             }
-            let value = state.read(path_expr).unwrap_or(Value::Null);
+            // For array bindings, use the first source that has a value
+            let value = binding.sources().iter()
+                .filter(|path| !path.is_empty())
+                .find_map(|path| {
+                    let v = state.read(path).unwrap_or(Value::Null);
+                    if v.is_null() { None } else { Some(v) }
+                })
+                .or_else(|| binding.default_value().cloned())
+                .unwrap_or(Value::Null);
             child_input.insert(param.clone(), value);
         }
 
@@ -125,7 +133,17 @@ impl CustomNode for WorkflowNode {
 
         // 5c. Optional: capture full child state for debugging/observability
         let capture = config.variables.get("capture_child_state")
-            .and_then(|v| v.parse::<bool>().ok())
+            .and_then(|v| {
+                // Get first source - could be literal "true"/"false" or a state path
+                v.first_source().and_then(|s| {
+                    // Try to parse as literal bool first
+                    if let Ok(b) = s.parse::<bool>() {
+                        return Some(b);
+                    }
+                    // Otherwise try to resolve from state
+                    state.read(s).and_then(|v| v.as_bool())
+                })
+            })
             .unwrap_or(false);
         if capture {
             outputs.insert("_child_executions".into(),

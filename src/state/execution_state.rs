@@ -220,6 +220,24 @@ impl ExecutionState {
         &self.input
     }
 
+    /// Check if a node has been executed (has any output)
+    pub fn has_node_output(&self, node_id: &str) -> bool {
+        self.node_executions.contains_key(node_id)
+            && !self.node_executions.get(node_id).map(|v| v.is_empty()).unwrap_or(true)
+    }
+
+    /// Check if a specific output path exists
+    /// Path format: "node_id.field" or "input.field"
+    pub fn has_output(&self, path: &str) -> bool {
+        self.resolve_path(path).is_ok()
+    }
+
+    /// Get output value for a path, returns None if not found
+    /// Path format: "node_id.field" or "input.field"
+    pub fn get_output(&self, path: &str) -> Option<Value> {
+        self.resolve_path(path).ok()
+    }
+
     /// Resolve a path expression to a value
     pub fn resolve_path(&self, path: &str) -> Result<Value, ExprError> {
         let segments = parse_path(path)?;

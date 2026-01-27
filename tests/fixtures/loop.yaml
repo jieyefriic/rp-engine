@@ -4,14 +4,12 @@ name: "Loop Flow"
 nodes:
   - id: start
     type: start
-    layer: 0
     config:
       output:
         task: "input.task"
 
   - id: think
     type: generate
-    layer: 1
     config:
       template: tpl_think
       provider: qwen
@@ -22,7 +20,6 @@ nodes:
 
   - id: response
     type: response
-    layer: 2
     config:
       output:
         final: "think.final_answer"

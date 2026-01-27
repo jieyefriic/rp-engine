@@ -4,7 +4,7 @@
 //!
 //! Supports both:
 //! - Legacy: `params` array with `{{node.field}}` syntax
-//! - New: `bindings` map with `{paramName}` syntax in SQL
+//! - New: `variables` map with `{paramName}` syntax in SQL (pre-resolved values)
 
 use std::collections::HashMap;
 use tokio_postgres::{NoTls, Row, types::ToSql};
@@ -15,38 +15,44 @@ use crate::state::ExecutionState;
 use crate::error::EngineError;
 use super::{get_required_string, get_optional_string, get_optional_u64, resolve_template_vars, ConnectorContext};
 
-/// Resolve {paramName} patterns in a SQL template using bindings
+/// Resolve {paramName} patterns in a SQL template using pre-resolved variables
 ///
 /// For example, with:
 /// - sql: "SELECT * FROM users WHERE id = {userId}"
-/// - bindings: {"userId": "start.user_id"}
-/// - state contains: {"start.user_id": "123"}
+/// - variables: {"userId": Value::String("123")}
 ///
-/// Returns: "SELECT * FROM users WHERE id = 123"
-fn resolve_sql_with_bindings(
+/// Returns: "SELECT * FROM users WHERE id = '123'"
+fn resolve_sql_with_variables(
     sql: &str,
-    bindings: &HashMap<String, String>,
-    state: &ExecutionState,
+    variables: &HashMap<String, Value>,
 ) -> String {
     let re = regex_lite::Regex::new(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}").unwrap();
 
     re.replace_all(sql, |caps: &regex_lite::Captures| {
         let param_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
 
-        // Look up the binding for this parameter
-        if let Some(state_path) = bindings.get(param_name) {
-            // Resolve the state path to get the actual value
-            state.read(state_path)
-                .map(|v| match v {
-                    Value::String(s) => format!("'{}'", s.replace('\'', "''")), // Escape single quotes
-                    Value::Number(n) => n.to_string(),
-                    Value::Bool(b) => b.to_string(),
-                    Value::Null => "NULL".to_string(),
-                    other => format!("'{}'", other.to_string().replace('\'', "''")),
-                })
-                .unwrap_or_else(|| "NULL".to_string())
+        // Look up the pre-resolved value for this parameter
+        if let Some(value) = variables.get(param_name) {
+            match value {
+                Value::String(s) => format!("'{}'", s.replace('\'', "''")), // Escape single quotes
+                Value::Number(n) => n.to_string(),
+                Value::Bool(b) => b.to_string(),
+                Value::Null => "NULL".to_string(),
+                Value::Array(arr) => {
+                    // Convert array to PostgreSQL array literal
+                    let elements: Vec<String> = arr.iter().map(|v| match v {
+                        Value::String(s) => format!("'{}'", s.replace('\'', "''")),
+                        Value::Number(n) => n.to_string(),
+                        Value::Bool(b) => b.to_string(),
+                        Value::Null => "NULL".to_string(),
+                        other => format!("'{}'", other.to_string().replace('\'', "''")),
+                    }).collect();
+                    format!("ARRAY[{}]", elements.join(", "))
+                }
+                other => format!("'{}'", other.to_string().replace('\'', "''")),
+            }
         } else {
-            // No binding found, leave the placeholder as-is
+            // No variable found, leave the placeholder as-is
             format!("{{{}}}", param_name)
         }
     }).to_string()
@@ -111,7 +117,7 @@ pub async fn execute(
         });
 
         match op_type {
-            "query" => execute_query_internal(&client, operation, ctx.bindings, ctx.state).await,
+            "query" => execute_query_internal(&client, operation, ctx.variables, ctx.state).await,
             "insert" => execute_insert_internal(&client, operation, ctx.state).await,
             "select" => execute_select_internal(&client, operation, ctx.state).await,
             "update" => execute_update_internal(&client, operation, ctx.state).await,
@@ -170,7 +176,7 @@ async fn execute_with_pool_internal(
         .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
 
     match op_type {
-        "query" => execute_query_pooled(&client, operation, ctx.bindings, ctx.state).await,
+        "query" => execute_query_pooled(&client, operation, ctx.variables, ctx.state).await,
         "insert" => execute_insert_pooled(&client, operation, ctx.state).await,
         "select" => execute_select_pooled(&client, operation, ctx.state).await,
         "update" => execute_update_pooled(&client, operation, ctx.state).await,
@@ -210,18 +216,18 @@ fn get_connection_string(
 async fn execute_query_internal(
     client: &tokio_postgres::Client,
     operation: &HashMap<String, Value>,
-    bindings: &HashMap<String, String>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
     let sql_template = get_required_string(operation, "sql", state)?;
 
-    // If bindings are provided, resolve {paramName} placeholders in SQL
-    let rows = if !bindings.is_empty() {
-        let sql = resolve_sql_with_bindings(&sql_template, bindings, state);
+    // If variables are provided, resolve {paramName} placeholders in SQL
+    let rows = if !variables.is_empty() {
+        let sql = resolve_sql_with_variables(&sql_template, variables);
         debug!(
             sql = %sql,
-            bindings = ?bindings,
-            "Executing SQL with bindings (non-pooled)"
+            variables = ?variables,
+            "Executing SQL with variables (non-pooled)"
         );
         client.query(&sql, &[])
             .await
@@ -229,12 +235,12 @@ async fn execute_query_internal(
                 error!(
                     error = %e,
                     sql = %sql,
-                    bindings = ?bindings,
+                    variables = ?variables,
                     "PostgreSQL query failed (non-pooled)"
                 );
                 EngineError::DatabaseError(format!(
-                    "Query failed: {} | SQL: {} | Bindings: {:?}",
-                    e, sql, bindings
+                    "Query failed: {} | SQL: {} | Variables: {:?}",
+                    e, sql, variables
                 ))
             })?
     } else {
@@ -634,25 +640,25 @@ fn row_value_to_json(row: &Row, idx: usize, pg_type: &tokio_postgres::types::Typ
 /// Execute raw SQL query with pooled connection
 ///
 /// Supports two modes:
-/// 1. Bindings mode: Use `{paramName}` in SQL with bindings map (recommended)
+/// 1. Variables mode: Use `{paramName}` in SQL with pre-resolved variables map (recommended)
 /// 2. Legacy params mode: Use `$1, $2...` with params array
 async fn execute_query_pooled(
     client: &deadpool_postgres::Object,
     operation: &HashMap<String, Value>,
-    bindings: &HashMap<String, String>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
     let sql_template = get_required_string(operation, "sql", state)?;
 
-    // If bindings are provided, resolve {paramName} placeholders in SQL
+    // If variables are provided, resolve {paramName} placeholders in SQL
     // Otherwise, use legacy params mode
-    let rows = if !bindings.is_empty() {
-        // Bindings mode: replace {paramName} with actual values
-        let sql = resolve_sql_with_bindings(&sql_template, bindings, state);
+    let rows = if !variables.is_empty() {
+        // Variables mode: replace {paramName} with actual values
+        let sql = resolve_sql_with_variables(&sql_template, variables);
         debug!(
             sql = %sql,
-            bindings = ?bindings,
-            "Executing SQL with bindings"
+            variables = ?variables,
+            "Executing SQL with variables"
         );
 
         client.query(&sql, &[])
@@ -661,12 +667,12 @@ async fn execute_query_pooled(
                 error!(
                     error = %e,
                     sql = %sql,
-                    bindings = ?bindings,
+                    variables = ?variables,
                     "PostgreSQL query failed"
                 );
                 EngineError::DatabaseError(format!(
-                    "Query failed: {} | SQL: {} | Bindings: {:?}",
-                    e, sql, bindings
+                    "Query failed: {} | SQL: {} | Variables: {:?}",
+                    e, sql, variables
                 ))
             })?
     } else {

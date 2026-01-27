@@ -16,7 +16,7 @@ use super::{get_required_string, get_optional_string, get_optional_u64, Connecto
 /// Unified MinIO execute function
 ///
 /// Takes data source config, operation config, and connector context.
-/// Uses bindings from context for parameter resolution.
+/// Uses pre-resolved variables from context for parameter resolution.
 pub async fn execute(
     ds_config: &HashMap<String, Value>,
     operation: &HashMap<String, Value>,
@@ -39,7 +39,7 @@ pub async fn execute(
 
     match op_type {
         "get_object" => execute_get_object(&client, operation, ctx.state).await,
-        "put_object" => execute_put_object_v2(&client, &endpoint, operation, ctx.bindings, ctx.state).await,
+        "put_object" => execute_put_object_v2(&client, &endpoint, operation, ctx.variables, ctx.state).await,
         "list_objects" => execute_list_objects(&client, operation, ctx.state).await,
         "delete_object" => execute_delete_object(&client, operation, ctx.state).await,
         _ => Err(EngineError::InvalidOperation(format!("Unknown MinIO operation: {}", op_type))),
@@ -130,44 +130,57 @@ async fn execute_get_object(
     Ok(outputs)
 }
 
-/// Execute put_object operation with bindings support
+/// Execute put_object operation with pre-resolved variables
 /// Supports:
-/// - bucket: can be a template like "{userId}" resolved from bindings
+/// - bucket: can be a template like "{userId}" resolved from variables
 /// - prefix: directory prefix
-/// - data: base64 encoded data (resolved from bindings)
-/// - content_type: MIME type
+/// - data: base64 encoded data (from pre-resolved variables)
+/// - content_type: MIME type, or "auto" to detect from binary data magic bytes
+///   Supported auto-detection: JPEG, PNG, GIF, WebP, BMP, MP3, WAV, OGG, M4A
 async fn execute_put_object_v2(
     client: &Client,
     endpoint: &str,
     operation: &HashMap<String, Value>,
-    bindings: &HashMap<String, String>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    // Get bucket - resolve from bindings
-    let bucket = resolve_binding_value(operation, "bucket", bindings, state)?;
+    // Get bucket - resolve from variables
+    let bucket = resolve_binding_value(operation, "bucket", variables)?;
     let prefix = get_optional_string(operation, "prefix", state)
         .unwrap_or_else(|| "uploads".to_string());
-    let content_type = get_optional_string(operation, "content_type", state)
-        .unwrap_or_else(|| "application/octet-stream".to_string());
+    let configured_content_type = get_optional_string(operation, "content_type", state);
 
-    // Get data from bindings
-    let data_base64 = if let Some(data_path) = bindings.get("data") {
-        state.read(data_path)
-            .map(|v| match v {
-                Value::String(s) => s,
-                other => other.to_string(),
-            })
-            .ok_or_else(|| EngineError::MissingField("data binding".to_string()))?
-    } else {
-        return Err(EngineError::MissingField("data binding".to_string()));
-    };
+    // Get data from pre-resolved variables
+    let data_base64 = variables.get("data")
+        .and_then(|v| match v {
+            Value::String(s) if !s.is_empty() => Some(s.clone()),
+            _ => None,
+        })
+        .ok_or_else(|| EngineError::MissingField("data variable".to_string()))?;
 
     // Decode base64
     let data_bytes = BASE64.decode(&data_base64)
         .map_err(|e| EngineError::MinIOError(format!("Invalid base64 data: {}", e)))?;
 
+    // Determine content type and extension
+    // If content_type is "auto" or not specified, detect from binary data
+    let (content_type, extension): (String, &str) = match configured_content_type.as_deref() {
+        Some("auto") | None => {
+            // Try to detect from magic bytes
+            if let Some((detected_type, detected_ext)) = detect_content_type(&data_bytes) {
+                (detected_type.to_string(), detected_ext)
+            } else {
+                // Fallback to default
+                ("application/octet-stream".to_string(), "bin")
+            }
+        }
+        Some(ct) => {
+            let ext = extension_from_content_type(ct);
+            (ct.to_string(), ext)
+        }
+    };
+
     // Generate unique key
-    let extension = extension_from_content_type(&content_type);
     let key = format!("{}/{}.{}", prefix, uuid::Uuid::new_v4(), extension);
 
     // Ensure bucket exists
@@ -195,12 +208,11 @@ async fn execute_put_object_v2(
     Ok(outputs)
 }
 
-/// Resolve a value that might be a template like "{userId}"
+/// Resolve a value that might be a template like "{userId}" using pre-resolved variables
 fn resolve_binding_value(
     operation: &HashMap<String, Value>,
     field: &str,
-    bindings: &HashMap<String, String>,
-    state: &ExecutionState,
+    variables: &HashMap<String, Value>,
 ) -> Result<String, EngineError> {
     let raw_value = operation.get(field)
         .and_then(|v| v.as_str())
@@ -209,13 +221,12 @@ fn resolve_binding_value(
     // Check if it's a template like "{userId}"
     if raw_value.starts_with('{') && raw_value.ends_with('}') {
         let param_name = &raw_value[1..raw_value.len()-1];
-        if let Some(state_path) = bindings.get(param_name) {
-            return state.read(state_path)
-                .map(|v| match v {
-                    Value::String(s) => s,
-                    other => other.to_string(),
-                })
-                .ok_or_else(|| EngineError::MissingField(format!("binding {} not found in state", param_name)));
+        if let Some(value) = variables.get(param_name) {
+            return Ok(match value {
+                Value::String(s) => s.clone(),
+                Value::Null => String::new(),
+                other => other.to_string(),
+            });
         }
     }
 
@@ -234,6 +245,56 @@ fn extension_from_content_type(content_type: &str) -> &str {
         "audio/m4a" => "m4a",
         _ => "bin",
     }
+}
+
+/// Detect content type from binary data using magic bytes
+/// Returns (mime_type, extension)
+fn detect_content_type(data: &[u8]) -> Option<(&'static str, &'static str)> {
+    if data.len() < 12 {
+        return None;
+    }
+
+    // Image formats
+    match &data[0..4] {
+        // JPEG: FF D8 FF
+        [0xFF, 0xD8, 0xFF, ..] => return Some(("image/jpeg", "jpg")),
+        // PNG: 89 50 4E 47 (‰PNG)
+        [0x89, 0x50, 0x4E, 0x47] => return Some(("image/png", "png")),
+        // GIF: 47 49 46 38 (GIF8)
+        [0x47, 0x49, 0x46, 0x38] => return Some(("image/gif", "gif")),
+        // WebP: RIFF....WEBP
+        [0x52, 0x49, 0x46, 0x46] if &data[8..12] == b"WEBP" => {
+            return Some(("image/webp", "webp"))
+        }
+        // BMP: 42 4D (BM)
+        [0x42, 0x4D, ..] => return Some(("image/bmp", "bmp")),
+        _ => {}
+    }
+
+    // Audio formats
+    // MP3: FF FB, FF FA, FF F3, or ID3 tag
+    if data.len() >= 3 {
+        if (data[0] == 0xFF && (data[1] & 0xE0) == 0xE0) || &data[0..3] == b"ID3" {
+            return Some(("audio/mpeg", "mp3"));
+        }
+    }
+
+    // WAV: RIFF....WAVE
+    if data.len() >= 12 && &data[0..4] == b"RIFF" && &data[8..12] == b"WAVE" {
+        return Some(("audio/wav", "wav"));
+    }
+
+    // OGG: OggS
+    if data.len() >= 4 && &data[0..4] == b"OggS" {
+        return Some(("audio/ogg", "ogg"));
+    }
+
+    // M4A/AAC: ftyp
+    if data.len() >= 8 && &data[4..8] == b"ftyp" {
+        return Some(("audio/m4a", "m4a"));
+    }
+
+    None
 }
 
 async fn ensure_bucket_exists(client: &Client, bucket: &str) -> Result<(), EngineError> {
