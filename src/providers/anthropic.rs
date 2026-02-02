@@ -187,6 +187,7 @@ impl AnthropicProvider {
                 output_tokens: output,
                 total_tokens: input + output,
                 thinking_tokens: None, // Anthropic doesn't report this separately
+                search_count: None,
             }
         } else {
             TokenUsage::default()

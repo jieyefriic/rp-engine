@@ -5,6 +5,133 @@ use std::collections::HashMap;
 
 use super::workflow::ToolRef;
 
+// ============================================================
+// Template Configuration (supports conditional template selection)
+// ============================================================
+
+/// A single condition for template selection
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemplateCondition {
+    /// Condition expression (e.g., "node.field == true")
+    pub when: String,
+    /// Template name to use when condition is satisfied
+    #[serde(rename = "use")]
+    pub use_template: String,
+}
+
+/// Template configuration - supports simple string or conditional selection
+///
+/// Simple usage (backward compatible):
+/// ```yaml
+/// template: my_template
+/// ```
+///
+/// Conditional usage:
+/// ```yaml
+/// template:
+///   default: normal_template
+///   conditions:
+///     - when: check.should_trigger == true
+///       use: special_template
+/// ```
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum TemplateSelector {
+    /// Simple template name (backward compatible)
+    Simple(String),
+    /// Conditional template selection
+    Conditional {
+        /// Default template to use when no conditions match
+        default: String,
+        /// List of conditions evaluated in order; first match wins
+        #[serde(default)]
+        conditions: Vec<TemplateCondition>,
+    },
+}
+
+impl TemplateSelector {
+    /// Get the default/fallback template name
+    pub fn default_template(&self) -> &str {
+        match self {
+            TemplateSelector::Simple(name) => name,
+            TemplateSelector::Conditional { default, .. } => default,
+        }
+    }
+
+    /// Get conditions (empty for simple config)
+    pub fn conditions(&self) -> &[TemplateCondition] {
+        match self {
+            TemplateSelector::Simple(_) => &[],
+            TemplateSelector::Conditional { conditions, .. } => conditions,
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for TemplateSelector {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde::de::{self, Visitor, MapAccess};
+
+        struct TemplateSelectorVisitor;
+
+        impl<'de> Visitor<'de> for TemplateSelectorVisitor {
+            type Value = TemplateSelector;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a string or object with 'default' and optional 'conditions'")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(TemplateSelector::Simple(value.to_string()))
+            }
+
+            fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(TemplateSelector::Simple(value))
+            }
+
+            fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+            where
+                M: MapAccess<'de>,
+            {
+                let mut default: Option<String> = None;
+                let mut conditions: Vec<TemplateCondition> = Vec::new();
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "default" => {
+                            default = Some(map.next_value()?);
+                        }
+                        "conditions" => {
+                            conditions = map.next_value()?;
+                        }
+                        _ => {
+                            // Ignore unknown fields
+                            let _: serde_json::Value = map.next_value()?;
+                        }
+                    }
+                }
+
+                let default = default.ok_or_else(|| de::Error::missing_field("default"))?;
+                Ok(TemplateSelector::Conditional { default, conditions })
+            }
+        }
+
+        deserializer.deserialize_any(TemplateSelectorVisitor)
+    }
+}
+
+// ============================================================
+// Variable Binding
+// ============================================================
+
 /// Variable binding that supports single or multiple sources
 /// - Single: `var_name: "path"` → one source (required)
 /// - Multiple: `var_name: ["path1", "path2"]` → first available wins (required)
@@ -229,8 +356,8 @@ pub struct NodeConfig {
     pub output: HashMap<String, String>,
 
     // Generate node fields
-    /// Template ID reference
-    pub template: Option<String>,
+    /// Template configuration (simple string or conditional selection)
+    pub template: Option<TemplateSelector>,
 
     /// Provider ID (e.g., "openai", "anthropic")
     pub provider: Option<String>,

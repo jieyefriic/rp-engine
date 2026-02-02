@@ -132,6 +132,7 @@ impl GeminiProvider {
                     .unwrap_or(0),
                 thinking_tokens: meta.get("thoughtsTokenCount")
                     .and_then(|v| v.as_u64()),
+                search_count: None,
             }
         } else {
             TokenUsage::default()

@@ -139,6 +139,7 @@ impl OpenAIProvider {
                 // o-series reasoning tokens
                 thinking_tokens: usage_obj.get("reasoning_tokens")
                     .and_then(|v| v.as_u64()),
+                search_count: None,
             }
         } else {
             TokenUsage::default()

@@ -4,17 +4,72 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use handlebars::Handlebars;
 use serde_json::{json, Value};
-use tracing::{debug, warn, error};
+use tracing::{debug, info, warn, error};
 
-use crate::schema::YamlNode;
+use crate::schema::{YamlNode, TemplateSelector};
 use crate::state::ExecutionState;
 use crate::engine::ExecutionConfig;
 use crate::error::EngineError;
+use crate::expression::evaluate_expression;
 use crate::providers::{ChatOptions, Message, MessageContent, ContentPart};
 use super::NodeExecutor;
 
 /// Executor for generate nodes
 pub struct GenerateExecutor;
+
+impl GenerateExecutor {
+    /// Resolve template configuration to get the final template name
+    ///
+    /// For simple config, returns the template name directly.
+    /// For conditional config, evaluates conditions in order and returns the first match,
+    /// or the default template if no conditions match.
+    fn resolve_template_name(
+        template_config: &TemplateSelector,
+        state: &ExecutionState,
+        node_id: &str,
+    ) -> String {
+        match template_config {
+            TemplateSelector::Simple(name) => name.clone(),
+            TemplateSelector::Conditional { default, conditions } => {
+                for cond in conditions {
+                    match evaluate_expression(&cond.when, state) {
+                        Ok(true) => {
+                            info!(
+                                node = %node_id,
+                                condition = %cond.when,
+                                template = %cond.use_template,
+                                "Template condition matched"
+                            );
+                            return cond.use_template.clone();
+                        }
+                        Ok(false) => {
+                            debug!(
+                                node = %node_id,
+                                condition = %cond.when,
+                                "Template condition not matched, trying next"
+                            );
+                        }
+                        Err(e) => {
+                            warn!(
+                                node = %node_id,
+                                condition = %cond.when,
+                                error = %e,
+                                "Template condition evaluation failed, skipping"
+                            );
+                        }
+                    }
+                }
+                // No condition matched, use default
+                info!(
+                    node = %node_id,
+                    template = %default,
+                    "Using default template (no conditions matched)"
+                );
+                default.clone()
+            }
+        }
+    }
+}
 
 #[async_trait]
 impl NodeExecutor for GenerateExecutor {
@@ -59,14 +114,18 @@ impl NodeExecutor for GenerateExecutor {
                 EngineError::ProviderNotFound(provider_id.clone())
             })?;
 
+        // Resolve template name (supports conditional selection)
+        let template_name = node_config.template.as_ref()
+            .map(|tc| Self::resolve_template_name(tc, state, node_id));
+
         // Get template if specified
-        let template = node_config.template.as_ref()
-            .and_then(|id| {
-                let t = config.templates.get(id);
+        let template = template_name.as_ref()
+            .and_then(|name| {
+                let t = config.templates.get(name);
                 if t.is_none() {
                     warn!(
                         node = %node_id,
-                        template = %id,
+                        template = %name,
                         available_templates = ?config.templates.keys().collect::<Vec<_>>(),
                         "Template not found, will use variables as prompt"
                     );
@@ -192,6 +251,10 @@ impl NodeExecutor for GenerateExecutor {
             options = options
                 .with_temperature(tpl.config.temperature)
                 .with_max_tokens(tpl.config.max_tokens);
+
+            if tpl.config.enable_search {
+                options = options.with_enable_search(true);
+            }
         }
 
         // Enable JSON mode if we have output schema
@@ -203,7 +266,7 @@ impl NodeExecutor for GenerateExecutor {
             node = %node_id,
             provider = %provider_id,
             model = %model_id,
-            template = node_config.template.as_deref().unwrap_or("(none)"),
+            template = template_name.as_deref().unwrap_or("(none)"),
             has_images = has_images,
             "Making LLM API call"
         );
@@ -227,7 +290,7 @@ impl NodeExecutor for GenerateExecutor {
                     node = %node_id,
                     provider = %provider_id,
                     model = %model_id,
-                    template = node_config.template.as_deref().unwrap_or("(none)"),
+                    template = template_name.as_deref().unwrap_or("(none)"),
                     error = %e,
                     "LLM API call failed"
                 );
@@ -276,12 +339,16 @@ impl NodeExecutor for GenerateExecutor {
         }
 
         // Add usage info (including provider/model for cost tracking)
-        outputs.insert("_usage".to_string(), json!({
+        let mut usage_json = json!({
             "provider": provider_id,
             "model": model_id,
             "input_tokens": response.usage.input_tokens,
             "output_tokens": response.usage.output_tokens,
-        }));
+        });
+        if let Some(count) = response.usage.search_count {
+            usage_json["search_count"] = json!(count);
+        }
+        outputs.insert("_usage".to_string(), usage_json);
 
         // Add actual prompt for debugging (legacy field, unrendered template)
         outputs.insert("_prompt".to_string(), Value::String(final_prompt.clone()));

@@ -230,6 +230,8 @@ pub struct ChatOptions {
     pub thinking_budget: Option<u32>,
     /// Anthropic: JSON schema for structured output
     pub output_schema: Option<serde_json::Value>,
+    /// DashScope/Qwen: enable web search before responding
+    pub enable_search: bool,
 }
 
 impl ChatOptions {
@@ -276,6 +278,11 @@ impl ChatOptions {
         self.output_schema = Some(schema);
         self
     }
+
+    pub fn with_enable_search(mut self, enable: bool) -> Self {
+        self.enable_search = enable;
+        self
+    }
 }
 
 // ============================================================================
@@ -289,6 +296,8 @@ pub struct TokenUsage {
     pub output_tokens: u64,
     pub total_tokens: u64,
     pub thinking_tokens: Option<u64>,
+    /// Number of web search calls (DashScope bills per search call)
+    pub search_count: Option<u64>,
 }
 
 /// Chat response
@@ -487,6 +496,7 @@ impl ChatRequest {
             reasoning_effort: None,
             thinking_budget: self.thinking_budget,
             output_schema: None,
+            enable_search: false,
         };
         (self.messages.clone(), options)
     }
