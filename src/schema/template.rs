@@ -39,6 +39,10 @@ pub struct TemplateConfig {
 
     /// Thinking budget for extended thinking models
     pub thinking_budget: Option<u32>,
+
+    /// Enable web search for supported providers (e.g., DashScope/Qwen)
+    #[serde(default)]
+    pub enable_search: bool,
 }
 
 impl Default for TemplateConfig {
@@ -49,6 +53,7 @@ impl Default for TemplateConfig {
             top_p: None,
             top_k: None,
             thinking_budget: None,
+            enable_search: false,
         }
     }
 }
@@ -109,5 +114,33 @@ impl Template {
     /// Check if this template has a structured output schema
     pub fn has_output_schema(&self) -> bool {
         !self.output_schema.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_template_config_enable_search() {
+        let yaml = r#"
+temperature: 0.8
+max_tokens: 500
+enable_search: true
+"#;
+        let config: TemplateConfig = serde_yaml::from_str(yaml).unwrap();
+        assert!(config.enable_search);
+        assert_eq!(config.temperature, 0.8);
+        assert_eq!(config.max_tokens, 500);
+    }
+
+    #[test]
+    fn test_template_config_enable_search_default() {
+        let yaml = r#"
+temperature: 0.7
+max_tokens: 1024
+"#;
+        let config: TemplateConfig = serde_yaml::from_str(yaml).unwrap();
+        assert!(!config.enable_search);
     }
 }

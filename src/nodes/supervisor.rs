@@ -210,10 +210,12 @@ impl NodeExecutor for SupervisorExecutor {
             .ok_or_else(|| EngineError::NodeExecutionFailed("Supervisor requires model".into()))?;
 
         // Get planner template
-        let template_id = node_config.template.as_ref()
+        let template_selector = node_config.template.as_ref()
             .ok_or_else(|| EngineError::NodeExecutionFailed("Supervisor requires template".into()))?;
-        let template = config.templates.get(template_id)
-            .ok_or_else(|| EngineError::TemplateNotFound(template_id.clone()))?;
+        // For Supervisor, we use the default template (no conditional logic)
+        let template_name = template_selector.default_template();
+        let template = config.templates.get(template_name)
+            .ok_or_else(|| EngineError::TemplateNotFound(template_name.to_string()))?;
 
         // Build tool lookup: tool_name -> (subgraph_ref, description)
         let mut tool_lookup: HashMap<String, (String, Option<String>)> = HashMap::new();

@@ -66,7 +66,12 @@ impl OpenAICompatibleProvider {
             body["stream"] = json!(true);
         }
 
-        if options.json_output {
+        // DashScope/Qwen: enable web search
+        // Note: enable_search is incompatible with response_format on DashScope,
+        // so we skip json_output when search is enabled (the prompt still requests JSON)
+        if options.enable_search && self.provider_name == "qwen" {
+            body["enable_search"] = json!(true);
+        } else if options.json_output {
             body["response_format"] = json!({"type": "json_object"});
         }
 
@@ -97,6 +102,7 @@ impl OpenAICompatibleProvider {
                     .and_then(|v| v.as_u64())
                     .unwrap_or(0),
                 thinking_tokens: None,
+                search_count: None,
             }
         } else {
             TokenUsage::default()
@@ -207,13 +213,19 @@ impl LLMProvider for OpenAICompatibleProvider {
                 ProviderError::InvalidResponse(format!("JSON parse error: {} | Response: {}", e, text.chars().take(200).collect::<String>()))
             })?;
 
-        let result = self.parse_response(data)?;
+        let mut result = self.parse_response(data)?;
+
+        // Track search call count for billing
+        if options.enable_search && self.provider_name == "qwen" {
+            result.usage.search_count = Some(1);
+        }
 
         debug!(
             provider = %self.provider_name,
             model = %result.model,
             input_tokens = result.usage.input_tokens,
             output_tokens = result.usage.output_tokens,
+            search_count = ?result.usage.search_count,
             response_len = result.content.len(),
             "LLM chat request completed"
         );
@@ -317,5 +329,55 @@ mod tests {
         assert_eq!(response.usage.input_tokens, 10);
         assert_eq!(response.usage.output_tokens, 5);
         assert_eq!(response.usage.total_tokens, 15);
+    }
+
+    #[test]
+    fn test_build_request_body_enable_search_qwen() {
+        let provider = OpenAICompatibleProvider::new(
+            "test-key",
+            "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+            "qwen-plus",
+            "qwen",
+        );
+
+        let messages = vec![Message::user("Hello")];
+        let options = ChatOptions::new()
+            .with_enable_search(true);
+
+        let body = provider.build_request_body(&messages, &options, false);
+        assert_eq!(body["enable_search"], true);
+    }
+
+    #[test]
+    fn test_build_request_body_enable_search_not_added_for_non_qwen() {
+        let provider = OpenAICompatibleProvider::new(
+            "test-key",
+            "https://api.deepseek.com/chat/completions",
+            "deepseek-chat",
+            "deepseek",
+        );
+
+        let messages = vec![Message::user("Hello")];
+        let options = ChatOptions::new()
+            .with_enable_search(true);
+
+        let body = provider.build_request_body(&messages, &options, false);
+        assert!(body.get("enable_search").is_none());
+    }
+
+    #[test]
+    fn test_build_request_body_enable_search_default_false() {
+        let provider = OpenAICompatibleProvider::new(
+            "test-key",
+            "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+            "qwen-plus",
+            "qwen",
+        );
+
+        let messages = vec![Message::user("Hello")];
+        let options = ChatOptions::new();
+
+        let body = provider.build_request_body(&messages, &options, false);
+        assert!(body.get("enable_search").is_none());
     }
 }
