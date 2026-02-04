@@ -6,6 +6,6 @@ mod builder;
 mod engine;
 
 pub use graph::ExecutionGraph;
-pub use executor::{execute, execute_workflow, ExecutionResult, ExecutionConfig, ExecutionStatus, ExecutionTiming, ConnectionPools, PoolConfig};
+pub use executor::{execute, execute_workflow, ExecutionResult, ExecutionConfig, ExecutionStatus, ExecutionTiming, ConnectionPools, PoolConfig, ResumeParams};
 pub use builder::{EngineBuilder, StateSavingConfig};
 pub use engine::Engine;

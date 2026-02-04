@@ -210,6 +210,13 @@ impl<'a> ExecutionGraph<'a> {
             .unwrap_or(false)
     }
 
+    /// Check if a node is a checkpoint node
+    pub fn is_checkpoint_node(&self, node_id: &str) -> bool {
+        self.node_map.get(node_id)
+            .map(|n| n.node_type == NodeType::Checkpoint)
+            .unwrap_or(false)
+    }
+
     /// Check if a node is a supervisor node
     pub fn is_supervisor_node(&self, node_id: &str) -> bool {
         self.node_map.get(node_id)

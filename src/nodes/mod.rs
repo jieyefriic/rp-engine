@@ -2,6 +2,7 @@
 
 mod start;
 mod response;
+mod checkpoint;
 mod generate;
 mod data_connector;
 mod supervisor;
@@ -20,6 +21,7 @@ use crate::error::EngineError;
 
 pub use start::StartExecutor;
 pub use response::ResponseExecutor;
+pub use checkpoint::CheckpointExecutor;
 pub use generate::GenerateExecutor;
 pub use data_connector::DataConnectorExecutor;
 pub use supervisor::SupervisorExecutor;
@@ -134,6 +136,7 @@ pub fn create_executor(node_type: &NodeType) -> Box<dyn NodeExecutor> {
     match node_type {
         NodeType::Start => Box::new(StartExecutor),
         NodeType::Response => Box::new(ResponseExecutor),
+        NodeType::Checkpoint => Box::new(CheckpointExecutor),
         NodeType::Generate => Box::new(GenerateExecutor),
         NodeType::DataConnector => Box::new(DataConnectorExecutor),
         NodeType::Supervisor => Box::new(SupervisorExecutor),

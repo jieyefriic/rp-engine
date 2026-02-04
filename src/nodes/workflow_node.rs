@@ -181,5 +181,5 @@ async fn execute_child_workflow(
 
     // Execute the child workflow
     // execute_workflow creates a new ExecutionState internally
-    execute_workflow(workflow, input, child_config).await
+    execute_workflow(workflow, input, child_config, None).await
 }

@@ -11,7 +11,7 @@ use tracing::{debug, info, warn, error, instrument};
 
 use crate::error::EngineError;
 use crate::schema::{PreparedWorkflow, Template, YamlNode, NodeType, ExitReason, DataSourceDef};
-use crate::state::{ExecutionState, ExecutionRecord};
+use crate::state::{ExecutionState, ExecutionRecord, CheckpointState};
 use crate::expression::evaluate_expression;
 use crate::providers::{ProviderRegistry, EmbeddingRegistry};
 use crate::nodes::{create_executor, NodeRegistry};
@@ -23,6 +23,7 @@ pub enum ExecutionStatus {
     Success,
     Error,
     Timeout,
+    Paused,
 }
 
 /// Timing information for execution
@@ -306,6 +307,19 @@ pub struct ExecutionResult {
     /// Exit reason from Supervisor node (if applicable)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exit_reason: Option<ExitReason>,
+
+    /// Checkpoint state for pause/resume (present when status is Paused)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checkpoint_state: Option<CheckpointState>,
+}
+
+/// Parameters for resuming a workflow from a checkpoint
+#[derive(Debug, Clone)]
+pub struct ResumeParams {
+    /// Previous checkpoint state
+    pub checkpoint_state: CheckpointState,
+    /// Node ID to resume execution from
+    pub resume_from: String,
 }
 
 /// Result of a single node execution
@@ -325,16 +339,19 @@ pub async fn execute(
     let workflow = PreparedWorkflow::from_yaml(workflow_yaml)
         .map_err(|e| EngineError::InvalidWorkflow(e.to_string()))?;
 
-    execute_workflow(&workflow, input, config).await
+    execute_workflow(&workflow, input, config, None).await
 }
 
 /// Execute a parsed workflow with input-based dependency execution
 ///
 /// Nodes are executed as soon as their input dependencies are satisfied,
 /// enabling fine-grained parallelism without layer-based constraints.
+///
+/// If `checkpoint` is provided, the workflow resumes from the specified node
+/// with the previous execution state restored and new input merged.
 #[instrument(
     name = "execute_workflow",
-    skip(workflow, input, config),
+    skip(workflow, input, config, checkpoint),
     fields(
         workflow_name = %workflow.name,
         workflow_version = %workflow.version,
@@ -346,6 +363,7 @@ pub async fn execute_workflow(
     workflow: &PreparedWorkflow,
     input: HashMap<String, Value>,
     mut config: ExecutionConfig,
+    checkpoint: Option<ResumeParams>,
 ) -> Result<ExecutionResult, EngineError> {
     let start_time = Instant::now();
 
@@ -355,16 +373,18 @@ pub async fn execute_workflow(
         "Starting workflow execution"
     );
 
-    // Validate input against workflow schema
-    if let Err(e) = workflow.input.validate(&input) {
-        error!(
-            workflow = %workflow.name,
-            error = %e,
-            expected_schema = ?workflow.input,
-            provided_keys = ?input.keys().collect::<Vec<_>>(),
-            "Input validation failed"
-        );
-        return Err(e);
+    // Validate input against workflow schema (skip on resume — input is merged)
+    if checkpoint.is_none() {
+        if let Err(e) = workflow.input.validate(&input) {
+            error!(
+                workflow = %workflow.name,
+                error = %e,
+                expected_schema = ?workflow.input,
+                provided_keys = ?input.keys().collect::<Vec<_>>(),
+                "Input validation failed"
+            );
+            return Err(e);
+        }
     }
 
     // Merge workflow templates into config
@@ -385,14 +405,51 @@ pub async fn execute_workflow(
     // Wrap config in Arc for sharing across tasks
     let config = Arc::new(config);
 
-    let state = Arc::new(RwLock::new(ExecutionState::new(input)));
     let graph = ExecutionGraph::from_workflow(workflow);
 
-    // Initialize: all nodes are pending
-    let mut pending_nodes: HashSet<String> = workflow.nodes.iter()
-        .map(|n| n.id.clone())
-        .collect();
-    let mut executed: HashSet<String> = HashSet::new();
+    // Initialize state and tracking sets — either fresh or from checkpoint
+    let (state, mut executed, mut pending_nodes) = if let Some(ref resume) = checkpoint {
+        info!(
+            workflow = %workflow.name,
+            resume_from = %resume.resume_from,
+            checkpoint_nodes = ?resume.checkpoint_state.executions.keys().collect::<Vec<_>>(),
+            "Resuming workflow from checkpoint"
+        );
+
+        let restored = ExecutionState::from_checkpoint(&resume.checkpoint_state, input);
+
+        // Compute forward-reachable set from resume point
+        let reachable = compute_forward_reachable(&graph, &resume.resume_from);
+
+        let start_id = workflow.find_start_node()
+            .map(|n| n.id.clone())
+            .unwrap_or_default();
+
+        let mut pre_executed: HashSet<String> = HashSet::new();
+        let mut pending: HashSet<String> = HashSet::new();
+
+        for node in &workflow.nodes {
+            if reachable.contains(&node.id) || node.id == start_id {
+                // Resume point + downstream + start → re-execute
+                pending.insert(node.id.clone());
+            } else if restored.has_node_output(&node.id) {
+                // Upstream nodes with existing outputs → keep as executed
+                pre_executed.insert(node.id.clone());
+            } else {
+                // Never-executed nodes not in reachable set → keep pending
+                pending.insert(node.id.clone());
+            }
+        }
+
+        (Arc::new(RwLock::new(restored)), pre_executed, pending)
+    } else {
+        let state = ExecutionState::new(input);
+        let pending: HashSet<String> = workflow.nodes.iter()
+            .map(|n| n.id.clone())
+            .collect();
+        (Arc::new(RwLock::new(state)), HashSet::new(), pending)
+    };
+
     let mut in_flight: HashSet<String> = HashSet::new();
     let mut timing = ExecutionTiming::default();
     let mut token_usage = TokenUsage::default();
@@ -424,6 +481,7 @@ pub async fn execute_workflow(
                 timing,
                 token_usage,
                 exit_reason: None,
+                checkpoint_state: None,
             });
         }
 
@@ -537,6 +595,27 @@ pub async fn execute_workflow(
                 "Node state recorded"
             );
 
+            // If this is a checkpoint node, pause execution and return state
+            if graph.is_checkpoint_node(&result.node_id) {
+                let cp_state = state_guard.to_checkpoint(result.outputs.clone());
+                timing.total_ms = start_time.elapsed().as_millis() as u64;
+                info!(
+                    workflow = %workflow.name,
+                    checkpoint_node = %result.node_id,
+                    "Workflow paused at checkpoint"
+                );
+                return Ok(ExecutionResult {
+                    status: ExecutionStatus::Paused,
+                    executions: state_guard.get_executions().clone(),
+                    output: result.outputs,
+                    error: None,
+                    timing,
+                    token_usage,
+                    exit_reason: None,
+                    checkpoint_state: Some(cp_state),
+                });
+            }
+
             // If this is a response node, capture final output
             if graph.is_response_node(&result.node_id) {
                 final_output = result.outputs;
@@ -578,7 +657,25 @@ pub async fn execute_workflow(
         timing,
         token_usage,
         exit_reason: None,
+        checkpoint_state: None,
     })
+}
+
+/// Compute all nodes reachable by walking forward from a given node via outgoing edges
+fn compute_forward_reachable(graph: &ExecutionGraph, start_node: &str) -> HashSet<String> {
+    let mut reachable = HashSet::new();
+    let mut queue = vec![start_node.to_string()];
+
+    while let Some(node_id) = queue.pop() {
+        if !reachable.insert(node_id.clone()) {
+            continue;
+        }
+        for edge in graph.get_outgoing_edges(&node_id) {
+            queue.push(edge.to.clone());
+        }
+    }
+
+    reachable
 }
 
 /// Execute multiple nodes in parallel
