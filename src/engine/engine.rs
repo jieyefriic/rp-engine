@@ -13,7 +13,8 @@ use crate::providers::{ProviderRegistry, EmbeddingRegistry};
 use crate::schema::{PreparedWorkflow, Template};
 
 use super::builder::{EngineBuilder, StateSavingConfig};
-use super::executor::{execute_workflow, ExecutionConfig, ExecutionResult, ConnectionPools};
+use crate::state::CheckpointState;
+use super::executor::{execute_workflow, ExecutionConfig, ExecutionResult, ResumeParams, ConnectionPools};
 
 /// The main workflow execution engine
 ///
@@ -161,7 +162,73 @@ impl Engine {
         }
 
         // Execute workflow
-        let result = execute_workflow(workflow, input_map.clone(), config).await?;
+        let result = execute_workflow(workflow, input_map.clone(), config, None).await?;
+
+        // Save state if enabled
+        if let Some(saving_config) = &self.state_saving {
+            if saving_config.enabled {
+                self.save_state(workflow_name, &input_map, &result, saving_config).await?;
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Resume a workflow from a checkpoint
+    ///
+    /// # Arguments
+    /// * `workflow_name` - Name of the workflow to resume
+    /// * `checkpoint_state` - Serialized state from a previous Paused execution
+    /// * `resume_from` - Node ID to resume execution from (this node and all downstream re-execute)
+    /// * `new_input` - New input to merge (e.g., user's answer to a question)
+    ///
+    /// # Returns
+    /// * `ExecutionResult` — may be `Paused` again if another checkpoint is hit, or `Success` on completion
+    pub async fn resume(
+        &self,
+        workflow_name: &str,
+        checkpoint_state: CheckpointState,
+        resume_from: &str,
+        new_input: Value,
+    ) -> Result<ExecutionResult, EngineError> {
+        let workflow = self.workflows.get(workflow_name)
+            .ok_or_else(|| EngineError::InvalidWorkflow(
+                format!("Workflow '{}' not found. Available: {:?}", workflow_name, self.list_workflows())
+            ))?;
+
+        let input_map = match new_input {
+            Value::Object(map) => {
+                map.into_iter().collect::<HashMap<String, Value>>()
+            }
+            _ => {
+                let mut map = HashMap::new();
+                map.insert("input".to_string(), new_input);
+                map
+            }
+        };
+
+        let mut config = ExecutionConfig::default()
+            .with_providers(self.providers.clone())
+            .with_embedding_providers(self.embedding_providers.clone())
+            .with_templates(self.templates.clone())
+            .with_node_registry(self.node_registry.clone())
+            .with_pools(self.pools.clone())
+            .with_timeout(self.timeout)
+            .with_max_iterations(self.max_iterations)
+            .with_capture_actual_prompt(self.capture_actual_prompt)
+            .with_capture_raw_response(self.capture_raw_response)
+            .with_workflows(self.workflows.clone());
+
+        for (id, ds) in &workflow.data_sources {
+            config.data_sources.insert(id.clone(), ds.clone());
+        }
+
+        let resume_params = ResumeParams {
+            checkpoint_state,
+            resume_from: resume_from.to_string(),
+        };
+
+        let result = execute_workflow(workflow, input_map.clone(), config, Some(resume_params)).await?;
 
         // Save state if enabled
         if let Some(saving_config) = &self.state_saving {
@@ -205,7 +272,7 @@ impl Engine {
             .with_max_iterations(self.max_iterations)
             .with_workflows(self.workflows.clone());
 
-        execute_workflow(&workflow, input_map, config).await
+        execute_workflow(&workflow, input_map, config, None).await
     }
 
     /// Check if a workflow exists

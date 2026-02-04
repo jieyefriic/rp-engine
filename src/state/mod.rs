@@ -2,4 +2,4 @@
 
 mod execution_state;
 
-pub use execution_state::{ExecutionState, ExecutionRecord, SupervisorContext};
+pub use execution_state::{ExecutionState, ExecutionRecord, SupervisorContext, CheckpointState, EdgeCountEntry};

@@ -315,6 +315,8 @@ pub enum NodeType {
     Mcp,
     /// Final output node
     Response,
+    /// Checkpoint node - pauses execution and returns state for later resume
+    Checkpoint,
     /// User-defined custom node type
     #[serde(untagged)]
     Custom(String),

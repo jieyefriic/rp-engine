@@ -31,6 +31,29 @@ pub struct ExecutionRecord {
     pub timestamp: u64,
 }
 
+/// A single edge count entry for checkpoint serialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EdgeCountEntry {
+    pub from: String,
+    pub to: String,
+    pub count: u32,
+}
+
+/// Serializable checkpoint state for pause/resume
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckpointState {
+    /// Original workflow input
+    pub input: HashMap<String, Value>,
+    /// All node execution records at time of checkpoint
+    pub executions: HashMap<String, Vec<ExecutionRecord>>,
+    /// Edge traversal counts (serializable format)
+    pub edge_counts: Vec<EdgeCountEntry>,
+    /// Short ID counter at time of checkpoint
+    pub short_id_counter: u32,
+    /// Output from the checkpoint node itself
+    pub checkpoint_output: HashMap<String, Value>,
+}
+
 /// Supervisor context for dynamic task dispatch
 #[derive(Debug, Clone, Default)]
 pub struct SupervisorContext {
@@ -81,6 +104,61 @@ impl ExecutionState {
             short_id_counter: 0,
             current_vars: HashMap::new(),
         }
+    }
+
+    /// Capture current state as a serializable CheckpointState
+    pub fn to_checkpoint(&self, checkpoint_output: HashMap<String, Value>) -> CheckpointState {
+        let edge_counts = self.edge_counts
+            .iter()
+            .map(|((from, to), count)| EdgeCountEntry {
+                from: from.clone(),
+                to: to.clone(),
+                count: *count,
+            })
+            .collect();
+
+        CheckpointState {
+            input: self.input.clone(),
+            executions: self.node_executions.clone(),
+            edge_counts,
+            short_id_counter: self.short_id_counter,
+            checkpoint_output,
+        }
+    }
+
+    /// Restore state from a CheckpointState, merging new input
+    pub fn from_checkpoint(checkpoint: &CheckpointState, new_input: HashMap<String, Value>) -> Self {
+        let mut merged_input = checkpoint.input.clone();
+        for (k, v) in new_input {
+            merged_input.insert(k, v);
+        }
+
+        let edge_counts = checkpoint.edge_counts
+            .iter()
+            .map(|e| ((e.from.clone(), e.to.clone()), e.count))
+            .collect();
+
+        let latest_execution = Self::rebuild_latest(&checkpoint.executions);
+
+        Self {
+            node_executions: checkpoint.executions.clone(),
+            latest_execution,
+            input: merged_input,
+            edge_counts,
+            supervisor_context: None,
+            short_id_counter: checkpoint.short_id_counter,
+            current_vars: HashMap::new(),
+        }
+    }
+
+    /// Rebuild latest_execution map from execution records
+    fn rebuild_latest(executions: &HashMap<String, Vec<ExecutionRecord>>) -> HashMap<String, String> {
+        executions
+            .iter()
+            .filter_map(|(node_id, records)| {
+                records.last().map(|r| (node_id.clone(), r.short_id.clone()))
+            })
+            .collect()
     }
 
     /// Generate a unique short ID using base36
