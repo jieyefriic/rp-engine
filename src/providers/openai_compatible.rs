@@ -64,6 +64,7 @@ impl OpenAICompatibleProvider {
 
         if stream {
             body["stream"] = json!(true);
+            body["stream_options"] = json!({"include_usage": true});
         }
 
         // DashScope/Qwen: enable web search

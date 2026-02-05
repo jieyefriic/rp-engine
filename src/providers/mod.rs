@@ -316,6 +316,8 @@ pub struct StreamResponse {
     pub content: String,
     /// Time to first token in milliseconds
     pub ttft: Option<f64>,
+    /// Token usage (extracted from the final SSE chunk, if available)
+    pub usage: Option<TokenUsage>,
 }
 
 /// Callback for stream chunks

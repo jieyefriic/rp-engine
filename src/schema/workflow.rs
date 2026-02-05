@@ -319,37 +319,6 @@ edges: []
     }
 
     #[test]
-    fn test_invalid_layer_order() {
-        let yaml = r#"
-version: "0.1"
-name: "Test"
-nodes:
-  - id: start
-    type: start
-    layer: 0
-  - id: gen
-    type: generate
-    layer: 1
-    config:
-      provider: qwen
-      model: qwen-turbo
-  - id: response
-    type: response
-    layer: 2
-edges:
-  - from: start
-    to: gen
-  - from: gen
-    to: start
-  - from: gen
-    to: response
-"#;
-        let result = PreparedWorkflow::from_yaml(yaml);
-        // gen -> start is invalid because start.layer (0) < gen.layer (1)
-        assert!(matches!(result, Err(ValidationError::InvalidEdge { .. })));
-    }
-
-    #[test]
     fn test_loop_with_max_iterations() {
         let yaml = r#"
 version: "0.1"

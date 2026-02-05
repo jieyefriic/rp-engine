@@ -124,6 +124,34 @@ impl Engine {
         workflow_name: &str,
         input: Value,
     ) -> Result<ExecutionResult, EngineError> {
+        self.run_internal(workflow_name, input, None).await
+    }
+
+    /// Run a workflow with a stream handler for real-time text chunk delivery
+    ///
+    /// Generate nodes with `stream: true` in the workflow will call
+    /// `provider.stream()` and forward text chunks to the handler.
+    ///
+    /// # Arguments
+    /// * `workflow_name` - Name of the workflow
+    /// * `input` - Input data as a JSON value
+    /// * `stream_handler` - Handler that receives text chunks during streaming
+    pub async fn run_with_stream_handler(
+        &self,
+        workflow_name: &str,
+        input: Value,
+        stream_handler: Arc<dyn super::StreamHandler>,
+    ) -> Result<ExecutionResult, EngineError> {
+        self.run_internal(workflow_name, input, Some(stream_handler)).await
+    }
+
+    /// Internal implementation shared by run() and run_with_stream_handler()
+    async fn run_internal(
+        &self,
+        workflow_name: &str,
+        input: Value,
+        stream_handler: Option<Arc<dyn super::StreamHandler>>,
+    ) -> Result<ExecutionResult, EngineError> {
         // Get workflow
         let workflow = self.workflows.get(workflow_name)
             .ok_or_else(|| EngineError::InvalidWorkflow(
@@ -155,6 +183,11 @@ impl Engine {
             .with_capture_actual_prompt(self.capture_actual_prompt)
             .with_capture_raw_response(self.capture_raw_response)
             .with_workflows(self.workflows.clone());
+
+        // Inject stream handler if provided
+        if let Some(handler) = stream_handler {
+            config = config.with_stream_handler(handler);
+        }
 
         // Merge workflow-specific data sources
         for (id, ds) in &workflow.data_sources {

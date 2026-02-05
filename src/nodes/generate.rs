@@ -11,7 +11,7 @@ use crate::state::ExecutionState;
 use crate::engine::ExecutionConfig;
 use crate::error::EngineError;
 use crate::expression::evaluate_expression;
-use crate::providers::{ChatOptions, Message, MessageContent, ContentPart};
+use crate::providers::{ChatOptions, Message, MessageContent, ContentPart, StreamCallback};
 use super::NodeExecutor;
 
 /// Executor for generate nodes
@@ -271,30 +271,84 @@ impl NodeExecutor for GenerateExecutor {
             "Making LLM API call"
         );
 
-        // Make the API call
-        let response = match provider.chat(messages, options).await {
-            Ok(r) => {
-                debug!(
-                    node = %node_id,
-                    provider = %provider_id,
-                    model = %model_id,
-                    input_tokens = r.usage.input_tokens,
-                    output_tokens = r.usage.output_tokens,
-                    response_len = r.content.len(),
-                    "LLM call completed successfully"
-                );
-                r
+        // Determine if we should stream
+        // Streaming requires: 1) node config opt-in, 2) stream handler present,
+        // 3) no JSON schema (JSON mode needs complete response)
+        let has_json_schema = output_schema.map(|s| !s.is_empty()).unwrap_or(false);
+        let should_stream = node_config.stream
+            && config.stream_handler.is_some()
+            && !has_json_schema;
+
+        // Make the API call (streaming or non-streaming)
+        // Returns: (content, thinking, usage, ttft)
+        let (content, thinking, usage, ttft) = if should_stream {
+            // Streaming path: wrap StreamHandler into StreamCallback, call provider.stream()
+            let handler = config.stream_handler.as_ref().unwrap().clone();
+            let node_id_owned = node_id.clone();
+            let callback: StreamCallback = Box::new(move |chunk: &str, accumulated: &str| {
+                handler.on_text_chunk(&node_id_owned, chunk, accumulated);
+            });
+
+            debug!(
+                node = %node_id,
+                provider = %provider_id,
+                model = %model_id,
+                template = template_name.as_deref().unwrap_or("(none)"),
+                has_images = has_images,
+                "Making streaming LLM API call"
+            );
+
+            match provider.stream(messages, options, callback).await {
+                Ok(r) => {
+                    debug!(
+                        node = %node_id,
+                        provider = %provider_id,
+                        model = %model_id,
+                        response_len = r.content.len(),
+                        ttft_ms = ?r.ttft,
+                        has_usage = r.usage.is_some(),
+                        "Streaming LLM call completed"
+                    );
+                    (r.content, None, r.usage, r.ttft)
+                }
+                Err(e) => {
+                    error!(
+                        node = %node_id,
+                        provider = %provider_id,
+                        model = %model_id,
+                        template = template_name.as_deref().unwrap_or("(none)"),
+                        error = %e,
+                        "Streaming LLM API call failed"
+                    );
+                    return Err(EngineError::ProviderError(e));
+                }
             }
-            Err(e) => {
-                error!(
-                    node = %node_id,
-                    provider = %provider_id,
-                    model = %model_id,
-                    template = template_name.as_deref().unwrap_or("(none)"),
-                    error = %e,
-                    "LLM API call failed"
-                );
-                return Err(EngineError::ProviderError(e));
+        } else {
+            // Non-streaming path: call provider.chat()
+            match provider.chat(messages, options).await {
+                Ok(r) => {
+                    debug!(
+                        node = %node_id,
+                        provider = %provider_id,
+                        model = %model_id,
+                        input_tokens = r.usage.input_tokens,
+                        output_tokens = r.usage.output_tokens,
+                        response_len = r.content.len(),
+                        "LLM call completed successfully"
+                    );
+                    (r.content, r.thinking, Some(r.usage), None)
+                }
+                Err(e) => {
+                    error!(
+                        node = %node_id,
+                        provider = %provider_id,
+                        model = %model_id,
+                        template = template_name.as_deref().unwrap_or("(none)"),
+                        error = %e,
+                        "LLM API call failed"
+                    );
+                    return Err(EngineError::ProviderError(e));
+                }
             }
         };
 
@@ -304,7 +358,7 @@ impl NodeExecutor for GenerateExecutor {
         // Try to parse JSON if we have a schema
         if let Some(schema) = output_schema {
             if !schema.is_empty() {
-                match serde_json::from_str::<Value>(&response.content) {
+                match serde_json::from_str::<Value>(&content) {
                     Ok(parsed) => {
                         // Map schema fields to outputs
                         for field in schema {
@@ -320,35 +374,42 @@ impl NodeExecutor for GenerateExecutor {
                         warn!(
                             node = %node_id,
                             error = %e,
-                            raw_content_preview = %response.content.chars().take(200).collect::<String>(),
+                            raw_content_preview = %content.chars().take(200).collect::<String>(),
                             "Failed to parse JSON response, using raw content"
                         );
-                        outputs.insert("output".to_string(), Value::String(response.content.clone()));
+                        outputs.insert("output".to_string(), Value::String(content.clone()));
                     }
                 }
             } else {
-                outputs.insert("output".to_string(), Value::String(response.content.clone()));
+                outputs.insert("output".to_string(), Value::String(content.clone()));
             }
         } else {
-            outputs.insert("output".to_string(), Value::String(response.content.clone()));
+            outputs.insert("output".to_string(), Value::String(content.clone()));
         }
 
-        // Add thinking if present
-        if let Some(thinking) = response.thinking {
+        // Add thinking if present (chat path only, streaming does not return thinking)
+        if let Some(thinking) = thinking {
             outputs.insert("_thinking".to_string(), Value::String(thinking));
         }
 
-        // Add usage info (including provider/model for cost tracking)
-        let mut usage_json = json!({
-            "provider": provider_id,
-            "model": model_id,
-            "input_tokens": response.usage.input_tokens,
-            "output_tokens": response.usage.output_tokens,
-        });
-        if let Some(count) = response.usage.search_count {
-            usage_json["search_count"] = json!(count);
+        // Add TTFT if present (streaming path only)
+        if let Some(ttft_ms) = ttft {
+            outputs.insert("_ttft_ms".to_string(), json!(ttft_ms));
         }
-        outputs.insert("_usage".to_string(), usage_json);
+
+        // Add usage info (including provider/model for cost tracking)
+        if let Some(ref usage) = usage {
+            let mut usage_json = json!({
+                "provider": provider_id,
+                "model": model_id,
+                "input_tokens": usage.input_tokens,
+                "output_tokens": usage.output_tokens,
+            });
+            if let Some(count) = usage.search_count {
+                usage_json["search_count"] = json!(count);
+            }
+            outputs.insert("_usage".to_string(), usage_json);
+        }
 
         // Add actual prompt for debugging (legacy field, unrendered template)
         outputs.insert("_prompt".to_string(), Value::String(final_prompt.clone()));
@@ -363,7 +424,7 @@ impl NodeExecutor for GenerateExecutor {
 
         // Capture raw response if enabled (for observability)
         if config.capture_raw_response {
-            outputs.insert("_raw_response".to_string(), Value::String(response.content.clone()));
+            outputs.insert("_raw_response".to_string(), Value::String(content));
         }
 
         Ok(outputs)

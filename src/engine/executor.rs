@@ -189,6 +189,9 @@ pub struct ExecutionConfig {
 
     /// All loaded workflows (for sub-workflow execution)
     pub workflows: Arc<HashMap<String, PreparedWorkflow>>,
+
+    /// Optional stream handler for generate nodes with stream: true
+    pub stream_handler: Option<Arc<dyn super::StreamHandler>>,
 }
 
 impl Default for ExecutionConfig {
@@ -206,6 +209,7 @@ impl Default for ExecutionConfig {
             capture_actual_prompt: false,
             capture_raw_response: false,
             workflows: Arc::new(HashMap::new()),
+            stream_handler: None,
         }
     }
 }
@@ -280,6 +284,12 @@ impl ExecutionConfig {
     /// Get a workflow by name (for sub-workflow execution)
     pub fn get_workflow(&self, name: &str) -> Option<&PreparedWorkflow> {
         self.workflows.get(name)
+    }
+
+    /// Set stream handler for generate nodes with stream: true
+    pub fn with_stream_handler(mut self, handler: Arc<dyn super::StreamHandler>) -> Self {
+        self.stream_handler = Some(handler);
+        self
     }
 }
 

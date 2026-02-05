@@ -177,6 +177,7 @@ async fn execute_child_workflow(
         capture_actual_prompt: config.capture_actual_prompt,
         capture_raw_response: config.capture_raw_response,
         workflows: config.workflows.clone(),
+        stream_handler: config.stream_handler.clone(),
     };
 
     // Execute the child workflow

@@ -367,6 +367,13 @@ pub struct NodeConfig {
     /// Model ID (e.g., "gpt-4", "claude-sonnet-4")
     pub model: Option<String>,
 
+    /// Whether this generate node should stream its LLM response.
+    /// When true and a StreamHandler is registered, uses provider.stream()
+    /// instead of provider.chat(). Automatically disabled when output_schema
+    /// is present (JSON mode requires complete response).
+    #[serde(default)]
+    pub stream: bool,
+
     /// Variable bindings: var_name -> path expression (supports array for conditional inputs)
     #[serde(default)]
     pub variables: HashMap<String, VariableBinding>,
