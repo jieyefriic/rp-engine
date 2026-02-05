@@ -54,7 +54,7 @@ mod tests {
         let node = YamlNode {
             id: "response".to_string(),
             node_type: crate::schema::NodeType::Response,
-            layer: 1,
+
             config: crate::schema::NodeConfig {
                 output: output_map,
                 ..Default::default()

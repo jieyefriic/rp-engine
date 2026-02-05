@@ -55,7 +55,7 @@ mod tests {
         let node = YamlNode {
             id: "start".to_string(),
             node_type: crate::schema::NodeType::Start,
-            layer: 0,
+
             config: Default::default(),
         };
 
@@ -79,7 +79,7 @@ mod tests {
         let node = YamlNode {
             id: "start".to_string(),
             node_type: crate::schema::NodeType::Start,
-            layer: 0,
+
             config: crate::schema::NodeConfig {
                 output: output_map,
                 ..Default::default()

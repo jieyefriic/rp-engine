@@ -38,7 +38,7 @@ pub mod providers;
 pub use error::EngineError;
 pub use schema::{PreparedWorkflow, YamlNode, YamlEdge, Template, NodeConfig, NodeType};
 pub use state::{ExecutionState, ExecutionRecord, CheckpointState, EdgeCountEntry};
-pub use engine::{execute, ExecutionResult, ExecutionConfig, ExecutionStatus, Engine, EngineBuilder, StateSavingConfig, ConnectionPools, PoolConfig, ResumeParams};
+pub use engine::{execute, ExecutionResult, ExecutionConfig, ExecutionStatus, Engine, EngineBuilder, StateSavingConfig, ConnectionPools, PoolConfig, ResumeParams, StreamHandler, SharedStreamHandler};
 
 // Custom node support
 pub use nodes::{CustomNode, NodeRegistry};
