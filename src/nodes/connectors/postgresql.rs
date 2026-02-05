@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use tokio_postgres::{NoTls, Row, types::ToSql};
 use serde_json::Value;
 use tracing::{debug, error};
+use chrono::{DateTime, Utc, NaiveDateTime};
 
 use crate::state::ExecutionState;
 use crate::error::EngineError;
@@ -625,6 +626,12 @@ fn row_value_to_json(row: &Row, idx: usize, pg_type: &tokio_postgres::types::Typ
             .unwrap_or(Value::Null),
         Type::UUID => row.get::<_, Option<uuid::Uuid>>(idx)
             .map(|v| Value::String(v.to_string()))
+            .unwrap_or(Value::Null),
+        Type::TIMESTAMP => row.get::<_, Option<NaiveDateTime>>(idx)
+            .map(|v| Value::String(v.format("%Y-%m-%d %H:%M:%S").to_string()))
+            .unwrap_or(Value::Null),
+        Type::TIMESTAMPTZ => row.get::<_, Option<DateTime<Utc>>>(idx)
+            .map(|v| Value::String(v.to_rfc3339()))
             .unwrap_or(Value::Null),
         _ => row.get::<_, Option<String>>(idx)
             .map(Value::String)
