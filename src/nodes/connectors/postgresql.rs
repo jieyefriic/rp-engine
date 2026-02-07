@@ -28,6 +28,7 @@ enum SqlParam {
     Bool(bool),
     Json(Json<Value>),
     Uuid(uuid::Uuid),
+    StringArray(Vec<String>),
     Null,
 }
 
@@ -35,11 +36,34 @@ impl ToSql for SqlParam {
     fn to_sql(&self, ty: &PgType, out: &mut BytesMut) -> Result<IsNull, Box<dyn std::error::Error + Sync + Send>> {
         match self {
             SqlParam::String(s) => s.to_sql(ty, out),
-            SqlParam::Int(i) => i.to_sql(ty, out),
-            SqlParam::Float(f) => f.to_sql(ty, out),
+            SqlParam::Int(i) => {
+                // Auto-downcast to narrower integer types based on target column
+                match *ty {
+                    PgType::INT2 => (*i as i16).to_sql(ty, out),
+                    PgType::INT4 => (*i as i32).to_sql(ty, out),
+                    _ => i.to_sql(ty, out),
+                }
+            }
+            SqlParam::Float(f) => {
+                // Auto-downcast to FLOAT4 if target column is REAL
+                match *ty {
+                    PgType::FLOAT4 => (*f as f32).to_sql(ty, out),
+                    _ => f.to_sql(ty, out),
+                }
+            }
             SqlParam::Bool(b) => b.to_sql(ty, out),
             SqlParam::Json(j) => j.to_sql(ty, out),
             SqlParam::Uuid(u) => u.to_sql(ty, out),
+            SqlParam::StringArray(arr) => {
+                // Check if target is a JSONB/JSON column - convert to JSON array
+                match *ty {
+                    PgType::JSONB | PgType::JSON => {
+                        let json_arr = Value::Array(arr.iter().map(|s| Value::String(s.clone())).collect());
+                        Json(json_arr).to_sql(ty, out)
+                    }
+                    _ => arr.to_sql(ty, out),
+                }
+            }
             SqlParam::Null => Ok(IsNull::Yes),
         }
     }
@@ -47,10 +71,14 @@ impl ToSql for SqlParam {
     fn accepts(ty: &PgType) -> bool {
         <String as ToSql>::accepts(ty)
             || <i64 as ToSql>::accepts(ty)
+            || <i32 as ToSql>::accepts(ty)
+            || <i16 as ToSql>::accepts(ty)
             || <f64 as ToSql>::accepts(ty)
+            || <f32 as ToSql>::accepts(ty)
             || <bool as ToSql>::accepts(ty)
             || <Json<Value> as ToSql>::accepts(ty)
             || <uuid::Uuid as ToSql>::accepts(ty)
+            || <Vec<String> as ToSql>::accepts(ty)
     }
 
     tokio_postgres::types::to_sql_checked!();
@@ -113,8 +141,20 @@ fn value_to_sql_param(value: &Value) -> SqlParam {
         }
         Value::Bool(b) => SqlParam::Bool(*b),
         Value::Null => SqlParam::Null,
-        // Arrays and Objects are serialized as JSON for JSONB columns
-        Value::Array(_) | Value::Object(_) => SqlParam::Json(Json(value.clone())),
+        Value::Array(arr) => {
+            // If all elements are strings, use StringArray for text[]/varchar[] columns
+            // Otherwise fall back to JSON for jsonb columns
+            let all_strings = arr.iter().all(|v| v.is_string());
+            if all_strings {
+                let strings: Vec<String> = arr.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect();
+                SqlParam::StringArray(strings)
+            } else {
+                SqlParam::Json(Json(value.clone()))
+            }
+        }
+        Value::Object(_) => SqlParam::Json(Json(value.clone())),
     }
 }
 
