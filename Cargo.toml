@@ -48,6 +48,8 @@ uuid = { version = "1.19.0", features = ["v4"] }
 
 # Template rendering
 handlebars = "6"
+postgres-types = { version = "0.2.12", features = ["with-serde_json-1"] }
+bytes = "1.11.1"
 
 [dev-dependencies]
 tokio-test = "0.4"

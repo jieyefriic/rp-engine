@@ -7,7 +7,9 @@
 //! - New: `variables` map with `{paramName}` syntax in SQL (pre-resolved values)
 
 use std::collections::HashMap;
-use tokio_postgres::{NoTls, Row, types::ToSql};
+use tokio_postgres::{NoTls, Row};
+use tokio_postgres::types::{ToSql, Type as PgType, IsNull, Json};
+use bytes::BytesMut;
 use serde_json::Value;
 use tracing::{debug, error};
 use chrono::{DateTime, Utc, NaiveDateTime};
@@ -16,47 +18,104 @@ use crate::state::ExecutionState;
 use crate::error::EngineError;
 use super::{get_required_string, get_optional_string, get_optional_u64, resolve_template_vars, ConnectorContext};
 
-/// Resolve {paramName} patterns in a SQL template using pre-resolved variables
+/// Wrapper enum for dynamic SQL parameter types
+/// This allows us to store different types in a Vec and implement ToSql
+#[derive(Debug)]
+enum SqlParam {
+    String(String),
+    Int(i64),
+    Float(f64),
+    Bool(bool),
+    Json(Json<Value>),
+    Uuid(uuid::Uuid),
+    Null,
+}
+
+impl ToSql for SqlParam {
+    fn to_sql(&self, ty: &PgType, out: &mut BytesMut) -> Result<IsNull, Box<dyn std::error::Error + Sync + Send>> {
+        match self {
+            SqlParam::String(s) => s.to_sql(ty, out),
+            SqlParam::Int(i) => i.to_sql(ty, out),
+            SqlParam::Float(f) => f.to_sql(ty, out),
+            SqlParam::Bool(b) => b.to_sql(ty, out),
+            SqlParam::Json(j) => j.to_sql(ty, out),
+            SqlParam::Uuid(u) => u.to_sql(ty, out),
+            SqlParam::Null => Ok(IsNull::Yes),
+        }
+    }
+
+    fn accepts(ty: &PgType) -> bool {
+        <String as ToSql>::accepts(ty)
+            || <i64 as ToSql>::accepts(ty)
+            || <f64 as ToSql>::accepts(ty)
+            || <bool as ToSql>::accepts(ty)
+            || <Json<Value> as ToSql>::accepts(ty)
+            || <uuid::Uuid as ToSql>::accepts(ty)
+    }
+
+    tokio_postgres::types::to_sql_checked!();
+}
+
+/// Prepare a parameterized SQL query from a template
+///
+/// Replaces {paramName} patterns with $1, $2, ... placeholders
+/// and returns the SQL string along with the parameter values.
 ///
 /// For example, with:
-/// - sql: "SELECT * FROM users WHERE id = {userId}"
-/// - variables: {"userId": Value::String("123")}
+/// - sql: "SELECT * FROM users WHERE id = {userId} AND name = {name}"
+/// - variables: {"userId": Value::String("123"), "name": Value::String("test")}
 ///
-/// Returns: "SELECT * FROM users WHERE id = '123'"
-fn resolve_sql_with_variables(
+/// Returns: ("SELECT * FROM users WHERE id = $1 AND name = $2", [SqlParam::String("123"), SqlParam::String("test")])
+fn prepare_parameterized_query(
     sql: &str,
     variables: &HashMap<String, Value>,
-) -> String {
+) -> (String, Vec<SqlParam>) {
     let re = regex_lite::Regex::new(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}").unwrap();
+    let mut params: Vec<SqlParam> = Vec::new();
+    let mut param_index = 0;
 
-    re.replace_all(sql, |caps: &regex_lite::Captures| {
+    let result_sql = re.replace_all(sql, |caps: &regex_lite::Captures| {
         let param_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
 
-        // Look up the pre-resolved value for this parameter
         if let Some(value) = variables.get(param_name) {
-            match value {
-                Value::String(s) => format!("'{}'", s.replace('\'', "''")), // Escape single quotes
-                Value::Number(n) => n.to_string(),
-                Value::Bool(b) => b.to_string(),
-                Value::Null => "NULL".to_string(),
-                Value::Array(arr) => {
-                    // Convert array to PostgreSQL array literal
-                    let elements: Vec<String> = arr.iter().map(|v| match v {
-                        Value::String(s) => format!("'{}'", s.replace('\'', "''")),
-                        Value::Number(n) => n.to_string(),
-                        Value::Bool(b) => b.to_string(),
-                        Value::Null => "NULL".to_string(),
-                        other => format!("'{}'", other.to_string().replace('\'', "''")),
-                    }).collect();
-                    format!("ARRAY[{}]", elements.join(", "))
-                }
-                other => format!("'{}'", other.to_string().replace('\'', "''")),
-            }
+            param_index += 1;
+            let param = value_to_sql_param(value);
+            params.push(param);
+            format!("${}", param_index)
         } else {
             // No variable found, leave the placeholder as-is
             format!("{{{}}}", param_name)
         }
-    }).to_string()
+    }).to_string();
+
+    (result_sql, params)
+}
+
+/// Convert a serde_json::Value to SqlParam
+fn value_to_sql_param(value: &Value) -> SqlParam {
+    match value {
+        Value::String(s) => {
+            // Try to parse as UUID first (for UUID columns)
+            if let Ok(uuid) = uuid::Uuid::parse_str(s) {
+                SqlParam::Uuid(uuid)
+            } else {
+                SqlParam::String(s.clone())
+            }
+        }
+        Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                SqlParam::Int(i)
+            } else if let Some(f) = n.as_f64() {
+                SqlParam::Float(f)
+            } else {
+                SqlParam::String(n.to_string())
+            }
+        }
+        Value::Bool(b) => SqlParam::Bool(*b),
+        Value::Null => SqlParam::Null,
+        // Arrays and Objects are serialized as JSON for JSONB columns
+        Value::Array(_) | Value::Object(_) => SqlParam::Json(Json(value.clone())),
+    }
 }
 
 /// Unified PostgreSQL execute function
@@ -222,26 +281,30 @@ async fn execute_query_internal(
 ) -> Result<HashMap<String, Value>, EngineError> {
     let sql_template = get_required_string(operation, "sql", state)?;
 
-    // If variables are provided, resolve {paramName} placeholders in SQL
+    // If variables are provided, use parameterized query
     let rows = if !variables.is_empty() {
-        let sql = resolve_sql_with_variables(&sql_template, variables);
+        let (sql, params) = prepare_parameterized_query(&sql_template, variables);
+        let param_refs: Vec<&(dyn ToSql + Sync)> = params.iter()
+            .map(|p| p as &(dyn ToSql + Sync))
+            .collect();
+
         debug!(
             sql = %sql,
-            variables = ?variables,
-            "Executing SQL with variables (non-pooled)"
+            params = ?params,
+            "Executing parameterized SQL query (non-pooled)"
         );
-        client.query(&sql, &[])
+        client.query(&sql, &param_refs)
             .await
             .map_err(|e| {
                 error!(
                     error = %e,
                     sql = %sql,
-                    variables = ?variables,
+                    params = ?params,
                     "PostgreSQL query failed (non-pooled)"
                 );
                 EngineError::DatabaseError(format!(
-                    "Query failed: {} | SQL: {} | Variables: {:?}",
-                    e, sql, variables
+                    "Query failed: {} | SQL: {} | Params: {:?}",
+                    e, sql, params
                 ))
             })?
     } else {
@@ -657,29 +720,33 @@ async fn execute_query_pooled(
 ) -> Result<HashMap<String, Value>, EngineError> {
     let sql_template = get_required_string(operation, "sql", state)?;
 
-    // If variables are provided, resolve {paramName} placeholders in SQL
+    // If variables are provided, use parameterized query
     // Otherwise, use legacy params mode
     let rows = if !variables.is_empty() {
-        // Variables mode: replace {paramName} with actual values
-        let sql = resolve_sql_with_variables(&sql_template, variables);
+        // Variables mode: use parameterized query (safe from SQL injection)
+        let (sql, params) = prepare_parameterized_query(&sql_template, variables);
+        let param_refs: Vec<&(dyn ToSql + Sync)> = params.iter()
+            .map(|p| p as &(dyn ToSql + Sync))
+            .collect();
+
         debug!(
             sql = %sql,
-            variables = ?variables,
-            "Executing SQL with variables"
+            params = ?params,
+            "Executing parameterized SQL query"
         );
 
-        client.query(&sql, &[])
+        client.query(&sql, &param_refs)
             .await
             .map_err(|e| {
                 error!(
                     error = %e,
                     sql = %sql,
-                    variables = ?variables,
+                    params = ?params,
                     "PostgreSQL query failed"
                 );
                 EngineError::DatabaseError(format!(
-                    "Query failed: {} | SQL: {} | Variables: {:?}",
-                    e, sql, variables
+                    "Query failed: {} | SQL: {} | Params: {:?}",
+                    e, sql, params
                 ))
             })?
     } else {
