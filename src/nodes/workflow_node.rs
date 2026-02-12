@@ -153,6 +153,7 @@ async fn execute_child_workflow(
     let child_config = ExecutionConfig {
         providers: config.providers.clone(),
         embedding_providers: config.embedding_providers.clone(),
+        search_providers: config.search_providers.clone(),
         timeout: config.timeout,
         max_iterations: config.max_iterations,
         templates: config.templates.clone(),

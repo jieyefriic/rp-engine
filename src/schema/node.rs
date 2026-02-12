@@ -319,6 +319,8 @@ pub enum NodeType {
     Checkpoint,
     /// Transform node - runs Rhai scripts for pure computation
     Transform,
+    /// Web search node - queries search APIs (Tavily, Brave, Bocha, Perplexity)
+    Search,
     /// User-defined custom node type
     #[serde(untagged)]
     Custom(String),

@@ -12,6 +12,7 @@ use crate::providers::{
     EmbeddingRegistry,
     DashScopeEmbeddingProvider, OpenAIEmbeddingProvider,
 };
+use crate::providers::search::create_search_registry;
 use crate::schema::{PreparedWorkflow, Template};
 
 use super::engine::Engine;
@@ -59,6 +60,9 @@ pub struct EngineBuilder {
     /// Embedding provider API keys: provider_name -> api_key
     embedding_providers: HashMap<String, String>,
 
+    /// Search provider API keys: provider_name -> api_key
+    search_providers: HashMap<String, String>,
+
     /// Custom node implementations to register
     custom_nodes: Vec<Arc<dyn CustomNode>>,
 
@@ -93,6 +97,7 @@ impl EngineBuilder {
             transforms_dir: None,
             providers: HashMap::new(),
             embedding_providers: HashMap::new(),
+            search_providers: HashMap::new(),
             custom_nodes: Vec::new(),
             state_saving: None,
             pool_config: PoolConfig::default(),
@@ -143,6 +148,14 @@ impl EngineBuilder {
     /// Supported embedding providers: dashscope, openai
     pub fn embedding_provider(mut self, name: &str, api_key: impl Into<String>) -> Self {
         self.embedding_providers.insert(name.to_string(), api_key.into());
+        self
+    }
+
+    /// Register a search provider with its API key
+    ///
+    /// Supported search providers: tavily, brave, bocha, perplexity
+    pub fn search_provider(mut self, name: &str, api_key: impl Into<String>) -> Self {
+        self.search_providers.insert(name.to_string(), api_key.into());
         self
     }
 
@@ -244,6 +257,14 @@ impl EngineBuilder {
             self.providers.get("moonshot").cloned(),
         );
 
+        // Build search provider registry
+        let search_registry = create_search_registry(
+            self.search_providers.get("tavily").cloned(),
+            self.search_providers.get("brave").cloned(),
+            self.search_providers.get("bocha").cloned(),
+            self.search_providers.get("perplexity").cloned(),
+        );
+
         // Build embedding registry
         let mut embedding_registry = EmbeddingRegistry::new();
         if let Some(key) = self.embedding_providers.get("dashscope") {
@@ -281,6 +302,7 @@ impl EngineBuilder {
             transforms,
             provider_registry,
             embedding_registry,
+            search_registry,
             Arc::new(node_registry),
             Arc::new(self.connection_pools),
             self.state_saving,

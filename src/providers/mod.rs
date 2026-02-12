@@ -23,6 +23,9 @@ pub mod embedding;
 mod embedding_dashscope;
 mod embedding_openai;
 
+// Search providers
+pub mod search;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use async_trait::async_trait;

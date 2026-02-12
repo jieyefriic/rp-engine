@@ -14,6 +14,7 @@ use crate::schema::{PreparedWorkflow, Template, YamlNode, NodeType, ExitReason, 
 use crate::state::{ExecutionState, ExecutionRecord, CheckpointState};
 use crate::expression::evaluate_expression;
 use crate::providers::{ProviderRegistry, EmbeddingRegistry};
+use crate::providers::search::SearchProviderRegistry;
 use crate::nodes::{create_executor, NodeRegistry};
 use super::graph::ExecutionGraph;
 
@@ -167,6 +168,9 @@ pub struct ExecutionConfig {
     /// Embedding provider registry for embedding calls
     pub embedding_providers: EmbeddingRegistry,
 
+    /// Search provider registry for web search calls
+    pub search_providers: SearchProviderRegistry,
+
     /// Custom node registry for user-defined node types
     pub node_registry: Arc<NodeRegistry>,
 
@@ -213,6 +217,7 @@ impl Default for ExecutionConfig {
         Self {
             providers: ProviderRegistry::new(),
             embedding_providers: EmbeddingRegistry::new(),
+            search_providers: SearchProviderRegistry::new(),
             timeout: Duration::from_secs(300), // 5 minutes
             max_iterations: 100,
             templates: HashMap::new(),
@@ -239,6 +244,12 @@ impl ExecutionConfig {
     /// Set embedding providers
     pub fn with_embedding_providers(mut self, embedding_providers: EmbeddingRegistry) -> Self {
         self.embedding_providers = embedding_providers;
+        self
+    }
+
+    /// Set search providers
+    pub fn with_search_providers(mut self, search_providers: SearchProviderRegistry) -> Self {
+        self.search_providers = search_providers;
         self
     }
 

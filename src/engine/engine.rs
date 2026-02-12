@@ -10,6 +10,7 @@ use serde_json::Value;
 use crate::error::EngineError;
 use crate::nodes::NodeRegistry;
 use crate::providers::{ProviderRegistry, EmbeddingRegistry};
+use crate::providers::search::SearchProviderRegistry;
 use crate::schema::{PreparedWorkflow, Template};
 
 use super::builder::{EngineBuilder, StateSavingConfig};
@@ -56,6 +57,9 @@ pub struct Engine {
     /// Embedding provider registry
     embedding_providers: EmbeddingRegistry,
 
+    /// Search provider registry
+    search_providers: SearchProviderRegistry,
+
     /// Custom node registry
     node_registry: Arc<NodeRegistry>,
 
@@ -94,6 +98,7 @@ impl Engine {
         transforms: HashMap<String, String>,
         providers: ProviderRegistry,
         embedding_providers: EmbeddingRegistry,
+        search_providers: SearchProviderRegistry,
         node_registry: Arc<NodeRegistry>,
         pools: Arc<ConnectionPools>,
         state_saving: Option<StateSavingConfig>,
@@ -105,6 +110,7 @@ impl Engine {
             templates,
             providers,
             embedding_providers,
+            search_providers,
             node_registry,
             pools,
             transforms,
@@ -180,6 +186,7 @@ impl Engine {
         let mut config = ExecutionConfig::default()
             .with_providers(self.providers.clone())
             .with_embedding_providers(self.embedding_providers.clone())
+            .with_search_providers(self.search_providers.clone())
             .with_templates(self.templates.clone())
             .with_node_registry(self.node_registry.clone())
             .with_pools(self.pools.clone())
@@ -249,6 +256,7 @@ impl Engine {
         let mut config = ExecutionConfig::default()
             .with_providers(self.providers.clone())
             .with_embedding_providers(self.embedding_providers.clone())
+            .with_search_providers(self.search_providers.clone())
             .with_templates(self.templates.clone())
             .with_node_registry(self.node_registry.clone())
             .with_pools(self.pools.clone())
@@ -305,6 +313,7 @@ impl Engine {
         let config = ExecutionConfig::default()
             .with_providers(self.providers.clone())
             .with_embedding_providers(self.embedding_providers.clone())
+            .with_search_providers(self.search_providers.clone())
             .with_templates(self.templates.clone())
             .with_node_registry(self.node_registry.clone())
             .with_pools(self.pools.clone())
