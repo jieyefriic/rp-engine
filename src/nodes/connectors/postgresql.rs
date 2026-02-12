@@ -2,9 +2,8 @@
 //!
 //! Supports operations: query, insert, select, update, delete
 //!
-//! Supports both:
-//! - Legacy: `params` array with `{{node.field}}` syntax
-//! - New: `variables` map with `{paramName}` syntax in SQL (pre-resolved values)
+//! Recommended: `variables` map with `{paramName}` syntax in SQL (parameterized, type-safe)
+//! Deprecated: `params` array with `{{node.field}}` syntax (string interpolation, unsafe)
 
 use std::collections::HashMap;
 use tokio_postgres::{NoTls, Row};
@@ -348,7 +347,8 @@ async fn execute_query_internal(
                 ))
             })?
     } else {
-        // Legacy params mode
+        // Legacy params mode (DEPRECATED)
+        tracing::warn!("DEPRECATED: PostgreSQL query using legacy params mode. Migrate to 'variables' + '{{paramName}}' parameterized binding.");
         let params = parse_query_params(operation, state)?;
         let param_refs: Vec<&(dyn ToSql + Sync)> = params.iter()
             .map(|p| p as &(dyn ToSql + Sync))
@@ -356,7 +356,7 @@ async fn execute_query_internal(
         debug!(
             sql = %sql_template,
             params = ?params,
-            "Executing SQL with params (non-pooled)"
+            "Executing SQL with params (non-pooled, legacy)"
         );
         client.query(&sql_template, &param_refs)
             .await
@@ -790,7 +790,8 @@ async fn execute_query_pooled(
                 ))
             })?
     } else {
-        // Legacy params mode: use $1, $2... with params array
+        // Legacy params mode (DEPRECATED): use $1, $2... with params array
+        tracing::warn!("DEPRECATED: PostgreSQL query using legacy params mode. Migrate to 'variables' + '{{paramName}}' parameterized binding.");
         let params = parse_query_params(operation, state)?;
         let param_refs: Vec<&(dyn ToSql + Sync)> = params.iter()
             .map(|p| p as &(dyn ToSql + Sync))
@@ -799,7 +800,7 @@ async fn execute_query_pooled(
         debug!(
             sql = %sql_template,
             params = ?params,
-            "Executing SQL with params"
+            "Executing SQL with params (legacy)"
         );
 
         client.query(&sql_template, &param_refs)
