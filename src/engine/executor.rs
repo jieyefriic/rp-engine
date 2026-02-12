@@ -152,19 +152,31 @@ impl ConnectionPools {
 }
 
 /// Execution configuration
+///
+/// Groups three levels of concern:
+/// - **Engine-level**: Shared across all workflow runs (providers, pools, registries)
+/// - **Workflow-level**: Per-workflow definitions (templates, subgraphs, data_sources)
+/// - **Run-level**: Per-execution options (timeout, streaming, observability)
 #[derive(Clone)]
 pub struct ExecutionConfig {
+    // ── Engine-level (shared across all runs) ──────────────────────────
+
     /// Provider registry for LLM calls
     pub providers: ProviderRegistry,
 
     /// Embedding provider registry for embedding calls
     pub embedding_providers: EmbeddingRegistry,
 
-    /// Global timeout
-    pub timeout: Duration,
+    /// Custom node registry for user-defined node types
+    pub node_registry: Arc<NodeRegistry>,
 
-    /// Maximum iterations for any edge (global limit)
-    pub max_iterations: u32,
+    /// Connection pools for databases
+    pub pools: Arc<ConnectionPools>,
+
+    /// All loaded workflows (for sub-workflow execution)
+    pub workflows: Arc<HashMap<String, PreparedWorkflow>>,
+
+    // ── Workflow-level (per workflow) ───────────────────────────────────
 
     /// Templates from the workflow (passed separately for ownership)
     pub templates: HashMap<String, Template>,
@@ -175,20 +187,19 @@ pub struct ExecutionConfig {
     /// Data Sources from the workflow (data_source_id -> DataSourceDef)
     pub data_sources: HashMap<String, DataSourceDef>,
 
-    /// Custom node registry for user-defined node types
-    pub node_registry: Arc<NodeRegistry>,
+    // ── Run-level options (per execution) ──────────────────────────────
 
-    /// Connection pools for databases
-    pub pools: Arc<ConnectionPools>,
+    /// Global timeout
+    pub timeout: Duration,
+
+    /// Maximum iterations for any edge (global limit)
+    pub max_iterations: u32,
 
     /// Whether to capture the actual rendered prompts (for observability)
     pub capture_actual_prompt: bool,
 
     /// Whether to capture the raw LLM response before parsing (for observability)
     pub capture_raw_response: bool,
-
-    /// All loaded workflows (for sub-workflow execution)
-    pub workflows: Arc<HashMap<String, PreparedWorkflow>>,
 
     /// Optional stream handler for generate nodes with stream: true
     pub stream_handler: Option<Arc<dyn super::StreamHandler>>,
@@ -339,18 +350,6 @@ struct NodeResult {
     timing_ms: u64,
 }
 
-/// Execute a workflow
-pub async fn execute(
-    workflow_yaml: &str,
-    input: HashMap<String, Value>,
-    config: ExecutionConfig,
-) -> Result<ExecutionResult, EngineError> {
-    // Parse workflow
-    let workflow = PreparedWorkflow::from_yaml(workflow_yaml)
-        .map_err(|e| EngineError::InvalidWorkflow(e.to_string()))?;
-
-    execute_workflow(&workflow, input, config, None).await
-}
 
 /// Execute a parsed workflow with input-based dependency execution
 ///
@@ -995,13 +994,11 @@ edges:
   - from: start
     to: response
 "#;
+        let workflow = PreparedWorkflow::from_yaml(yaml).unwrap();
         let mut input = HashMap::new();
         input.insert("query".to_string(), Value::String("hello".to_string()));
 
-        let result = execute(yaml, input, ExecutionConfig::default()).await.unwrap();
+        let result = execute_workflow(&workflow, input, ExecutionConfig::default(), None).await.unwrap();
         assert_eq!(result.status, ExecutionStatus::Success);
     }
-
-    // Note: Parallel execution with LLM nodes is tested in integration tests
-    // Unit tests here only cover basic workflow structure
 }

@@ -27,18 +27,32 @@ pub struct ConnectorContext<'a> {
 }
 
 /// Helper function to resolve {{variable}} templates in a string
+///
+/// **DEPRECATED**: This legacy syntax (`{{node.field}}`) performs string interpolation
+/// which is unsafe for SQL (injection risk) and loses type information.
+/// Use `variables` + `{paramName}` parameterized binding instead.
+/// This function will be removed in a future version.
 pub fn resolve_template_vars(template: &str, state: &ExecutionState) -> String {
     let re = regex_lite::Regex::new(r"\{\{([^}]+)\}\}").unwrap();
 
-    re.replace_all(template, |caps: &regex_lite::Captures| {
+    let result = re.replace_all(template, |caps: &regex_lite::Captures| {
         let path = caps.get(1).map(|m| m.as_str().trim()).unwrap_or("");
+        tracing::warn!(
+            path = %path,
+            template = %template,
+            "DEPRECATED: Using legacy {{{{}}}} variable syntax. \
+             Migrate to 'variables' + '{{paramName}}' parameterized binding. \
+             Legacy syntax will be removed in a future version."
+        );
         state.read(path)
             .map(|v| match v {
                 Value::String(s) => s,
                 other => other.to_string(),
             })
             .unwrap_or_else(|| format!("{{{{{}}}}}", path))
-    }).to_string()
+    }).to_string();
+
+    result
 }
 
 /// Helper to get a required string field from connection config

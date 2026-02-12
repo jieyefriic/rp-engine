@@ -2,7 +2,8 @@
 //!
 //! Simplified operations: get, set, del, publish, append_history
 //!
-//! Supports both legacy `key` field and new `key_template` with pre-resolved variables.
+//! Uses `key_template` / `value_template` with pre-resolved variables (recommended).
+//! Legacy `key` / `value` fields with `{{node.field}}` syntax are deprecated.
 
 use std::collections::HashMap;
 use redis::AsyncCommands;
@@ -45,39 +46,39 @@ fn resolve_param_template(
 
 /// Get the Redis key from operation config
 ///
-/// Supports both:
-/// - Legacy: "key" field with {{node.field}} syntax
-/// - New: "key_template" field with {paramName} syntax + pre-resolved variables
+/// Preferred: `key_template` with `{paramName}` syntax + pre-resolved variables
+/// Deprecated: `key` field with `{{node.field}}` syntax
 fn get_key(
     operation: &HashMap<String, Value>,
     variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<String, EngineError> {
-    // Try new key_template first
+    // Preferred: key_template with {paramName} variables
     if let Some(template) = operation.get("key_template").and_then(|v| v.as_str()) {
         return Ok(resolve_param_template(template, variables));
     }
 
-    // Fall back to legacy key
+    // Deprecated fallback: legacy key with {{node.field}}
+    tracing::warn!("DEPRECATED: Redis 'key' field uses legacy {{{{}}}} syntax. Migrate to 'key_template' + 'variables'.");
     get_required_string(operation, "key", state)
 }
 
 /// Get the Redis value from operation config (for SET operations)
 ///
-/// Supports both:
-/// - Legacy: "value" field with {{node.field}} syntax
-/// - New: "value_template" field with {paramName} syntax + pre-resolved variables
+/// Preferred: `value_template` with `{paramName}` syntax + pre-resolved variables
+/// Deprecated: `value` field with `{{node.field}}` syntax
 fn get_value(
     operation: &HashMap<String, Value>,
     variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<String, EngineError> {
-    // Try new value_template first
+    // Preferred: value_template with {paramName} variables
     if let Some(template) = operation.get("value_template").and_then(|v| v.as_str()) {
         return Ok(resolve_param_template(template, variables));
     }
 
-    // Fall back to legacy value
+    // Deprecated fallback: legacy value with {{node.field}}
+    tracing::warn!("DEPRECATED: Redis 'value' field uses legacy {{{{}}}} syntax. Migrate to 'value_template' + 'variables'.");
     get_required_string(operation, "value", state)
 }
 

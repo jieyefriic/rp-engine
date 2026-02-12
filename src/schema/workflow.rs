@@ -100,6 +100,9 @@ pub struct ToolRef {
     pub subgraph_ref: String,
 }
 
+/// Supported YAML spec versions
+const SUPPORTED_VERSIONS: &[&str] = &["0.1", "1.0"];
+
 /// A fully prepared workflow ready for execution
 ///
 /// This is the "fully prepared" YAML where:
@@ -108,19 +111,24 @@ pub struct ToolRef {
 /// - Variables have binding paths
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreparedWorkflow {
-    /// Schema version
+    /// Schema version ("0.1" for legacy, "1.0" for current)
     #[serde(default = "default_version")]
     pub version: String,
 
-    /// Workflow name
+    /// Workflow name (unique identifier)
     pub name: String,
+
+    /// Human-readable description
+    #[serde(default)]
+    pub description: Option<String>,
 
     /// Input schema
     #[serde(default)]
     pub input: InputSchema,
 
     /// Data Sources (data_source_id -> DataSourceDef)
-    /// Defines connection configurations for data connector nodes
+    /// Defines connection configurations for data connector nodes.
+    /// Workflow-level data sources override Engine-level ones with the same ID.
     #[serde(default)]
     pub data_sources: HashMap<String, DataSourceDef>,
 
@@ -141,7 +149,7 @@ pub struct PreparedWorkflow {
 }
 
 fn default_version() -> String {
-    "0.1".to_string()
+    "1.0".to_string()
 }
 
 impl PreparedWorkflow {
@@ -154,6 +162,13 @@ impl PreparedWorkflow {
 
     /// Validate the workflow structure
     pub fn validate(&self) -> Result<(), ValidationError> {
+        // Validate version
+        if !SUPPORTED_VERSIONS.contains(&self.version.as_str()) {
+            return Err(ValidationError::MissingField(
+                format!("Unsupported workflow version '{}'. Supported: {:?}", self.version, SUPPORTED_VERSIONS)
+            ));
+        }
+
         // Check for start node
         let start_count = self.nodes.iter()
             .filter(|n| n.node_type == super::NodeType::Start)

@@ -12,17 +12,24 @@
 //! # Example
 //!
 //! ```ignore
-//! use riceprompt_engine::{execute, ExecutionConfig, ProviderRegistry};
-//! use std::collections::HashMap;
+//! use riceprompt_engine::{Engine, EngineBuilder};
+//! use serde_json::json;
 //!
 //! #[tokio::main]
-//! async fn main() {
-//!     let yaml = include_str!("workflow.yaml");
-//!     let input = HashMap::from([("query".into(), "Hello".into())]);
-//!     let config = ExecutionConfig::default();
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let engine = Engine::builder()
+//!         .workflows_dir("./workflows")
+//!         .prompts_dir("./prompts")
+//!         .provider("qwen", std::env::var("QWEN_API_KEY")?)
+//!         .build()
+//!         .await?;
 //!
-//!     let result = execute(yaml, input, config).await.unwrap();
+//!     let result = engine.run("my_workflow", json!({
+//!         "query": "Hello"
+//!     })).await?;
+//!
 //!     println!("Output: {:?}", result.output);
+//!     Ok(())
 //! }
 //! ```
 
@@ -38,7 +45,7 @@ pub mod providers;
 pub use error::EngineError;
 pub use schema::{PreparedWorkflow, YamlNode, YamlEdge, Template, NodeConfig, NodeType};
 pub use state::{ExecutionState, ExecutionRecord, CheckpointState, EdgeCountEntry};
-pub use engine::{execute, ExecutionResult, ExecutionConfig, ExecutionStatus, Engine, EngineBuilder, StateSavingConfig, ConnectionPools, PoolConfig, ResumeParams, StreamHandler, SharedStreamHandler};
+pub use engine::{ExecutionResult, ExecutionConfig, ExecutionStatus, Engine, EngineBuilder, StateSavingConfig, ConnectionPools, PoolConfig, ResumeParams, StreamHandler, SharedStreamHandler};
 
 // Custom node support
 pub use nodes::{CustomNode, NodeRegistry};
