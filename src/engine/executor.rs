@@ -653,6 +653,19 @@ pub async fn execute_workflow(
             }
         }
 
+        // Propagate dead paths: mark nodes whose incoming edges are all inactive
+        propagate_dead_paths(&graph, &mut state_guard);
+
+        // Remove dead nodes from pending (they will never execute)
+        let newly_dead: Vec<String> = pending_nodes.iter()
+            .filter(|n| state_guard.is_dead(n))
+            .cloned()
+            .collect();
+        for dead_id in &newly_dead {
+            pending_nodes.remove(dead_id);
+            debug!(node = %dead_id, "Removed dead node from pending set");
+        }
+
         drop(state_guard);
     }
 
@@ -977,10 +990,61 @@ fn evaluate_edges(
         if should_take {
             next.push(edge.to.clone());
             state.increment_edge_count(&edge.from, &edge.to);
+        } else if edge.condition.is_some() {
+            // Conditional edge evaluated to false — record for dead path detection
+            state.mark_edge_dead(&edge.from, &edge.to);
         }
     }
 
     Ok(next)
+}
+
+/// Propagate dead paths through the graph.
+///
+/// A node is dead when ALL its incoming edges are "inactive":
+/// - Source node is dead (will never execute), OR
+/// - The edge is a conditional edge that evaluated to false (recorded in dead_edges)
+///
+/// Repeats until no new dead nodes are found (fixed-point).
+fn propagate_dead_paths(
+    graph: &ExecutionGraph,
+    state: &mut ExecutionState,
+) {
+    loop {
+        let mut changed = false;
+
+        for node_id in graph.all_nodes() {
+            // Skip already-dead or already-completed nodes
+            if state.is_dead(node_id) || state.has_node_output(node_id) {
+                continue;
+            }
+
+            let incoming = graph.get_incoming_edges(node_id);
+
+            // Start node (no incoming edges) is never dead
+            if incoming.is_empty() {
+                continue;
+            }
+
+            // Check if ALL incoming edges are inactive
+            let all_inactive = incoming.iter().all(|edge| {
+                state.is_dead(&edge.from) || state.is_edge_dead(&edge.from, &edge.to)
+            });
+
+            if all_inactive {
+                debug!(
+                    node = %node_id,
+                    "Node confirmed unreachable (dead path)"
+                );
+                state.mark_dead(node_id);
+                changed = true;
+            }
+        }
+
+        if !changed {
+            break;
+        }
+    }
 }
 
 #[cfg(test)]

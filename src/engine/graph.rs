@@ -182,17 +182,27 @@ impl<'a> ExecutionGraph<'a> {
                 state.has_output(path)
             });
 
-            // If binding has a default value, it's optional and doesn't block execution
-            if binding.has_default() {
-                // Optional binding: don't block even if no value
-                // The resolve logic will use the default value at runtime
-                continue;
+            if has_value {
+                continue; // Value available from at least one source
             }
 
-            // Required binding (Single or Multiple without default): must have at least one value
-            if !has_value {
-                return false;
+            // No value yet — check if default can be used
+            if binding.has_default() {
+                // Default triggers only when ALL sources are "settled":
+                // each source node has either completed execution or is confirmed dead.
+                // This prevents premature execution while a live source is still running.
+                let all_settled = path_sources.iter().all(|path| {
+                    let source_node = path.split('.').next().unwrap_or("");
+                    state.has_node_output(source_node) || state.is_dead(source_node)
+                });
+                if all_settled {
+                    continue; // All sources settled, use default
+                }
+                // Some sources still alive and running — wait
             }
+
+            // Required binding with no value, or default not yet usable — block
+            return false;
         }
 
         true

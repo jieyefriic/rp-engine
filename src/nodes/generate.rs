@@ -133,20 +133,8 @@ impl NodeExecutor for GenerateExecutor {
                 t
             });
 
-        // Resolve variables from state
-        let mut variables: HashMap<String, Value> = HashMap::new();
-        for (var_name, binding) in &node_config.variables {
-            // For array bindings, use the first source that has a value
-            let value = binding.sources().iter()
-                .filter(|path| !path.is_empty())
-                .find_map(|path| {
-                    let v = state.read(path).unwrap_or(Value::Null);
-                    if v.is_null() { None } else { Some(v) }
-                })
-                .or_else(|| binding.default_value().cloned())
-                .unwrap_or(Value::Null);
-            variables.insert(var_name.clone(), value);
-        }
+        // Resolve variables from state (shared logic handles literals + state paths)
+        let variables = super::resolve_variables(&node_config.variables, state);
 
         // Build prompt
         let (user_prompt, system_prompt, output_schema) = if let Some(tpl) = template {

@@ -8,7 +8,7 @@
 //! - `node[-1].field` - last execution
 //! - `node[*].field` - all executions (array)
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -52,6 +52,12 @@ pub struct CheckpointState {
     pub short_id_counter: u32,
     /// Output from the checkpoint node itself
     pub checkpoint_output: HashMap<String, Value>,
+    /// Nodes confirmed unreachable at time of checkpoint
+    #[serde(default)]
+    pub dead_nodes: HashSet<String>,
+    /// Conditional edges that evaluated to false at time of checkpoint
+    #[serde(default)]
+    pub dead_edges: Vec<(String, String)>,
 }
 
 /// Supervisor context for dynamic task dispatch
@@ -90,6 +96,12 @@ pub struct ExecutionState {
 
     /// Current variables (set by supervisor for edge conditions)
     current_vars: HashMap<String, Value>,
+
+    /// Nodes confirmed unreachable in this execution (dead path detection)
+    dead_nodes: HashSet<String>,
+
+    /// Conditional edges that evaluated to false (from, to)
+    dead_edges: HashSet<(String, String)>,
 }
 
 impl ExecutionState {
@@ -103,6 +115,8 @@ impl ExecutionState {
             supervisor_context: None,
             short_id_counter: 0,
             current_vars: HashMap::new(),
+            dead_nodes: HashSet::new(),
+            dead_edges: HashSet::new(),
         }
     }
 
@@ -123,6 +137,8 @@ impl ExecutionState {
             edge_counts,
             short_id_counter: self.short_id_counter,
             checkpoint_output,
+            dead_nodes: self.dead_nodes.clone(),
+            dead_edges: self.dead_edges.iter().cloned().collect(),
         }
     }
 
@@ -148,6 +164,8 @@ impl ExecutionState {
             supervisor_context: None,
             short_id_counter: checkpoint.short_id_counter,
             current_vars: HashMap::new(),
+            dead_nodes: checkpoint.dead_nodes.clone(),
+            dead_edges: checkpoint.dead_edges.iter().cloned().collect(),
         }
     }
 
@@ -242,6 +260,26 @@ impl ExecutionState {
     /// Get a variable
     pub fn get_var(&self, name: &str) -> Option<&Value> {
         self.current_vars.get(name)
+    }
+
+    /// Mark a node as dead (unreachable in this execution)
+    pub fn mark_dead(&mut self, node_id: &str) {
+        self.dead_nodes.insert(node_id.to_string());
+    }
+
+    /// Check if a node is dead (unreachable)
+    pub fn is_dead(&self, node_id: &str) -> bool {
+        self.dead_nodes.contains(node_id)
+    }
+
+    /// Mark a conditional edge as dead (condition evaluated to false)
+    pub fn mark_edge_dead(&mut self, from: &str, to: &str) {
+        self.dead_edges.insert((from.to_string(), to.to_string()));
+    }
+
+    /// Check if a specific edge is dead
+    pub fn is_edge_dead(&self, from: &str, to: &str) -> bool {
+        self.dead_edges.contains(&(from.to_string(), to.to_string()))
     }
 
     /// Check if supervisor context exists

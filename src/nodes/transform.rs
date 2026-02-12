@@ -157,19 +157,8 @@ impl NodeExecutor for TransformExecutor {
                 )
             })?;
 
-        // Resolve variables from state (same pattern as generate.rs)
-        let mut variables: HashMap<String, Value> = HashMap::new();
-        for (var_name, binding) in &node_config.variables {
-            let value = binding.sources().iter()
-                .filter(|path| !path.is_empty())
-                .find_map(|path| {
-                    let v = state.read(path).unwrap_or(Value::Null);
-                    if v.is_null() { None } else { Some(v) }
-                })
-                .or_else(|| binding.default_value().cloned())
-                .unwrap_or(Value::Null);
-            variables.insert(var_name.clone(), value);
-        }
+        // Resolve variables from state (shared logic handles literals + state paths)
+        let variables = super::resolve_variables(&node_config.variables, state);
 
         debug!(
             node = %node_id,
@@ -186,6 +175,13 @@ impl NodeExecutor for TransformExecutor {
         for (name, value) in &variables {
             scope.push_dynamic(name.clone(), value_to_dynamic(value));
         }
+
+        // Inject _vars: aggregated map of all resolved variables
+        let mut vars_map = RhaiMap::new();
+        for (name, value) in &variables {
+            vars_map.insert(name.clone().into(), value_to_dynamic(value));
+        }
+        scope.push_dynamic("_vars".to_string(), Dynamic::from(vars_map));
 
         // Execute script
         let result = engine.eval_with_scope::<Dynamic>(&mut scope, script_source)
@@ -421,6 +417,61 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
         assert!(err.contains("execution failed"));
+    }
+
+    #[tokio::test]
+    async fn test_transform_vars_aggregation() {
+        let mut transforms = HashMap::new();
+        transforms.insert("collect".to_string(), r#"
+            // _vars contains all injected variables as a map
+            let encoded = json_encode(_vars);
+            #{
+                "json_string": encoded,
+                "json_object": _vars
+            }
+        "#.to_string());
+
+        let config = make_config_with_transforms(transforms);
+        let mut state = ExecutionState::new(HashMap::new());
+        state.write("start", {
+            let mut m = HashMap::new();
+            m.insert("city".to_string(), Value::String("Tokyo".to_string()));
+            m.insert("count".to_string(), Value::Number(3.into()));
+            m
+        });
+
+        let mut vars = HashMap::new();
+        vars.insert("destination".to_string(), VariableBinding::Single("start.city".to_string()));
+        vars.insert("days".to_string(), VariableBinding::Single("start.count".to_string()));
+        let node = make_transform_node("t1", "collect", vars);
+
+        let result = TransformExecutor.execute(&node, &state, &config).await.unwrap();
+
+        // json_object should be a map with destination and days
+        let obj = result.get("json_object").unwrap();
+        assert_eq!(obj.get("destination").unwrap(), &Value::String("Tokyo".into()));
+        assert_eq!(obj.get("days").unwrap(), &Value::Number(3.into()));
+
+        // json_string should be valid JSON containing both vars
+        let json_str = result.get("json_string").unwrap().as_str().unwrap();
+        let parsed: Value = serde_json::from_str(json_str).unwrap();
+        assert_eq!(parsed["destination"], Value::String("Tokyo".into()));
+        assert_eq!(parsed["days"], Value::Number(3.into()));
+    }
+
+    #[tokio::test]
+    async fn test_transform_vars_empty() {
+        let mut transforms = HashMap::new();
+        transforms.insert("empty".to_string(), r#"
+            _vars.len()
+        "#.to_string());
+
+        let config = make_config_with_transforms(transforms);
+        let state = ExecutionState::new(HashMap::new());
+        let node = make_transform_node("t1", "empty", HashMap::new());
+
+        let result = TransformExecutor.execute(&node, &state, &config).await.unwrap();
+        assert_eq!(result.get("result").unwrap(), &Value::Number(0.into()));
     }
 
     #[tokio::test]
