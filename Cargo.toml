@@ -48,6 +48,9 @@ uuid = { version = "1.19.0", features = ["v4"] }
 
 # Template rendering
 handlebars = "6"
+
+# Scripting engine for transform nodes
+rhai = { version = "1", features = ["sync"] }
 postgres-types = { version = "0.2.12", features = ["with-serde_json-1"] }
 bytes = "1.11.1"
 

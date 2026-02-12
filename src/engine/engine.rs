@@ -62,6 +62,9 @@ pub struct Engine {
     /// Connection pools for databases
     pools: Arc<ConnectionPools>,
 
+    /// Transform scripts: script_name -> source code
+    transforms: HashMap<String, String>,
+
     /// State saving configuration
     state_saving: Option<StateSavingConfig>,
 
@@ -88,6 +91,7 @@ impl Engine {
     pub(crate) fn new(
         workflows: HashMap<String, PreparedWorkflow>,
         templates: HashMap<String, Template>,
+        transforms: HashMap<String, String>,
         providers: ProviderRegistry,
         embedding_providers: EmbeddingRegistry,
         node_registry: Arc<NodeRegistry>,
@@ -103,6 +107,7 @@ impl Engine {
             embedding_providers,
             node_registry,
             pools,
+            transforms,
             state_saving,
             timeout: Duration::from_secs(300), // 5 minutes default
             max_iterations: 100,
@@ -182,7 +187,8 @@ impl Engine {
             .with_max_iterations(self.max_iterations)
             .with_capture_actual_prompt(self.capture_actual_prompt)
             .with_capture_raw_response(self.capture_raw_response)
-            .with_workflows(self.workflows.clone());
+            .with_workflows(self.workflows.clone())
+            .with_transforms(self.transforms.clone());
 
         // Inject stream handler if provided
         if let Some(handler) = stream_handler {
@@ -250,7 +256,8 @@ impl Engine {
             .with_max_iterations(self.max_iterations)
             .with_capture_actual_prompt(self.capture_actual_prompt)
             .with_capture_raw_response(self.capture_raw_response)
-            .with_workflows(self.workflows.clone());
+            .with_workflows(self.workflows.clone())
+            .with_transforms(self.transforms.clone());
 
         for (id, ds) in &workflow.data_sources {
             config.data_sources.insert(id.clone(), ds.clone());
@@ -303,7 +310,8 @@ impl Engine {
             .with_pools(self.pools.clone())
             .with_timeout(self.timeout)
             .with_max_iterations(self.max_iterations)
-            .with_workflows(self.workflows.clone());
+            .with_workflows(self.workflows.clone())
+            .with_transforms(self.transforms.clone());
 
         execute_workflow(&workflow, input_map, config, None).await
     }

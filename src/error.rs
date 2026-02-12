@@ -121,6 +121,10 @@ pub enum EngineError {
     #[error("Redis error: {0}")]
     RedisError(String),
 
+    // Transform node errors
+    #[error("Transform error: {0}")]
+    TransformError(String),
+
     // State saving errors
     #[error("State error: {0}")]
     StateError(String),

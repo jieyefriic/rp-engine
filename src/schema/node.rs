@@ -317,6 +317,8 @@ pub enum NodeType {
     Response,
     /// Checkpoint node - pauses execution and returns state for later resume
     Checkpoint,
+    /// Transform node - runs Rhai scripts for pure computation
+    Transform,
     /// User-defined custom node type
     #[serde(untagged)]
     Custom(String),
@@ -443,6 +445,10 @@ pub struct NodeConfig {
     /// Tool arguments
     #[serde(default)]
     pub arguments: HashMap<String, String>,
+
+    // Transform node fields
+    /// Script file name (without .rhai extension), loaded from transforms_dir
+    pub file: Option<String>,
 
     // Workflow node fields
     /// Sub-workflow reference (only used by workflow type nodes)
