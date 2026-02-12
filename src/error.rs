@@ -125,6 +125,10 @@ pub enum EngineError {
     #[error("Transform error: {0}")]
     TransformError(String),
 
+    // Search node errors
+    #[error("Search error: {0}")]
+    SearchError(String),
+
     // State saving errors
     #[error("State error: {0}")]
     StateError(String),

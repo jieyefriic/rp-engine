@@ -67,6 +67,13 @@ pub use providers::{
     DashScopeEmbeddingProvider, OpenAIEmbeddingProvider,
 };
 
+// Search provider exports
+pub use providers::search::{
+    SearchProvider, SearchProviderRegistry, SearchOptions, SearchResponse, SearchResult,
+    TavilyProvider, BraveProvider, BochaProvider, PerplexitySearchProvider,
+    create_search_registry,
+};
+
 // Legacy (deprecated) - kept for backward compatibility
 #[allow(deprecated)]
 pub use providers::ChatRequest;

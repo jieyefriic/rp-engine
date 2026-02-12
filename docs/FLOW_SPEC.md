@@ -558,6 +558,193 @@ no system calls. Scripts are limited to 100,000 operations, 1MB strings, and 10,
 
 ---
 
+### `search` — Web Search
+
+Queries web search APIs and returns structured results. Search providers are registered at
+Engine level via `Engine::builder().search_provider("tavily", api_key)`.
+
+Four providers are built-in: **Tavily**, **Brave**, **Bocha/博查**, **Perplexity Sonar**.
+All providers share the same unified parameters and output format — switching providers
+requires changing only the `provider` field.
+
+```yaml
+- id: web_search
+  type: search
+  config:
+    provider: tavily                       # Required. Engine-registered search provider
+    variables:                             # Required. Must include 'query'
+      query: "start.user_query"
+    operation:                             # Optional. Search parameters
+      max_results: 5
+      freshness: week
+      include_answer: true
+```
+
+**Config fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `provider` | string | **Yes** | Search provider ID: `tavily`, `brave`, `bocha`, `perplexity` |
+| `variables.query` | binding | **Yes** | The search query (from upstream node or literal) |
+| `operation` | map | No | Search parameters (all optional, see table below) |
+
+**Operation parameters** (unified across all providers):
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `max_results` | int | 5 | Number of results to return |
+| `freshness` | string | _(no limit)_ | Time filter: `day`, `week`, `month`, `year` |
+| `include_answer` | bool | false | Request AI-generated summary |
+| `include_raw_content` | bool | false | Include full page content per result |
+| `search_depth` | string | `basic` | Tavily-specific: `basic` or `advanced` |
+| `country` | string | - | 2-letter country code (`US`, `CN`) for geo-biased results |
+| `language` | string | - | Language code (`en`, `zh`) for result language |
+| `include_domains` | string[] | [] | Only include results from these domains |
+| `exclude_domains` | string[] | [] | Exclude results from these domains |
+| `model` | string | `sonar` | Perplexity-specific: `sonar`, `sonar-pro` |
+| `search_type` | string | `web` | Search variant: `web` (default), `news` (Tavily/Brave), `ai` (Bocha) |
+
+The engine automatically maps unified parameters to each provider's native API format:
+
+| Unified | Tavily | Brave | Bocha | Perplexity |
+|---------|--------|-------|-------|------------|
+| `freshness: week` | `time_range: "week"` | `freshness: "pw"` | `freshness: "oneWeek"` | `search_recency_filter: "week"` |
+| `max_results: 5` | `max_results: 5` | `count: 5` | `count: 5` | _(N/A)_ |
+| `include_answer: true` | `include_answer: true` | _(N/A)_ | `summary: true` | _(always)_ |
+| `search_type: news` | `topic: "news"` | `/news/search` endpoint | _(N/A)_ | _(N/A)_ |
+| `search_type: ai` | _(N/A)_ | _(N/A)_ | `/v1/ai-search` endpoint | _(N/A)_ |
+
+**Output fields** (identical for all providers):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `{node_id}.results` | array | Search results (see SearchResult below) |
+| `{node_id}.answer` | string \| null | AI-generated summary (if available) |
+| `{node_id}.query` | string | The actual search query used |
+
+**SearchResult object** (each element in `results`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `title` | string | Page title |
+| `url` | string | Page URL |
+| `content` | string | Snippet / content summary |
+| `score` | float \| null | Relevance score 0-1 (Tavily only) |
+| `raw_content` | string \| null | Full page content (if `include_raw_content`) |
+| `published_date` | string \| null | Publication date |
+| `site_name` | string \| null | Source site name |
+| `favicon` | string \| null | Favicon URL |
+
+**Provider characteristics:**
+
+| Provider | Index | Strengths | Answer support |
+|----------|-------|-----------|----------------|
+| **Tavily** | Wraps major engines | AI-optimized snippets, relevance scoring | `include_answer` option |
+| **Brave** | Own 35B page index | Best value ($3/1K), independent, privacy-focused, news search | Paid summarizer only |
+| **Bocha** | Own 100B page index (CN) | Best Chinese web coverage, DeepSeek official search, AI search | `summary` per result, AI search answer |
+| **Perplexity** | Own index + LLM | Always returns synthesized answer with citations | Always (primary output) |
+
+**Examples:**
+
+Minimal:
+```yaml
+- id: search
+  type: search
+  config:
+    provider: tavily
+    variables:
+      query: "start.user_query"
+```
+
+Full options:
+```yaml
+- id: search
+  type: search
+  config:
+    provider: bocha
+    variables:
+      query: "start.user_query"
+    operation:
+      max_results: 10
+      freshness: week
+      include_answer: true
+      country: CN
+      language: zh
+      exclude_domains: ["spam.com", "ads.com"]
+```
+
+News search (Brave):
+```yaml
+- id: news_search
+  type: search
+  config:
+    provider: brave
+    variables:
+      query: "start.news_topic"
+    operation:
+      search_type: news
+      max_results: 10
+      freshness: day
+```
+
+AI-enhanced search (Bocha):
+```yaml
+- id: ai_search
+  type: search
+  config:
+    provider: bocha
+    variables:
+      query: "start.user_query"
+    operation:
+      search_type: ai
+      max_results: 5
+      include_answer: true
+```
+
+Search → Generate (RAG pattern):
+```yaml
+nodes:
+  - id: start
+    type: start
+
+  - id: web_search
+    type: search
+    config:
+      provider: tavily
+      variables:
+        query: "start.user_query"
+      operation:
+        max_results: 5
+        include_answer: true
+
+  - id: synthesize
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-plus
+      template: rag_template
+      variables:
+        search_results: "web_search.results"
+        search_answer: "web_search.answer"
+        user_query: "start.user_query"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "synthesize.text"
+
+edges:
+  - from: start
+    to: web_search
+  - from: web_search
+    to: synthesize
+  - from: synthesize
+    to: response
+```
+
+---
+
 ### Custom Nodes
 
 Any `type` not matching the built-in types is treated as a custom node.
