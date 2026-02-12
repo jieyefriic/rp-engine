@@ -75,23 +75,9 @@ impl CustomNode for WorkflowNode {
 
         // 3. Build sub-workflow input from parent state
         //    Read values from parent state using config.variables mapping
-        let mut child_input = HashMap::new();
-        for (param, binding) in &config.variables {
-            // Skip special variables like capture_child_state
-            if param == "capture_child_state" {
-                continue;
-            }
-            // For array bindings, use the first source that has a value
-            let value = binding.sources().iter()
-                .filter(|path| !path.is_empty())
-                .find_map(|path| {
-                    let v = state.read(path).unwrap_or(Value::Null);
-                    if v.is_null() { None } else { Some(v) }
-                })
-                .or_else(|| binding.default_value().cloned())
-                .unwrap_or(Value::Null);
-            child_input.insert(param.clone(), value);
-        }
+        let mut child_input = super::resolve_variables(&config.variables, state);
+        // Remove special variables not intended as sub-workflow input
+        child_input.remove("capture_child_state");
 
         tracing::debug!(
             workflow = %workflow_ref,

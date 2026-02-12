@@ -15,10 +15,71 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde_json::Value;
 
-use crate::schema::{YamlNode, NodeType, NodeConfig};
+use crate::schema::{YamlNode, NodeType, NodeConfig, VariableBinding};
 use crate::state::ExecutionState;
 use crate::engine::ExecutionConfig;
 use crate::error::EngineError;
+
+// ============================================================================
+// Shared Variable Resolution
+// ============================================================================
+
+/// Resolve all variable bindings against execution state.
+///
+/// For each binding source:
+/// - If the source contains `.` → treat as state path (`node_id.field`) and read from state
+/// - If the source does NOT contain `.` → treat as literal value, with smart type parsing:
+///   - Integer strings (e.g. `"2"`) → `Value::Number`
+///   - Float strings (e.g. `"3.14"`) → `Value::Number`
+///   - `"true"` / `"false"` → `Value::Bool`
+///   - Anything else → `Value::String`
+/// - Falls back to `default` if configured, otherwise `Value::Null`
+pub fn resolve_variables(
+    variables: &HashMap<String, VariableBinding>,
+    state: &ExecutionState,
+) -> HashMap<String, Value> {
+    let mut resolved = HashMap::new();
+
+    for (name, binding) in variables {
+        let value = binding.sources().iter()
+            .filter(|path| !path.is_empty())
+            .find_map(|path| {
+                if path.contains('.') {
+                    // State path reference (e.g. "start.user_id")
+                    let v = state.read(path).unwrap_or(Value::Null);
+                    if v.is_null() { None } else { Some(v) }
+                } else {
+                    // Literal value (e.g. "2", "true", "hello")
+                    Some(parse_literal(path))
+                }
+            })
+            .or_else(|| binding.default_value().cloned())
+            .unwrap_or(Value::Null);
+
+        resolved.insert(name.clone(), value);
+    }
+
+    resolved
+}
+
+/// Parse a literal string into a typed JSON value.
+fn parse_literal(s: &str) -> Value {
+    // Boolean
+    if s == "true" { return Value::Bool(true); }
+    if s == "false" { return Value::Bool(false); }
+    // Integer (try before float to preserve integer type)
+    if let Ok(n) = s.parse::<i64>() {
+        return Value::Number(n.into());
+    }
+    // Float
+    if let Ok(f) = s.parse::<f64>() {
+        if let Some(n) = serde_json::Number::from_f64(f) {
+            return Value::Number(n);
+        }
+    }
+    // String fallback
+    Value::String(s.to_string())
+}
 
 pub use start::StartExecutor;
 pub use response::ResponseExecutor;

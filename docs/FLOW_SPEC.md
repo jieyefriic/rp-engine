@@ -56,26 +56,69 @@ There is exactly **one syntax** for variable binding:
 
 ```yaml
 variables:
-  # Form 1: Simple reference (required — errors if source doesn't exist)
+  # Form 1: Simple reference (required — blocks until source produces value)
   varName: "node_id.field"
 
-  # Form 2: With default value (optional — uses default if source missing)
+  # Form 2: With default value (see Default Semantics below)
   varName:
     from: "node_id.field"
     default: ""
 
-  # Form 3: Multiple sources (first available wins, errors if none exist)
+  # Form 3: Multiple sources (first available wins, blocks until at least one produces)
   varName:
     - "node_a.field"
     - "node_b.field"
 
-  # Form 4: Multiple sources with default (optional)
+  # Form 4: Multiple sources with default
   varName:
     from:
       - "node_a.field"
       - "node_b.field"
     default: null
+
+  # Form 5: Literal constant (no dot → treated as value, not a state path)
+  limit: "2"                    # → Number(2)
+  enabled: "true"               # → Bool(true)
+  label: "hello"                # → String("hello")
 ```
+
+### Literal vs Path
+
+The engine distinguishes sources by the presence of `.`:
+
+| Source | Contains `.` | Interpretation |
+|--------|:-----------:|----------------|
+| `start.user_id` | yes | State path → read from node output |
+| `"2"` | no | Literal → `Number(2)` |
+| `"true"` | no | Literal → `Bool(true)` |
+| `"hello"` | no | Literal → `String("hello")` |
+
+Literal type parsing priority: integer → float → boolean → string.
+
+### Default Semantics (Dead Path Aware)
+
+`default` means: **"use this value when the source is confirmed unable to produce."**
+
+The engine waits until every source node is **settled** — either completed execution or confirmed
+unreachable (dead path) — before falling back to the default. This prevents two failure modes:
+
+1. **Premature execution**: Without dead-path awareness, a default would fire immediately,
+   causing the node to run before a live source finishes.
+2. **Infinite hang**: Without defaults, a variable referencing a node on an untaken conditional
+   branch would block forever.
+
+**Example — conditional image generation:**
+```yaml
+# Image is generated only when quota is available.
+# When quota is exhausted, gen_image never executes → engine marks it dead → default kicks in.
+variables:
+  imageUrl:
+    from: gen_image.url
+    default: ""
+```
+
+If a variable references a dead-path node **without** a default, the engine reports a clear error:
+> Node 'save' variable 'imageUrl' references 'gen_image.url' which is on an unreachable path and has no default value.
 
 ### Path Expressions
 
@@ -470,6 +513,7 @@ Runs a Rhai script file for pure computation (no I/O). Scripts are loaded from
 
 **Script contract:**
 - Resolved `variables` are injected as Rhai global variables
+- Additionally, `_vars` is injected as a Map containing all resolved variables (for generic scripts)
 - `serde_json::Value` ↔ Rhai `Dynamic` auto-conversion
 - Script's last expression = node output
 - If return is a Map → each key becomes an output field
@@ -490,6 +534,12 @@ let unique_history = unique(history);
     "timestamp": now(),
     "request_id": uuid()
 }
+```
+
+**`_vars` — generic variable aggregation** (`transforms/build_json.rhai`):
+```rhai
+// _vars is a map of ALL resolved variables — works for any variable combination
+#{ "json_string": json_encode(_vars), "json_object": _vars }
 ```
 
 **Built-in functions:**
@@ -684,6 +734,39 @@ edges:
     to: generate
   - from: get_time
     to: generate
+```
+
+---
+
+## Dead Path Detection
+
+When a conditional edge evaluates to false, the engine propagates **dead path** information
+through the graph. A node is marked dead when **all** its incoming edges are inactive:
+
+- The source node is itself dead (will never execute), **or**
+- The edge is a conditional edge whose condition evaluated to false
+
+Dead path detection runs after each batch of node completions and propagates transitively.
+
+**Impact on execution:**
+- Dead nodes are removed from the pending set (they never execute)
+- Variables with `default` that reference dead nodes use the default immediately
+- Variables **without** `default` that reference dead nodes cause a clear error
+- No dummy/skip nodes are needed to handle conditional branch convergence
+
+```
+┌──────────┐  condition=true   ┌───────────┐
+│  check   │─────────────────→│  process  │──┐
+└──────────┘                   └───────────┘  │   ┌──────────┐
+      │                                       ├──→│  merge   │
+      │ condition=false                       │   └──────────┘
+      │   ┌───────────┐                       │
+      └──→│   skip    │ ← DEAD (not taken) ──┘
+          └───────────┘
+
+merge.result:
+  from: process.output    ← waits (process is alive)
+  default: ""             ← fires instantly if process is dead
 ```
 
 ---

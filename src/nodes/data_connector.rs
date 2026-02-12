@@ -16,34 +16,12 @@ use super::connectors::ConnectorContext;
 /// Executor for data connector nodes
 pub struct DataConnectorExecutor;
 
-/// Resolve variables from node config, converting VariableBinding paths to actual Values
+/// Resolve variables from node config (delegates to shared resolve_variables)
 fn resolve_variables(
     node: &YamlNode,
     state: &ExecutionState,
 ) -> HashMap<String, Value> {
-    let mut resolved = HashMap::new();
-
-    for (name, binding) in &node.config.variables {
-        // For each variable, try to get the first available value from its sources
-        let value = binding.sources()
-            .iter()
-            .filter_map(|path| {
-                if path.is_empty() || !path.contains('.') {
-                    // Literal value, not a state path
-                    None
-                } else {
-                    // Only return non-null values
-                    state.read(path).filter(|v| !v.is_null())
-                }
-            })
-            .next()
-            .or_else(|| binding.default_value().cloned())
-            .unwrap_or(Value::Null);
-
-        resolved.insert(name.clone(), value);
-    }
-
-    resolved
+    super::resolve_variables(&node.config.variables, state)
 }
 
 #[async_trait]
