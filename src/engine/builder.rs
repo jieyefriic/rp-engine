@@ -50,6 +50,9 @@ pub struct EngineBuilder {
     /// Directory containing prompt template YAML files
     prompts_dir: Option<PathBuf>,
 
+    /// Directory containing transform Rhai script files
+    transforms_dir: Option<PathBuf>,
+
     /// Provider API keys: provider_name -> api_key
     providers: HashMap<String, String>,
 
@@ -87,6 +90,7 @@ impl EngineBuilder {
         Self {
             workflows_dir: None,
             prompts_dir: None,
+            transforms_dir: None,
             providers: HashMap::new(),
             embedding_providers: HashMap::new(),
             custom_nodes: Vec::new(),
@@ -113,6 +117,16 @@ impl EngineBuilder {
     /// The file name (without extension) becomes the template ID.
     pub fn prompts_dir(mut self, path: impl Into<PathBuf>) -> Self {
         self.prompts_dir = Some(path.into());
+        self
+    }
+
+    /// Set the directory containing transform Rhai script files
+    ///
+    /// All `.rhai` files in this directory will be loaded as transform scripts.
+    /// The file name (without extension) becomes the script name used in
+    /// `config.file` of transform nodes.
+    pub fn transforms_dir(mut self, path: impl Into<PathBuf>) -> Self {
+        self.transforms_dir = Some(path.into());
         self
     }
 
@@ -254,9 +268,17 @@ impl EngineBuilder {
             HashMap::new()
         };
 
+        // Load transform scripts from transforms directory
+        let transforms = if let Some(dir) = &self.transforms_dir {
+            load_transforms(dir)?
+        } else {
+            HashMap::new()
+        };
+
         Ok(Engine::new(
             workflows,
             templates,
+            transforms,
             provider_registry,
             embedding_registry,
             Arc::new(node_registry),
@@ -414,6 +436,58 @@ async fn load_prompts(dir: &PathBuf) -> Result<HashMap<String, Template>, Engine
 
     info!(count = templates.len(), "Templates loaded successfully");
     Ok(templates)
+}
+
+/// Load all transform Rhai script files from a directory
+fn load_transforms(dir: &PathBuf) -> Result<HashMap<String, String>, EngineError> {
+    let mut transforms = HashMap::new();
+
+    debug!(directory = %dir.display(), "Loading transform scripts from directory");
+
+    if !dir.exists() {
+        error!(directory = %dir.display(), "Transforms directory does not exist");
+        return Err(EngineError::InvalidWorkflow(
+            format!("Transforms directory does not exist: {}", dir.display())
+        ));
+    }
+
+    let entries = std::fs::read_dir(dir)
+        .map_err(|e| {
+            error!(directory = %dir.display(), error = %e, "Failed to read transforms directory");
+            EngineError::InvalidWorkflow(format!("Failed to read transforms directory {}: {}", dir.display(), e))
+        })?;
+
+    for entry in entries {
+        let entry = entry
+            .map_err(|e| {
+                error!(directory = %dir.display(), error = %e, "Failed to read directory entry");
+                EngineError::InvalidWorkflow(format!("Failed to read directory entry: {}", e))
+            })?;
+        let path = entry.path();
+
+        // Only process .rhai files
+        if path.extension().map(|e| e == "rhai").unwrap_or(false) {
+            let script_name = path.file_stem()
+                .and_then(|s| s.to_str())
+                .ok_or_else(|| {
+                    error!(path = %path.display(), "Invalid transform script file name");
+                    EngineError::InvalidWorkflow(format!("Invalid transform script file name: {}", path.display()))
+                })?
+                .to_string();
+
+            let content = std::fs::read_to_string(&path)
+                .map_err(|e| {
+                    error!(script = %script_name, path = %path.display(), error = %e, "Failed to read transform script");
+                    EngineError::InvalidWorkflow(format!("Failed to read transform script {} from {}: {}", script_name, path.display(), e))
+                })?;
+
+            info!(script = %script_name, path = %path.display(), "Loaded transform script");
+            transforms.insert(script_name, content);
+        }
+    }
+
+    info!(count = transforms.len(), "Transform scripts loaded successfully");
+    Ok(transforms)
 }
 
 #[cfg(test)]

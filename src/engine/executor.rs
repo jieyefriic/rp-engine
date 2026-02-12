@@ -176,6 +176,9 @@ pub struct ExecutionConfig {
     /// All loaded workflows (for sub-workflow execution)
     pub workflows: Arc<HashMap<String, PreparedWorkflow>>,
 
+    /// Transform scripts: script_name -> source code (loaded from transforms_dir)
+    pub transforms: HashMap<String, String>,
+
     // ── Workflow-level (per workflow) ───────────────────────────────────
 
     /// Templates from the workflow (passed separately for ownership)
@@ -220,6 +223,7 @@ impl Default for ExecutionConfig {
             capture_actual_prompt: false,
             capture_raw_response: false,
             workflows: Arc::new(HashMap::new()),
+            transforms: HashMap::new(),
             stream_handler: None,
         }
     }
@@ -295,6 +299,12 @@ impl ExecutionConfig {
     /// Get a workflow by name (for sub-workflow execution)
     pub fn get_workflow(&self, name: &str) -> Option<&PreparedWorkflow> {
         self.workflows.get(name)
+    }
+
+    /// Set transform scripts (script_name -> source code)
+    pub fn with_transforms(mut self, transforms: HashMap<String, String>) -> Self {
+        self.transforms = transforms;
+        self
     }
 
     /// Set stream handler for generate nodes with stream: true

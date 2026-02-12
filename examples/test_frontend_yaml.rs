@@ -2,13 +2,8 @@
 //!
 //! Run: cargo run --example test_frontend_yaml
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use riceprompt_engine::{
-    execute, ExecutionConfig,
-    QwenProvider, ProviderRegistry,
-};
-use serde_json::Value;
+use riceprompt_engine::Engine;
+use serde_json::json;
 
 const QWEN_API_KEY: &str = "REDACTED_DASHSCOPE_KEY";
 
@@ -109,27 +104,22 @@ templates:
 async fn main() {
     println!("Testing frontend exported YAML...\n");
 
-    // Setup provider
-    let mut registry = ProviderRegistry::new();
-    registry.register("qwen", Arc::new(QwenProvider::new(QWEN_API_KEY)));
-    let config = ExecutionConfig::default().with_providers(registry);
+    let engine = Engine::builder()
+        .provider("qwen", QWEN_API_KEY)
+        .build()
+        .await
+        .unwrap();
 
-    // Input
-    let mut input = HashMap::new();
-    input.insert("input".to_string(), Value::String("我好讨厌你啊".to_string()));
+    println!("Input: {{\"input\": \"我好讨厌你啊\"}}\n");
 
-    println!("Input: {:?}\n", input);
-
-    // Execute
-    match execute(YAML, input, config).await {
+    match engine.run_yaml(YAML, json!({"input": "我好讨厌你啊"})).await {
         Ok(result) => {
-            println!("✅ Execution succeeded!\n");
-            // Print full JSON result
+            println!("Execution succeeded!\n");
             let json = serde_json::to_string_pretty(&result).unwrap();
             println!("{}", json);
         }
         Err(e) => {
-            println!("❌ Execution failed!");
+            println!("Execution failed!");
             println!("Error: {:?}", e);
         }
     }

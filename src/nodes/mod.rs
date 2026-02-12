@@ -6,6 +6,7 @@ mod checkpoint;
 mod generate;
 mod data_connector;
 mod supervisor;
+mod transform;
 mod connectors;
 mod workflow_node;
 
@@ -25,6 +26,7 @@ pub use checkpoint::CheckpointExecutor;
 pub use generate::GenerateExecutor;
 pub use data_connector::DataConnectorExecutor;
 pub use supervisor::SupervisorExecutor;
+pub use transform::TransformExecutor;
 pub use workflow_node::WorkflowNode;
 
 // ============================================================================
@@ -140,6 +142,7 @@ pub fn create_executor(node_type: &NodeType) -> Box<dyn NodeExecutor> {
         NodeType::Generate => Box::new(GenerateExecutor),
         NodeType::DataConnector => Box::new(DataConnectorExecutor),
         NodeType::Supervisor => Box::new(SupervisorExecutor),
+        NodeType::Transform => Box::new(TransformExecutor),
         NodeType::Execute => Box::new(NotImplementedExecutor("execute")),
         NodeType::Mcp => Box::new(NotImplementedExecutor("mcp")),
         NodeType::Custom(type_name) => Box::new(CustomNodeNotFoundExecutor(type_name.clone())),

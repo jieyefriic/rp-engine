@@ -453,6 +453,61 @@ Executes another workflow as a child.
 
 ---
 
+### `transform` — Rhai Script Computation
+
+Runs a Rhai script file for pure computation (no I/O). Scripts are loaded from
+`Engine::builder().transforms_dir("./transforms")` at startup.
+
+```yaml
+- id: build_payload
+  type: transform
+  config:
+    file: "build_payload"              # Required. Script name (loads transforms/build_payload.rhai)
+    variables:                         # Optional. Injected as Rhai global variables
+      user_name: start.name
+      history: load_history.rows
+```
+
+**Script contract:**
+- Resolved `variables` are injected as Rhai global variables
+- `serde_json::Value` ↔ Rhai `Dynamic` auto-conversion
+- Script's last expression = node output
+- If return is a Map → each key becomes an output field
+- If return is not a Map → wrapped as `{"result": value}`
+
+**Example script** (`transforms/build_payload.rhai`):
+```rhai
+// Variables 'user_name' and 'history' are injected from the node config
+let greeting = "Hello, " + user_name;
+let msg_count = history.len();
+let unique_history = unique(history);
+
+// Return a map — each key becomes a node output field
+#{
+    "greeting": greeting,
+    "message_count": msg_count,
+    "unique_history": unique_history,
+    "timestamp": now(),
+    "request_id": uuid()
+}
+```
+
+**Built-in functions:**
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `now()` | `string` | Current timestamp (Beijing time, `YYYY-MM-DD HH:MM:SS`) |
+| `uuid()` | `string` | Random UUID v4 |
+| `json_encode(value)` | `string` | JSON-serialize any value |
+| `unique(array)` | `array` | Deduplicate array (preserves order) |
+
+**Sandboxing:** Rhai is a pure computation engine — no file I/O, no network access,
+no system calls. Scripts are limited to 100,000 operations, 1MB strings, and 10,000 array/map entries.
+
+**Output**: Fields from the returned map, or `{node_id}.result` for non-map returns.
+
+---
+
 ### Custom Nodes
 
 Any `type` not matching the built-in types is treated as a custom node.
