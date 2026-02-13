@@ -297,39 +297,122 @@ operation:
 
 #### Redis Operations
 
+**Connection pooling**: Register Redis connections at engine build time for connection reuse:
+
+```rust
+Engine::builder()
+    .redis("cache", "redis://localhost:6379/0")   // data_source_id -> URL
+    .redis("sessions", "redis://redis2:6379/1")
+    .build()
+    .await?;
+```
+
+If no pool is registered for a `data_source_id`, an ad-hoc connection is created from the data source config (slower, no reuse).
+
+**Basic operations**:
+
 ```yaml
-# get
+# get — read a key, optionally extract fields via output_schema
 operation:
   operation: get
   key_template: "user:{userId}"
+  output_schema:                           # Optional. Extract typed fields
+    - name: chat_history
+      type: array
+    - name: summary
+      type: string
 
-# set
+# set — write a key with optional TTL
 operation:
   operation: set
   key_template: "user:{userId}"
   value_template: "{userData}"
   ttl: 3600                              # Optional. Seconds
 
-# del
+# del — delete a key
 operation:
   operation: del
   key_template: "user:{userId}"
 
-# publish
+# publish — publish a message to a Redis channel
 operation:
   operation: publish
   key_template: "channel:{channelId}"
   value_template: "{message}"
-
-# append_history (Redis JSON array append)
-operation:
-  operation: append_history
-  key_template: "chat:{userId}:{characterId}"
-  json_path: ".messages"
-  value_template: "{newMessage}"
 ```
 
-**Output**: `{node_id}.value` (for get), `{node_id}.result` (for set/del/publish).
+**Output** (get): `{node_id}.value`, `{node_id}.exists`, plus `output_schema` fields.
+**Output** (set/publish): `{node_id}.ok`.
+**Output** (del): `{node_id}.ok`, `{node_id}.deleted`.
+
+**`value` vs `value_template`**: All write operations (set, json_append, json_merge) accept either:
+
+- `value_template` — flat string template: `"user:{userId}"` → resolves to string
+- `value` — structured YAML with recursive `{var}` resolution (type-preserving)
+
+When a string leaf is exactly `"{varName}"` and the variable holds a non-string type (array, object, number, bool), the raw value is injected directly without stringification.
+
+```yaml
+# value_template: for simple/flat values
+value_template: "{topic}"
+
+# value: for structured objects (no transform needed)
+value:
+  - role: "user"
+    content: "{userMessage}"
+    type: "{messageType}"
+  - role: "assistant"
+    content: "{assistantMessage}"
+```
+
+If both `value` and `value_template` are present, `value` takes priority.
+
+**Atomic JSON operations** (via Lua scripts, zero race conditions):
+
+```yaml
+# json_append — atomically append element(s) to a JSON array field
+# value is an array → elements are spread; single value → pushed
+operation:
+  operation: json_append
+  key_template: "chat:{userId}:{characterId}"
+  path: "chat_history"                   # JSON field ("" = root must be array)
+  value:                                 # Structured — builds messages directly
+    - role: "user"
+      content: "{userMessage}"
+      type: "{messageType}"
+    - role: "assistant"
+      content: "{assistantMessage}"
+  ttl: 86400                             # Optional
+
+# json_append with flat value
+operation:
+  operation: json_append
+  key_template: "user:{userId}:topics"
+  path: ""                               # Root is array
+  value_template: "{topic}"              # Simple string value
+  ttl: 86400
+
+# json_merge — atomically shallow-merge an object into a JSON field
+operation:
+  operation: json_merge
+  key_template: "travel_meta:{userId}"
+  path: ""                               # "" = merge into root object
+  value:                                 # Structured merge
+    last_seen: "{timestamp}"
+    message_count: "{count}"
+  ttl: 86400
+
+# json_delete — atomically delete a field from a JSON object
+operation:
+  operation: json_delete
+  key_template: "chat:{userId}:{characterId}"
+  path: "summary"                        # Field to remove (required)
+  ttl: 86400                             # Optional. Refreshes TTL
+```
+
+**Output** (json_append): `{node_id}.ok`, `{node_id}.length` (new array length).
+**Output** (json_merge): `{node_id}.ok`.
+**Output** (json_delete): `{node_id}.ok`, `{node_id}.deleted`.
 
 #### Qdrant (Vector DB) Operations
 

@@ -71,6 +71,8 @@ impl Default for PoolConfig {
 pub struct ConnectionPools {
     /// PostgreSQL pools keyed by data source ID
     pub postgresql: HashMap<String, PgPool>,
+    /// Redis connection managers keyed by data source ID
+    pub redis: HashMap<String, redis::aio::ConnectionManager>,
 }
 
 impl ConnectionPools {
@@ -150,6 +152,16 @@ impl ConnectionPools {
     /// Register a PostgreSQL pool for a data source
     pub fn register_pg_pool(&mut self, data_source_id: String, pool: PgPool) {
         self.postgresql.insert(data_source_id, pool);
+    }
+
+    /// Get a Redis connection manager by data source ID
+    pub fn get_redis_pool(&self, data_source_id: &str) -> Option<&redis::aio::ConnectionManager> {
+        self.redis.get(data_source_id)
+    }
+
+    /// Register a Redis connection manager for a data source
+    pub fn register_redis_pool(&mut self, data_source_id: String, manager: redis::aio::ConnectionManager) {
+        self.redis.insert(data_source_id, manager);
     }
 }
 
