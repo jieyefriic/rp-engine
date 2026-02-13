@@ -20,7 +20,7 @@ input:                                   # Optional. Input schema
 data_sources:                            # Optional. Workflow-level data source definitions
   source_id:                             # These override Engine-level sources with the same ID
     name: "Human Name"
-    kind: postgresql                     # postgresql | redis | qdrant | minio | rest_api | graphql
+    kind: postgresql                     # postgresql | redis | qdrant | s3 | rest_api | graphql
     description: "Optional"
     config:
       url: "${DATABASE_URL}"             # Kind-specific connection config
@@ -337,31 +337,79 @@ operation:
 
 **Output**: `{node_id}.results` (array of matches with score and payload).
 
-#### MinIO/S3 Operations
+#### S3 Operations
+
+Data source config supports optional `public_endpoint` for presigned URL generation:
 
 ```yaml
-# upload
-operation:
-  operation: upload
-  bucket: my-bucket
-  key_template: "uploads/{userId}/{fileName}"
-  content: "{fileContent}"               # Base64 encoded
-  content_type: "audio/wav"
-
-# download
-operation:
-  operation: download
-  bucket: my-bucket
-  key_template: "uploads/{fileKey}"
-
-# delete
-operation:
-  operation: delete
-  bucket: my-bucket
-  key_template: "uploads/{fileKey}"
+data_sources:
+  storage:
+    kind: s3
+    config:
+      endpoint: "http://localhost:9000"
+      public_endpoint: "https://s3.example.com"  # Optional. Used by presigned_url
+      access_key: "..."
+      secret_key: "..."
+      region: "us-east-1"                        # Optional. Default: us-east-1
 ```
 
-**Output**: `{node_id}.url` (for upload), `{node_id}.content` (for download).
+```yaml
+# get_object — download object, auto-decodes text/json, base64 for binary
+operation:
+  operation: get_object
+  bucket: my-bucket
+  key: "uploads/{fileKey}"
+
+# put_object — upload base64 data, auto-detect content type from magic bytes
+operation:
+  operation: put_object
+  bucket: "{userId}"                     # Supports {var} template from variables
+  prefix: uploads                        # Optional. Default: "uploads"
+  content_type: "auto"                   # Optional. "auto" or MIME type. Default: auto-detect
+
+# list_objects — list objects with optional prefix filter
+operation:
+  operation: list_objects
+  bucket: my-bucket
+  prefix: "uploads/"                     # Optional
+  max_keys: 100                          # Optional. Default: 1000
+
+# delete_object — delete a single object
+operation:
+  operation: delete_object
+  bucket: my-bucket
+  key: "uploads/{fileKey}"
+
+# head_object — check existence + metadata without downloading
+operation:
+  operation: head_object
+  bucket: my-bucket
+  key: "uploads/{fileKey}"
+
+# presigned_url — generate temporary read URL
+operation:
+  operation: presigned_url
+  bucket: my-bucket
+  key: "uploads/{fileKey}"
+  expires_in: 3600                       # Optional. Seconds. Default: 3600
+
+# copy_object — server-side copy between buckets/keys
+operation:
+  operation: copy_object
+  source_bucket: src-bucket
+  source_key: "original/{srcKey}"
+  bucket: dest-bucket
+  key: "copies/{destKey}"
+```
+
+**Outputs**:
+- `get_object`: `data`, `content_type`, `size`, `last_modified`
+- `put_object`: `url`, `bucket`, `key`
+- `list_objects`: `objects` (array), `truncated` (bool)
+- `delete_object`: `deleted` (bool)
+- `head_object`: `exists` (bool), `content_type`, `size`, `last_modified`
+- `presigned_url`: `url`, `expires_in`
+- `copy_object`: `bucket`, `key`
 
 #### REST API Operations
 

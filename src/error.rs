@@ -109,8 +109,8 @@ pub enum EngineError {
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
 
-    #[error("MinIO error: {0}")]
-    MinIOError(String),
+    #[error("S3 error: {0}")]
+    S3Error(String),
 
     #[error("Database error: {0}")]
     DatabaseError(String),

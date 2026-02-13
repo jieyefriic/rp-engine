@@ -405,7 +405,7 @@ pub struct NodeConfig {
     /// For rest_api: { path, method, headers, query_params, body, body_type }
     /// For postgresql: { operation, sql, table, columns, where, data, ... }
     /// For redis: { operation, key_template, value_template, ... }
-    /// For minio: { operation, bucket, key, ... }
+    /// For s3: { operation, bucket, key, ... }
     /// For qdrant: { operation, collection, vector, ... }
     /// For graphql: { query, variables }
     #[serde(default)]

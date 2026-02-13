@@ -63,7 +63,7 @@ pub struct DataSourceDef {
     /// Data source name (human-readable)
     pub name: String,
 
-    /// Data source kind: rest_api, graphql, postgresql, redis, minio, qdrant
+    /// Data source kind: rest_api, graphql, postgresql, redis, s3, qdrant
     pub kind: String,
 
     /// Optional description

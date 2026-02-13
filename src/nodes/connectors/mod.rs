@@ -1,6 +1,6 @@
 //! Data connector implementations for various data sources
 
-pub mod minio;
+pub mod s3;
 pub mod postgresql;
 pub mod qdrant;
 pub mod redis;

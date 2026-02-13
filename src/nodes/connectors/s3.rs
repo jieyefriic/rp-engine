@@ -1,10 +1,13 @@
-//! MinIO (S3-compatible) data connector implementation
+//! S3-compatible object storage data connector implementation
 //!
-//! Supports operations: get_object, put_object, list_objects, delete_object
+//! Supports operations: get_object, put_object, list_objects, delete_object,
+//! presigned_url, head_object, copy_object
 
 use std::collections::HashMap;
+use std::time::Duration;
 use aws_sdk_s3::Client;
 use aws_sdk_s3::config::{Credentials, Region};
+use aws_sdk_s3::presigning::PresigningConfig;
 use aws_sdk_s3::primitives::ByteStream;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde_json::Value;
@@ -13,7 +16,7 @@ use crate::state::ExecutionState;
 use crate::error::EngineError;
 use super::{get_required_string, get_optional_string, get_optional_u64, ConnectorContext};
 
-/// Unified MinIO execute function
+/// Unified S3 execute function
 ///
 /// Takes data source config, operation config, and connector context.
 /// Uses pre-resolved variables from context for parameter resolution.
@@ -29,8 +32,8 @@ pub async fn execute(
     let region = get_optional_string(ds_config, "region", ctx.state)
         .unwrap_or_else(|| "us-east-1".to_string());
 
-    // Create S3 client for MinIO
-    let client = create_minio_client(&endpoint, &access_key, &secret_key, &region).await?;
+    // Create S3 client
+    let client = create_s3_client(&endpoint, &access_key, &secret_key, &region).await?;
 
     // Get operation type
     let op_type = operation.get("operation")
@@ -42,12 +45,15 @@ pub async fn execute(
         "put_object" => execute_put_object_v2(&client, &endpoint, operation, ctx.variables, ctx.state).await,
         "list_objects" => execute_list_objects(&client, operation, ctx.state).await,
         "delete_object" => execute_delete_object(&client, operation, ctx.state).await,
-        _ => Err(EngineError::InvalidOperation(format!("Unknown MinIO operation: {}", op_type))),
+        "presigned_url" => execute_presigned_url(ds_config, &access_key, &secret_key, &region, operation, ctx.state).await,
+        "head_object" => execute_head_object(&client, operation, ctx.state).await,
+        "copy_object" => execute_copy_object(&client, operation, ctx.state).await,
+        _ => Err(EngineError::InvalidOperation(format!("Unknown S3 operation: {}", op_type))),
     }
 }
 
-/// Create MinIO client with custom endpoint
-async fn create_minio_client(
+/// Create S3 client with custom endpoint
+async fn create_s3_client(
     endpoint: &str,
     access_key: &str,
     secret_key: &str,
@@ -66,7 +72,7 @@ async fn create_minio_client(
         .endpoint_url(endpoint)
         .region(Region::new(region.to_string()))
         .credentials_provider(credentials)
-        .force_path_style(true) // Required for MinIO
+        .force_path_style(true) // Required for S3-compatible services (MinIO, etc.)
         .build();
 
     Ok(Client::from_conf(config))
@@ -86,7 +92,7 @@ async fn execute_get_object(
         .key(&key)
         .send()
         .await
-        .map_err(|e| EngineError::MinIOError(e.to_string()))?;
+        .map_err(|e| EngineError::S3Error(e.to_string()))?;
 
     let content_type = response.content_type()
         .map(|s| s.to_string())
@@ -98,7 +104,7 @@ async fn execute_get_object(
 
     // Read body
     let body = response.body.collect().await
-        .map_err(|e| EngineError::MinIOError(e.to_string()))?;
+        .map_err(|e| EngineError::S3Error(e.to_string()))?;
     let bytes = body.into_bytes();
 
     // Try to parse as text, otherwise encode as base64
@@ -160,7 +166,7 @@ async fn execute_put_object_v2(
 
     // Decode base64
     let data_bytes = BASE64.decode(&data_base64)
-        .map_err(|e| EngineError::MinIOError(format!("Invalid base64 data: {}", e)))?;
+        .map_err(|e| EngineError::S3Error(format!("Invalid base64 data: {}", e)))?;
 
     // Determine content type and extension
     // If content_type is "auto" or not specified, detect from binary data
@@ -195,7 +201,7 @@ async fn execute_put_object_v2(
         .content_type(&content_type)
         .send()
         .await
-        .map_err(|e| EngineError::MinIOError(e.to_string()))?;
+        .map_err(|e| EngineError::S3Error(e.to_string()))?;
 
     // Build URL
     let url = format!("{}/{}/{}", endpoint, bucket, key);
@@ -305,7 +311,7 @@ async fn ensure_bucket_exists(client: &Client, bucket: &str) -> Result<(), Engin
                 .bucket(bucket)
                 .send()
                 .await
-                .map_err(|e| EngineError::MinIOError(format!("Failed to create bucket: {}", e)))?;
+                .map_err(|e| EngineError::S3Error(format!("Failed to create bucket: {}", e)))?;
             Ok(())
         }
     }
@@ -332,7 +338,7 @@ async fn execute_list_objects(
     }
 
     let response = request.send().await
-        .map_err(|e| EngineError::MinIOError(e.to_string()))?;
+        .map_err(|e| EngineError::S3Error(e.to_string()))?;
 
     let objects: Vec<Value> = response.contents()
         .iter()
@@ -367,10 +373,116 @@ async fn execute_delete_object(
         .key(&key)
         .send()
         .await
-        .map_err(|e| EngineError::MinIOError(e.to_string()))?;
+        .map_err(|e| EngineError::S3Error(e.to_string()))?;
 
     let mut outputs = HashMap::new();
     outputs.insert("deleted".to_string(), Value::Bool(true));
+
+    Ok(outputs)
+}
+
+/// Execute presigned_url operation — generate a temporary access URL
+///
+/// Uses `public_endpoint` from data source config if available,
+/// so the presigned URL points to the public-facing domain.
+async fn execute_presigned_url(
+    ds_config: &HashMap<String, Value>,
+    access_key: &str,
+    secret_key: &str,
+    region: &str,
+    operation: &HashMap<String, Value>,
+    state: &ExecutionState,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let bucket = get_required_string(operation, "bucket", state)?;
+    let key = get_required_string(operation, "key", state)?;
+    let expires_in = get_optional_u64(operation, "expires_in").unwrap_or(3600);
+
+    // Use public_endpoint for presigning if available, otherwise fall back to endpoint
+    let presign_endpoint = get_optional_string(ds_config, "public_endpoint", state)
+        .or_else(|| get_optional_string(ds_config, "endpoint", state))
+        .ok_or_else(|| EngineError::MissingField("endpoint".to_string()))?;
+
+    let presign_client = create_s3_client(&presign_endpoint, access_key, secret_key, region).await?;
+
+    let presigning_config = PresigningConfig::builder()
+        .expires_in(Duration::from_secs(expires_in))
+        .build()
+        .map_err(|e| EngineError::S3Error(format!("Invalid presigning config: {}", e)))?;
+
+    let presigned = presign_client
+        .get_object()
+        .bucket(&bucket)
+        .key(&key)
+        .presigned(presigning_config)
+        .await
+        .map_err(|e| EngineError::S3Error(e.to_string()))?;
+
+    let mut outputs = HashMap::new();
+    outputs.insert("url".to_string(), Value::String(presigned.uri().to_string()));
+    outputs.insert("expires_in".to_string(), Value::Number(expires_in.into()));
+
+    Ok(outputs)
+}
+
+/// Execute head_object operation — check existence and get metadata without downloading
+async fn execute_head_object(
+    client: &Client,
+    operation: &HashMap<String, Value>,
+    state: &ExecutionState,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let bucket = get_required_string(operation, "bucket", state)?;
+    let key = get_required_string(operation, "key", state)?;
+
+    let mut outputs = HashMap::new();
+
+    match client.head_object().bucket(&bucket).key(&key).send().await {
+        Ok(response) => {
+            outputs.insert("exists".to_string(), Value::Bool(true));
+            outputs.insert("content_type".to_string(), Value::String(
+                response.content_type().unwrap_or("application/octet-stream").to_string()
+            ));
+            outputs.insert("size".to_string(), Value::Number(
+                response.content_length().unwrap_or(0).into()
+            ));
+            outputs.insert("last_modified".to_string(), Value::String(
+                response.last_modified().map(|t| t.to_string()).unwrap_or_default()
+            ));
+        }
+        Err(_) => {
+            outputs.insert("exists".to_string(), Value::Bool(false));
+            outputs.insert("content_type".to_string(), Value::String(String::new()));
+            outputs.insert("size".to_string(), Value::Number(0.into()));
+            outputs.insert("last_modified".to_string(), Value::String(String::new()));
+        }
+    }
+
+    Ok(outputs)
+}
+
+/// Execute copy_object operation — server-side copy between buckets/keys
+async fn execute_copy_object(
+    client: &Client,
+    operation: &HashMap<String, Value>,
+    state: &ExecutionState,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let source_bucket = get_required_string(operation, "source_bucket", state)?;
+    let source_key = get_required_string(operation, "source_key", state)?;
+    let bucket = get_required_string(operation, "bucket", state)?;
+    let key = get_required_string(operation, "key", state)?;
+
+    let copy_source = format!("{}/{}", source_bucket, source_key);
+
+    client.copy_object()
+        .bucket(&bucket)
+        .key(&key)
+        .copy_source(&copy_source)
+        .send()
+        .await
+        .map_err(|e| EngineError::S3Error(e.to_string()))?;
+
+    let mut outputs = HashMap::new();
+    outputs.insert("bucket".to_string(), Value::String(bucket));
+    outputs.insert("key".to_string(), Value::String(key));
 
     Ok(outputs)
 }
