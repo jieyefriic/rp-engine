@@ -10,6 +10,7 @@ use serde_json::Value;
 use crate::error::EngineError;
 use crate::nodes::NodeRegistry;
 use crate::providers::{ProviderRegistry, EmbeddingRegistry};
+use crate::providers::model_registry::ModelRegistry;
 use crate::providers::search::SearchProviderRegistry;
 use crate::schema::{PreparedWorkflow, Template};
 
@@ -66,6 +67,9 @@ pub struct Engine {
     /// Connection pools for databases
     pools: Arc<ConnectionPools>,
 
+    /// Model capability registry
+    model_registry: Arc<ModelRegistry>,
+
     /// Transform scripts: script_name -> source code
     transforms: HashMap<String, String>,
 
@@ -101,6 +105,7 @@ impl Engine {
         search_providers: SearchProviderRegistry,
         node_registry: Arc<NodeRegistry>,
         pools: Arc<ConnectionPools>,
+        model_registry: Arc<ModelRegistry>,
         state_saving: Option<StateSavingConfig>,
         capture_actual_prompt: bool,
         capture_raw_response: bool,
@@ -113,6 +118,7 @@ impl Engine {
             search_providers,
             node_registry,
             pools,
+            model_registry,
             transforms,
             state_saving,
             timeout: Duration::from_secs(300), // 5 minutes default
@@ -190,6 +196,7 @@ impl Engine {
             .with_templates(self.templates.clone())
             .with_node_registry(self.node_registry.clone())
             .with_pools(self.pools.clone())
+            .with_model_registry(self.model_registry.clone())
             .with_timeout(self.timeout)
             .with_max_iterations(self.max_iterations)
             .with_capture_actual_prompt(self.capture_actual_prompt)
@@ -260,6 +267,7 @@ impl Engine {
             .with_templates(self.templates.clone())
             .with_node_registry(self.node_registry.clone())
             .with_pools(self.pools.clone())
+            .with_model_registry(self.model_registry.clone())
             .with_timeout(self.timeout)
             .with_max_iterations(self.max_iterations)
             .with_capture_actual_prompt(self.capture_actual_prompt)
@@ -317,6 +325,7 @@ impl Engine {
             .with_templates(self.templates.clone())
             .with_node_registry(self.node_registry.clone())
             .with_pools(self.pools.clone())
+            .with_model_registry(self.model_registry.clone())
             .with_timeout(self.timeout)
             .with_max_iterations(self.max_iterations)
             .with_workflows(self.workflows.clone())

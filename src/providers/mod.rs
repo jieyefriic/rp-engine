@@ -17,6 +17,7 @@ mod xai;
 mod qwen;
 mod zhipu;
 mod moonshot;
+pub mod model_registry;
 
 // Embedding providers
 pub mod embedding;
@@ -72,40 +73,59 @@ pub enum ContentPart {
     Text {
         text: String,
     },
+    /// Base64-encoded image data (no data: prefix)
     Image {
         #[serde(rename = "mediaType")]
         media_type: String,
         data: String,
     },
+    /// HTTP/HTTPS image URL (passed directly to providers that support it)
+    #[serde(rename = "image_url")]
+    ImageUrl {
+        url: String,
+    },
 }
 
 /// Image input for VL (Vision-Language) requests
 ///
-/// Only base64-encoded images are supported. Use this struct
-/// to provide images to VL-capable models.
+/// Supports both base64-encoded images and HTTP/HTTPS URLs.
 ///
 /// # Example
 /// ```ignore
+/// // Base64 image
 /// let image = ImageInput::new("image/png", base64_data);
+/// // URL image
+/// let image = ImageInput::url("https://example.com/photo.jpg");
 /// let messages = vec![
-///     Message::user_with_image("What's in this image?", &image.media_type, &image.data),
+///     Message::user_with_image_input("What's in this image?", &image),
 /// ];
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ImageInput {
-    /// Image data encoded as base64
-    pub data: String,
-    /// MIME type of the image (e.g., "image/png", "image/jpeg", "image/webp")
-    pub media_type: String,
+#[serde(untagged)]
+pub enum ImageInput {
+    /// Base64-encoded image data
+    Base64 {
+        media_type: String,
+        data: String,
+    },
+    /// HTTP/HTTPS image URL
+    Url {
+        url: String,
+    },
 }
 
 impl ImageInput {
     /// Create a new image input from base64 data
     pub fn new(media_type: impl Into<String>, data: impl Into<String>) -> Self {
-        Self {
+        Self::Base64 {
             media_type: media_type.into(),
             data: data.into(),
         }
+    }
+
+    /// Create an image input from a URL
+    pub fn url(url: impl Into<String>) -> Self {
+        Self::Url { url: url.into() }
     }
 
     /// Create an image input for PNG
@@ -121,6 +141,19 @@ impl ImageInput {
     /// Create an image input for WebP
     pub fn webp(data: impl Into<String>) -> Self {
         Self::new("image/webp", data)
+    }
+
+    /// Convert to a ContentPart
+    pub fn to_content_part(&self) -> ContentPart {
+        match self {
+            ImageInput::Base64 { media_type, data } => ContentPart::Image {
+                media_type: media_type.clone(),
+                data: data.clone(),
+            },
+            ImageInput::Url { url } => ContentPart::ImageUrl {
+                url: url.clone(),
+            },
+        }
     }
 }
 
@@ -164,7 +197,7 @@ impl Message {
         Self { role: MessageRole::Assistant, content: content.into() }
     }
 
-    /// Create a user message with image
+    /// Create a user message with a base64 image
     pub fn user_with_image(text: &str, media_type: &str, data: &str) -> Self {
         Self {
             role: MessageRole::User,
@@ -178,19 +211,32 @@ impl Message {
         }
     }
 
+    /// Create a user message with an image URL
+    pub fn user_with_image_url(text: &str, url: &str) -> Self {
+        Self {
+            role: MessageRole::User,
+            content: MessageContent::Parts(vec![
+                ContentPart::Text { text: text.to_string() },
+                ContentPart::ImageUrl { url: url.to_string() },
+            ]),
+        }
+    }
+
     /// Create a user message with an ImageInput
     pub fn user_with_image_input(text: &str, image: &ImageInput) -> Self {
-        Self::user_with_image(text, &image.media_type, &image.data)
+        let mut parts = vec![ContentPart::Text { text: text.to_string() }];
+        parts.push(image.to_content_part());
+        Self {
+            role: MessageRole::User,
+            content: MessageContent::Parts(parts),
+        }
     }
 
     /// Create a user message with multiple images
     pub fn user_with_images(text: &str, images: &[ImageInput]) -> Self {
         let mut parts = vec![ContentPart::Text { text: text.to_string() }];
         for image in images {
-            parts.push(ContentPart::Image {
-                media_type: image.media_type.clone(),
-                data: image.data.clone(),
-            });
+            parts.push(image.to_content_part());
         }
         Self {
             role: MessageRole::User,

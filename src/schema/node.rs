@@ -382,6 +382,12 @@ pub struct NodeConfig {
     #[serde(default)]
     pub variables: HashMap<String, VariableBinding>,
 
+    /// Image bindings for VL (Vision-Language) models.
+    /// Each binding resolves to image data (base64, data URI, or HTTP URL).
+    /// Only valid for generate nodes with vision-capable models.
+    #[serde(default)]
+    pub images: Vec<VariableBinding>,
+
     // Execute node fields
     /// Runtime for code execution (e.g., "python", "javascript")
     pub runtime: Option<String>,

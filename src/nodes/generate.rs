@@ -170,44 +170,13 @@ impl NodeExecutor for GenerateExecutor {
             messages.push(Message::system(sys.clone()));
         }
 
-        // Check for images in variables (multimodal support)
+        // Resolve images from explicit config.images bindings
         let mut image_parts = Vec::new();
-        for (var_name, value) in &variables {
-            // Variables ending with _image or _image_base64 are treated as images
-            if var_name.ends_with("_image") || var_name.ends_with("_image_base64") {
-                if let Value::String(data) = value {
-                    if !data.is_empty() {
-                        // Determine if it's a URL or base64
-                        let (media_type, image_data) = if data.starts_with("data:") {
-                            // Data URI format: data:image/jpeg;base64,xxx
-                            if let Some(comma_pos) = data.find(',') {
-                                let prefix = &data[..comma_pos];
-                                let base64_data = &data[comma_pos + 1..];
-
-                                // Extract media type from data URI
-                                let media = if let Some(semicolon) = prefix.find(';') {
-                                    prefix[5..semicolon].to_string() // Skip "data:"
-                                } else {
-                                    "image/jpeg".to_string()
-                                };
-
-                                (media, base64_data.to_string())
-                            } else {
-                                ("image/jpeg".to_string(), data.clone())
-                            }
-                        } else if data.starts_with("http://") || data.starts_with("https://") {
-                            // URL format - providers will handle it
-                            ("image/jpeg".to_string(), data.clone())
-                        } else {
-                            // Pure base64 string, assume JPEG
-                            ("image/jpeg".to_string(), data.clone())
-                        };
-
-                        image_parts.push(ContentPart::Image {
-                            media_type,
-                            data: image_data,
-                        });
-                    }
+        for binding in &node_config.images {
+            if let Some(Value::String(data)) = super::resolve_single_binding(binding, state) {
+                if data.is_empty() { continue; }
+                if let Some(part) = super::parse_image_input(&data) {
+                    image_parts.push(part);
                 }
             }
         }

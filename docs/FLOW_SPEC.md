@@ -208,8 +208,27 @@ Calls an LLM provider with a rendered prompt template.
 to the registered `StreamHandler`. Streaming is automatically disabled when `output_schema`
 is present (JSON mode requires complete response).
 
-**Multimodal**: Variables ending with `_image` or `_image_base64` are automatically
-included as image content in the LLM request.
+**Multimodal (images)**: Use the `images` field to pass image data to vision-capable models.
+Each entry is a variable binding that resolves to a string in one of three formats:
+- **HTTP/HTTPS URL**: `https://example.com/photo.jpg` — passed directly to providers that support it
+- **Data URI**: `data:image/png;base64,iVBOR...` — media type extracted, base64 data sent
+- **Raw base64**: Pure base64 string — media type auto-detected via magic bytes (JPEG/PNG/WebP/GIF)
+
+```yaml
+- id: analyze
+  type: generate
+  config:
+    provider: openai
+    model: gpt-4o
+    template: analyze_tpl
+    variables:
+      user_message: start.user_content
+    images:
+      - start.user_image        # single binding
+```
+
+The engine validates at build time that the selected provider/model supports vision.
+Gemini does not support HTTP image URLs (only GCS URIs); URL images will be skipped with a warning.
 
 ---
 

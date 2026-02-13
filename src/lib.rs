@@ -67,6 +67,9 @@ pub use providers::{
     DashScopeEmbeddingProvider, OpenAIEmbeddingProvider,
 };
 
+// Model capability registry
+pub use providers::model_registry::ModelRegistry;
+
 // Search provider exports
 pub use providers::search::{
     SearchProvider, SearchProviderRegistry, SearchOptions, SearchResponse, SearchResult,

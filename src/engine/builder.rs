@@ -12,8 +12,9 @@ use crate::providers::{
     EmbeddingRegistry,
     DashScopeEmbeddingProvider, OpenAIEmbeddingProvider,
 };
+use crate::providers::model_registry::ModelRegistry;
 use crate::providers::search::create_search_registry;
-use crate::schema::{PreparedWorkflow, Template};
+use crate::schema::{PreparedWorkflow, Template, NodeType};
 
 use super::engine::Engine;
 use super::executor::{ConnectionPools, PoolConfig};
@@ -80,6 +81,9 @@ pub struct EngineBuilder {
 
     /// Whether to capture raw LLM response (for observability)
     capture_raw_response: bool,
+
+    /// Model capability registry (vision support, etc.)
+    model_registry: ModelRegistry,
 }
 
 impl Default for EngineBuilder {
@@ -104,6 +108,7 @@ impl EngineBuilder {
             connection_pools: ConnectionPools::new(),
             capture_actual_prompt: false,
             capture_raw_response: false,
+            model_registry: ModelRegistry::from_embedded(),
         }
     }
 
@@ -232,6 +237,23 @@ impl EngineBuilder {
         self
     }
 
+    /// Replace the default model capability registry
+    ///
+    /// The default registry is loaded from the embedded providers.json.
+    /// Use this to provide a custom registry with additional or different models.
+    pub fn model_registry(mut self, registry: ModelRegistry) -> Self {
+        self.model_registry = registry;
+        self
+    }
+
+    /// Register a single model as vision-capable
+    ///
+    /// Use this to extend the default registry with custom models.
+    pub fn vision_model(mut self, provider: &str, model: &str) -> Self {
+        self.model_registry.register_vision_model(provider, model);
+        self
+    }
+
     /// Build the engine with the configured settings
     pub async fn build(self) -> Result<Engine, EngineError> {
         // Build node registry
@@ -296,6 +318,24 @@ impl EngineBuilder {
             HashMap::new()
         };
 
+        // Validate vision capability: nodes with images must use vision-capable models
+        for (name, workflow) in &workflows {
+            for node in &workflow.nodes {
+                if node.node_type == NodeType::Generate && !node.config.images.is_empty() {
+                    if let (Some(provider), Some(model)) = (&node.config.provider, &node.config.model) {
+                        if !self.model_registry.supports_vision(provider, model) {
+                            return Err(EngineError::InvalidWorkflow(format!(
+                                "Workflow '{}': node '{}' has images but model '{}/{}' does not support vision",
+                                name, node.id, provider, model
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+
+        let model_registry = Arc::new(self.model_registry);
+
         Ok(Engine::new(
             workflows,
             templates,
@@ -305,6 +345,7 @@ impl EngineBuilder {
             search_registry,
             Arc::new(node_registry),
             Arc::new(self.connection_pools),
+            model_registry,
             self.state_saving,
             self.capture_actual_prompt,
             self.capture_raw_response,

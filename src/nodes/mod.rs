@@ -82,6 +82,103 @@ fn parse_literal(s: &str) -> Value {
     Value::String(s.to_string())
 }
 
+// ============================================================================
+// Image Processing Utilities
+// ============================================================================
+
+use crate::providers::ContentPart;
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use tracing::warn;
+
+/// Resolve a single VariableBinding against state.
+/// Returns the first non-null value from the binding's sources.
+pub fn resolve_single_binding(
+    binding: &VariableBinding,
+    state: &ExecutionState,
+) -> Option<Value> {
+    binding.sources().iter()
+        .filter(|path| !path.is_empty())
+        .find_map(|path| {
+            if path.contains('.') {
+                let v = state.read(path).unwrap_or(Value::Null);
+                if v.is_null() { None } else { Some(v) }
+            } else {
+                Some(parse_literal(path))
+            }
+        })
+        .or_else(|| binding.default_value().cloned())
+}
+
+/// Parse an image input string into a ContentPart.
+///
+/// Supports three formats:
+/// 1. Data URI: `data:image/jpeg;base64,/9j/4AAQ...` → ContentPart::Image
+/// 2. HTTP URL: `https://example.com/photo.jpg` → ContentPart::ImageUrl
+/// 3. Pure base64: `/9j/4AAQ...` → ContentPart::Image (media type detected via magic bytes)
+pub fn parse_image_input(data: &str) -> Option<ContentPart> {
+    if data.starts_with("data:") {
+        // Data URI format: data:image/jpeg;base64,xxx
+        let comma_pos = match data.find(',') {
+            Some(pos) => pos,
+            None => {
+                warn!(data_preview = %data.chars().take(50).collect::<String>(), "Malformed data URI (no comma), skipping image");
+                return None;
+            }
+        };
+        let prefix = &data[..comma_pos];
+        let base64_data = &data[comma_pos + 1..];
+
+        let media_type = if let Some(semicolon) = prefix.find(';') {
+            prefix[5..semicolon].to_string() // Skip "data:"
+        } else {
+            "image/jpeg".to_string()
+        };
+
+        Some(ContentPart::Image {
+            media_type,
+            data: base64_data.to_string(),
+        })
+    } else if data.starts_with("http://") || data.starts_with("https://") {
+        // HTTP URL → ContentPart::ImageUrl
+        Some(ContentPart::ImageUrl { url: data.to_string() })
+    } else {
+        // Pure base64 → detect media type from magic bytes
+        let media_type = detect_image_media_type(data);
+        Some(ContentPart::Image {
+            media_type,
+            data: data.to_string(),
+        })
+    }
+}
+
+/// Detect image media type from base64-encoded data using magic bytes.
+///
+/// Decodes the first 16 bytes and checks file signatures:
+/// - JPEG: FF D8 FF
+/// - PNG: 89 50 4E 47
+/// - WebP: RIFF....WEBP
+/// - GIF: GIF8
+///
+/// Returns "image/jpeg" as fallback if detection fails.
+pub fn detect_image_media_type(base64_data: &str) -> String {
+    // Only need the first ~20 base64 chars (decodes to ~15 bytes)
+    let prefix = &base64_data[..base64_data.len().min(24)];
+    match BASE64.decode(prefix) {
+        Ok(bytes) if bytes.len() >= 4 => {
+            match &bytes[0..4] {
+                [0xFF, 0xD8, 0xFF, ..] => "image/jpeg".to_string(),
+                [0x89, 0x50, 0x4E, 0x47] => "image/png".to_string(),
+                [0x47, 0x49, 0x46, 0x38] => "image/gif".to_string(),
+                [0x52, 0x49, 0x46, 0x46] if bytes.len() >= 12 && &bytes[8..12] == b"WEBP" => {
+                    "image/webp".to_string()
+                }
+                _ => "image/jpeg".to_string(),
+            }
+        }
+        _ => "image/jpeg".to_string(),
+    }
+}
+
 pub use start::StartExecutor;
 pub use response::ResponseExecutor;
 pub use checkpoint::CheckpointExecutor;
