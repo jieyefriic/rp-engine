@@ -138,7 +138,7 @@ parent_workflow → workflow(compress_history) → continue
 | generate | ✅ | LLM 调用，支持模板/多模态/流式/结构化输出 |
 | response | ✅ | 输出映射 |
 | checkpoint | ✅ | 暂停/恢复点 |
-| data_connector | ✅ | 数据源操作 (PostgreSQL/Redis/Qdrant/MinIO/REST/GraphQL) |
+| data_connector | ✅ | 数据源操作 (PostgreSQL/Redis/Qdrant/S3/REST/GraphQL) |
 | supervisor | ✅ | Agent 规划执行循环 |
 | workflow | ✅ | 子 workflow 调用 |
 | execute | ❌ | 代码执行 (未实现) |

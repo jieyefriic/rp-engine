@@ -73,7 +73,7 @@ impl NodeExecutor for DataConnectorExecutor {
             let result = match data_source.kind.as_str() {
                 "rest_api" => execute_rest_api_v2(&data_source.config, &node_config.operation, state).await,
                 "graphql" => execute_graphql_v2(&data_source.config, &node_config.operation, state).await,
-                "minio" | "s3" => connectors::minio::execute(&data_source.config, &node_config.operation, &ctx).await,
+                "s3" | "minio" => connectors::s3::execute(&data_source.config, &node_config.operation, &ctx).await,
                 "postgresql" | "postgres" => connectors::postgresql::execute(&data_source.config, &node_config.operation, &ctx).await,
                 "qdrant" => connectors::qdrant::execute(&data_source.config, &node_config.operation, &ctx).await,
                 "redis" => connectors::redis::execute(&data_source.config, &node_config.operation, &ctx).await,
@@ -114,7 +114,7 @@ impl NodeExecutor for DataConnectorExecutor {
         match source.as_str() {
             "rest_api" => execute_rest_api(node_config, state).await,
             "graphql" => execute_graphql(node_config, state).await,
-            "minio" | "s3" => connectors::minio::execute(ds_config, &operation, &ctx).await,
+            "s3" | "minio" => connectors::s3::execute(ds_config, &operation, &ctx).await,
             "postgresql" | "postgres" => connectors::postgresql::execute(ds_config, &operation, &ctx).await,
             "qdrant" => connectors::qdrant::execute(ds_config, &operation, &ctx).await,
             "redis" => connectors::redis::execute(ds_config, &operation, &ctx).await,
