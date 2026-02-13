@@ -84,6 +84,9 @@ pub struct EngineBuilder {
 
     /// Model capability registry (vision support, etc.)
     model_registry: ModelRegistry,
+
+    /// Redis connection URLs: data_source_id -> URL
+    redis_urls: HashMap<String, String>,
 }
 
 impl Default for EngineBuilder {
@@ -109,6 +112,7 @@ impl EngineBuilder {
             capture_actual_prompt: false,
             capture_raw_response: false,
             model_registry: ModelRegistry::from_embedded(),
+            redis_urls: HashMap::new(),
         }
     }
 
@@ -218,6 +222,27 @@ impl EngineBuilder {
         self
     }
 
+    /// Register a Redis connection by URL
+    ///
+    /// The connection manager is created during `build()`. It provides
+    /// automatic reconnection and multiplexed async access.
+    ///
+    /// # Arguments
+    /// * `data_source_id` - The data source ID (matches `data_source_id` in workflow YAML)
+    /// * `url` - Redis connection URL (e.g., `redis://localhost:6379/0`)
+    ///
+    /// # Example
+    /// ```ignore
+    /// Engine::builder()
+    ///     .redis("cache", "redis://localhost:6379/0")
+    ///     .build()
+    ///     .await?;
+    /// ```
+    pub fn redis(mut self, data_source_id: impl Into<String>, url: impl Into<String>) -> Self {
+        self.redis_urls.insert(data_source_id.into(), url.into());
+        self
+    }
+
     /// Enable capturing of actual rendered prompts (for observability)
     ///
     /// When enabled, generate nodes will include `_actual_system_prompt` and
@@ -318,6 +343,21 @@ impl EngineBuilder {
             HashMap::new()
         };
 
+        // Create Redis connection managers
+        let mut connection_pools = self.connection_pools;
+        for (id, url) in &self.redis_urls {
+            let client = redis::Client::open(url.as_str())
+                .map_err(|e| EngineError::RedisError(format!(
+                    "Invalid Redis URL for '{}': {}", id, e
+                )))?;
+            let manager = redis::aio::ConnectionManager::new(client).await
+                .map_err(|e| EngineError::RedisError(format!(
+                    "Failed to connect Redis '{}': {}", id, e
+                )))?;
+            info!(data_source = %id, "Redis connection manager created");
+            connection_pools.register_redis_pool(id.clone(), manager);
+        }
+
         // Validate vision capability: nodes with images must use vision-capable models
         for (name, workflow) in &workflows {
             for node in &workflow.nodes {
@@ -344,7 +384,7 @@ impl EngineBuilder {
             embedding_registry,
             search_registry,
             Arc::new(node_registry),
-            Arc::new(self.connection_pools),
+            Arc::new(connection_pools),
             model_registry,
             self.state_saving,
             self.capture_actual_prompt,

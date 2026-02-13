@@ -24,6 +24,8 @@ pub struct ConnectorContext<'a> {
     pub config: &'a ExecutionConfig,
     /// Pre-resolved variables ({paramName} -> resolved Value)
     pub variables: &'a HashMap<String, Value>,
+    /// Data source ID (for looking up connection pools)
+    pub data_source_id: Option<&'a str>,
 }
 
 /// Helper function to resolve {{variable}} templates in a string

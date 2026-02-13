@@ -38,15 +38,15 @@ impl NodeExecutor for DataConnectorExecutor {
         // Resolve variables from config (pre-resolve all paths to values)
         let resolved_variables = resolve_variables(node, state);
 
-        // Build unified context with pre-resolved variables
-        let ctx = ConnectorContext {
-            state,
-            config,
-            variables: &resolved_variables,
-        };
-
         // V2 mode: use data_source_id reference
         if let Some(data_source_id) = &node_config.data_source_id {
+            // Build unified context with pre-resolved variables + data_source_id
+            let ctx = ConnectorContext {
+                state,
+                config,
+                variables: &resolved_variables,
+                data_source_id: Some(data_source_id.as_str()),
+            };
             let data_source = config.data_sources.get(data_source_id)
                 .ok_or_else(|| {
                     error!(
@@ -102,14 +102,17 @@ impl NodeExecutor for DataConnectorExecutor {
         }
 
         // V1 Legacy mode: use source and connection directly
-        // Convert connection to ds_config format for unified execution
         let source = node_config.source.as_ref()
             .ok_or(EngineError::MissingSource)?;
         let ds_config = &node_config.connection;
-
-        // For V1 mode, operation info is in connection, so we need to convert it
-        // We'll create an operation HashMap that includes the operation type
         let operation = ds_config.clone();
+
+        let ctx = ConnectorContext {
+            state,
+            config,
+            variables: &resolved_variables,
+            data_source_id: None,
+        };
 
         match source.as_str() {
             "rest_api" => execute_rest_api(node_config, state).await,
