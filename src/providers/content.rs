@@ -4,6 +4,7 @@
 //! This module provides format functions for each provider type.
 
 use serde_json::{json, Value};
+use tracing::warn;
 use super::{MessageContent, ContentPart, Message, MessageRole};
 
 /// Format content for OpenAI-compatible APIs
@@ -25,6 +26,12 @@ pub fn format_openai_content(content: &MessageContent) -> Value {
                         "type": "image_url",
                         "image_url": {
                             "url": format!("data:{};base64,{}", media_type, data)
+                        }
+                    }),
+                    ContentPart::ImageUrl { url } => json!({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": url
                         }
                     }),
                 }
@@ -57,6 +64,13 @@ pub fn format_anthropic_content(content: &MessageContent) -> Value {
                             "data": data
                         }
                     }),
+                    ContentPart::ImageUrl { url } => json!({
+                        "type": "image",
+                        "source": {
+                            "type": "url",
+                            "url": url
+                        }
+                    }),
                 }
             }).collect();
             json!(formatted)
@@ -82,6 +96,10 @@ pub fn format_gemini_parts(content: &MessageContent) -> Value {
                             "data": data
                         }
                     }),
+                    ContentPart::ImageUrl { url } => {
+                        warn!(url = %url, "Gemini does not support HTTP image URLs, skipping image");
+                        json!({ "text": "[Image URL not supported by Gemini]" })
+                    },
                 }
             }).collect();
             json!(formatted)
@@ -263,6 +281,45 @@ mod tests {
         assert_eq!(result[0]["content"], "You are helpful");
         assert_eq!(result[1]["role"], "user");
         assert_eq!(result[2]["role"], "assistant");
+    }
+
+    #[test]
+    fn test_format_openai_content_image_url() {
+        let content = MessageContent::Parts(vec![
+            ContentPart::Text { text: "Describe this".to_string() },
+            ContentPart::ImageUrl { url: "https://example.com/photo.jpg".to_string() },
+        ]);
+        let formatted = format_openai_content(&content);
+
+        let arr = formatted.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[1]["type"], "image_url");
+        assert_eq!(arr[1]["image_url"]["url"], "https://example.com/photo.jpg");
+    }
+
+    #[test]
+    fn test_format_anthropic_content_image_url() {
+        let content = MessageContent::Parts(vec![
+            ContentPart::ImageUrl { url: "https://example.com/photo.jpg".to_string() },
+        ]);
+        let formatted = format_anthropic_content(&content);
+
+        let arr = formatted.as_array().unwrap();
+        assert_eq!(arr[0]["type"], "image");
+        assert_eq!(arr[0]["source"]["type"], "url");
+        assert_eq!(arr[0]["source"]["url"], "https://example.com/photo.jpg");
+    }
+
+    #[test]
+    fn test_format_gemini_parts_image_url_fallback() {
+        let content = MessageContent::Parts(vec![
+            ContentPart::ImageUrl { url: "https://example.com/photo.jpg".to_string() },
+        ]);
+        let formatted = format_gemini_parts(&content);
+
+        let arr = formatted.as_array().unwrap();
+        // Gemini doesn't support HTTP URLs, should fall back to text placeholder
+        assert!(arr[0]["text"].as_str().unwrap().contains("not supported"));
     }
 
     #[test]

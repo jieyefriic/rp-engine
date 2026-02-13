@@ -166,6 +166,7 @@ async fn execute_child_workflow(
         workflows: config.workflows.clone(),
         transforms: config.transforms.clone(),
         stream_handler: config.stream_handler.clone(),
+        model_registry: config.model_registry.clone(),
     };
 
     // Execute the child workflow

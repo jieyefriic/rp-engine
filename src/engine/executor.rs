@@ -14,6 +14,7 @@ use crate::schema::{PreparedWorkflow, Template, YamlNode, NodeType, ExitReason, 
 use crate::state::{ExecutionState, ExecutionRecord, CheckpointState};
 use crate::expression::evaluate_expression;
 use crate::providers::{ProviderRegistry, EmbeddingRegistry};
+use crate::providers::model_registry::ModelRegistry;
 use crate::providers::search::SearchProviderRegistry;
 use crate::nodes::{create_executor, NodeRegistry};
 use super::graph::ExecutionGraph;
@@ -180,6 +181,9 @@ pub struct ExecutionConfig {
     /// All loaded workflows (for sub-workflow execution)
     pub workflows: Arc<HashMap<String, PreparedWorkflow>>,
 
+    /// Model capability registry (for vision support checks, etc.)
+    pub model_registry: Arc<ModelRegistry>,
+
     /// Transform scripts: script_name -> source code (loaded from transforms_dir)
     pub transforms: HashMap<String, String>,
 
@@ -228,6 +232,7 @@ impl Default for ExecutionConfig {
             capture_actual_prompt: false,
             capture_raw_response: false,
             workflows: Arc::new(HashMap::new()),
+            model_registry: Arc::new(ModelRegistry::from_embedded()),
             transforms: HashMap::new(),
             stream_handler: None,
         }
@@ -321,6 +326,12 @@ impl ExecutionConfig {
     /// Set stream handler for generate nodes with stream: true
     pub fn with_stream_handler(mut self, handler: Arc<dyn super::StreamHandler>) -> Self {
         self.stream_handler = Some(handler);
+        self
+    }
+
+    /// Set model capability registry
+    pub fn with_model_registry(mut self, registry: Arc<ModelRegistry>) -> Self {
+        self.model_registry = registry;
         self
     }
 }
