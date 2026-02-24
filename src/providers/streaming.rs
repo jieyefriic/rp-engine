@@ -19,14 +19,6 @@ pub struct ChunkParseResult {
 }
 
 impl ChunkParseResult {
-    pub fn text(content: String) -> Self {
-        Self { content: Some(content), usage: None }
-    }
-
-    pub fn usage(usage: TokenUsage) -> Self {
-        Self { content: None, usage: Some(usage) }
-    }
-
     pub fn empty() -> Self {
         Self { content: None, usage: None }
     }
