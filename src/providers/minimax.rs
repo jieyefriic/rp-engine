@@ -1,7 +1,7 @@
 //! MiniMax provider implementation
 //!
 //! MiniMax API is compatible with OpenAI API format.
-//! API: https://api.minimax.io/v1/text/chatcompletion_v2
+//! API: https://api.minimax.chat/v1/text/chatcompletion_v2
 
 use async_trait::async_trait;
 
@@ -11,7 +11,7 @@ use super::{
     OpenAICompatibleProvider,
 };
 
-const MINIMAX_API_URL: &str = "https://api.minimax.io/v1/text/chatcompletion_v2";
+const MINIMAX_API_URL: &str = "https://api.minimax.chat/v1/text/chatcompletion_v2";
 const DEFAULT_MODEL: &str = "MiniMax-M2.5";
 
 /// MiniMax provider
