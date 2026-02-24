@@ -1,6 +1,6 @@
 //! LLM Provider implementations
 //!
-//! Supports 8 LLM providers: OpenAI, Anthropic, Gemini, DeepSeek, xAI, Qwen, Zhipu, Moonshot
+//! Supports 9 LLM providers: OpenAI, Anthropic, Gemini, DeepSeek, xAI, Qwen, Zhipu, Moonshot, MiniMax
 //! All LLM providers implement the LLMProvider trait with chat() and stream() methods.
 //!
 //! Also supports Embedding providers: DashScope, OpenAI
@@ -17,6 +17,7 @@ mod xai;
 mod qwen;
 mod zhipu;
 mod moonshot;
+mod minimax;
 pub mod model_registry;
 
 // Embedding providers
@@ -44,6 +45,7 @@ pub use xai::XAIProvider;
 pub use qwen::QwenProvider;
 pub use zhipu::ZhipuProvider;
 pub use moonshot::MoonshotProvider;
+pub use minimax::MiniMaxProvider;
 
 // Re-export Embedding providers and types
 pub use embedding::{EmbeddingProvider, EmbeddingRegistry, EmbeddingOptions, EmbeddingResponse, Embedding, EmbeddingUsage};
@@ -449,6 +451,7 @@ pub fn create_registry_with_keys(
     qwen_key: Option<String>,
     zhipu_key: Option<String>,
     moonshot_key: Option<String>,
+    minimax_key: Option<String>,
 ) -> ProviderRegistry {
     let mut registry = ProviderRegistry::new();
 
@@ -482,6 +485,10 @@ pub fn create_registry_with_keys(
 
     if let Some(key) = moonshot_key {
         registry.register("moonshot", Arc::new(MoonshotProvider::new(key)));
+    }
+
+    if let Some(key) = minimax_key {
+        registry.register("minimax", Arc::new(MiniMaxProvider::new(key)));
     }
 
     registry

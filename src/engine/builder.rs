@@ -302,6 +302,7 @@ impl EngineBuilder {
             self.providers.get("qwen").cloned(),
             self.providers.get("zhipu").cloned(),
             self.providers.get("moonshot").cloned(),
+            self.providers.get("minimax").cloned(),
         );
 
         // Build search provider registry
