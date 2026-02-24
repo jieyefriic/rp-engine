@@ -159,5 +159,21 @@
       { "id": "kimi-k2.5", "name": "Kimi K2.5", "modelType": "chat", "contextWindow": 256000, "maxTokens": 16000, "inputPrice": 0.56, "outputPrice": 2.92, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "modelNote": "多模态模型，支持图像/视频/文本。可选思考模式（通过 reasoning_content 返回）。阿里云百炼价格：¥4/M 输入，¥21/M 输出", "badge": "New" },
       { "id": "kimi-k2-thinking", "name": "Kimi K2 Thinking", "modelType": "chat", "contextWindow": 256000, "maxTokens": 16000, "inputPrice": 0.56, "outputPrice": 2.22, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": false, "modelNote": "深度思考模型，不能关闭思考。思考内容通过 reasoning_content 返回" }
     ]
+  },
+  {
+    "id": "minimax",
+    "name": "MiniMax",
+    "defaultModel": "MiniMax-M2.5",
+    "sampling": {
+      "maxTemperature": 2,
+      "supportsTopP": true,
+      "supportsTopK": false,
+      "defaultTopP": 0.95,
+      "allowBothTempAndTopP": true
+    },
+    "models": [
+      { "id": "MiniMax-M2.5", "name": "MiniMax M2.5", "modelType": "chat", "contextWindow": 205000, "maxTokens": 16384, "inputPrice": 0.3, "outputPrice": 1.2, "thinking": "none", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": false, "badge": "New" },
+      { "id": "M2-her", "name": "M2 Her", "modelType": "chat", "contextWindow": 205000, "maxTokens": 2048, "inputPrice": 0.3, "outputPrice": 1.2, "thinking": "none", "json": true, "thinkingJsonCompat": true, "functionCalling": false, "vision": false, "modelNote": "角色扮演/对话优化模型" }
+    ]
   }
 ]

@@ -58,7 +58,7 @@ pub use providers::{
     ReasoningEffort, ImageInput,
     // Providers
     OpenAIProvider, AnthropicProvider, GeminiProvider,
-    DeepSeekProvider, XAIProvider, QwenProvider, ZhipuProvider, MoonshotProvider,
+    DeepSeekProvider, XAIProvider, QwenProvider, ZhipuProvider, MoonshotProvider, MiniMaxProvider,
     OpenAICompatibleProvider,
     // Registry helper
     create_registry_with_keys,
