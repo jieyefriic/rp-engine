@@ -18,6 +18,7 @@ mod qwen;
 mod zhipu;
 mod moonshot;
 mod minimax;
+mod huoshan;
 pub mod model_registry;
 
 // Embedding providers
@@ -46,6 +47,7 @@ pub use qwen::QwenProvider;
 pub use zhipu::ZhipuProvider;
 pub use moonshot::MoonshotProvider;
 pub use minimax::MiniMaxProvider;
+pub use huoshan::HuoshanProvider;
 
 // Re-export Embedding providers and types
 pub use embedding::{EmbeddingProvider, EmbeddingRegistry, EmbeddingOptions, EmbeddingResponse, Embedding, EmbeddingUsage};
@@ -452,6 +454,7 @@ pub fn create_registry_with_keys(
     zhipu_key: Option<String>,
     moonshot_key: Option<String>,
     minimax_key: Option<String>,
+    huoshan_key: Option<String>,
 ) -> ProviderRegistry {
     let mut registry = ProviderRegistry::new();
 
@@ -489,6 +492,10 @@ pub fn create_registry_with_keys(
 
     if let Some(key) = minimax_key {
         registry.register("minimax", Arc::new(MiniMaxProvider::new(key)));
+    }
+
+    if let Some(key) = huoshan_key {
+        registry.register("huoshan", Arc::new(HuoshanProvider::new(key)));
     }
 
     registry
