@@ -502,6 +502,59 @@ pub fn create_registry_with_keys(
 }
 
 // ============================================================================
+// Provider Factory (from YAML ProviderDef)
+// ============================================================================
+
+/// Create a provider instance from a YAML ProviderDef.
+///
+/// The `provider_id` is the map key from the YAML `providers` section.
+/// When `def.kind` is `None`, `provider_id` is used as the kind.
+pub fn create_provider_from_def(
+    provider_id: &str,
+    def: &crate::schema::ProviderDef,
+) -> Result<Arc<dyn LLMProvider>, crate::error::EngineError> {
+    let kind = def.kind.as_deref().unwrap_or(provider_id);
+
+    match kind {
+        "openai" => {
+            let mut p = OpenAIProvider::new(&def.api_key);
+            if let Some(url) = &def.base_url {
+                p = p.with_base_url(url);
+            }
+            Ok(Arc::new(p))
+        }
+        "anthropic" => {
+            let mut p = AnthropicProvider::new(&def.api_key);
+            if let Some(url) = &def.base_url {
+                p = p.with_base_url(url);
+            }
+            Ok(Arc::new(p))
+        }
+        "gemini" => Ok(Arc::new(GeminiProvider::new(&def.api_key))),
+        "deepseek" => Ok(Arc::new(DeepSeekProvider::new(&def.api_key))),
+        "xai" => Ok(Arc::new(XAIProvider::new(&def.api_key))),
+        "qwen" => Ok(Arc::new(QwenProvider::new(&def.api_key))),
+        "zhipu" => Ok(Arc::new(ZhipuProvider::new(&def.api_key))),
+        "moonshot" => Ok(Arc::new(MoonshotProvider::new(&def.api_key))),
+        "minimax" => Ok(Arc::new(MiniMaxProvider::new(&def.api_key))),
+        "huoshan" => Ok(Arc::new(HuoshanProvider::new(&def.api_key))),
+        "openai_compatible" => {
+            let base_url = def.base_url.as_deref()
+                .ok_or_else(|| crate::error::EngineError::InvalidWorkflow(
+                    format!("Provider '{}': openai_compatible requires base_url", provider_id)
+                ))?;
+            let default_model = def.default_model.as_deref().unwrap_or("default");
+            Ok(Arc::new(OpenAICompatibleProvider::new(
+                &def.api_key, base_url, default_model, provider_id,
+            )))
+        }
+        unknown => Err(crate::error::EngineError::InvalidWorkflow(
+            format!("Unknown provider kind '{}' for provider '{}'", unknown, provider_id)
+        )),
+    }
+}
+
+// ============================================================================
 // Legacy Compatibility (ChatRequest)
 // ============================================================================
 
@@ -564,5 +617,84 @@ impl ChatRequest {
             enable_search: false,
         };
         (self.messages.clone(), options)
+    }
+}
+
+#[cfg(test)]
+mod tests_provider_factory {
+    use super::*;
+    use crate::schema::ProviderDef;
+
+    fn make_def(kind: Option<&str>, api_key: &str, base_url: Option<&str>, default_model: Option<&str>) -> ProviderDef {
+        ProviderDef {
+            kind: kind.map(|s| s.to_string()),
+            api_key: api_key.to_string(),
+            base_url: base_url.map(|s| s.to_string()),
+            default_model: default_model.map(|s| s.to_string()),
+        }
+    }
+
+    #[test]
+    fn test_known_providers_create_ok() {
+        let kinds = ["openai", "anthropic", "gemini", "deepseek", "xai", "qwen", "zhipu", "moonshot", "minimax", "huoshan"];
+        for kind in kinds {
+            let def = make_def(None, "test-key", None, None);
+            let result = create_provider_from_def(kind, &def);
+            assert!(result.is_ok(), "Failed to create provider for kind '{}'", kind);
+            assert_eq!(result.unwrap().name(), kind);
+        }
+    }
+
+    #[test]
+    fn test_kind_overrides_provider_id() {
+        // provider_id is "my_openai" but kind is "openai"
+        let def = make_def(Some("openai"), "test-key", None, None);
+        let provider = create_provider_from_def("my_openai", &def).unwrap();
+        assert_eq!(provider.name(), "openai");
+    }
+
+    #[test]
+    fn test_openai_compatible_requires_base_url() {
+        let def = make_def(Some("openai_compatible"), "test-key", None, None);
+        let result = create_provider_from_def("my_llm", &def);
+        assert!(result.is_err());
+        let err = match result {
+            Err(e) => e.to_string(),
+            Ok(_) => panic!("Expected error"),
+        };
+        assert!(err.contains("base_url"), "Error should mention base_url: {}", err);
+    }
+
+    #[test]
+    fn test_openai_compatible_with_base_url() {
+        let def = make_def(
+            Some("openai_compatible"),
+            "test-key",
+            Some("http://localhost:8000/v1/chat/completions"),
+            Some("my-model"),
+        );
+        let result = create_provider_from_def("my_llm", &def);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name(), "my_llm");
+    }
+
+    #[test]
+    fn test_unknown_kind_returns_error() {
+        let def = make_def(Some("unknown_provider"), "test-key", None, None);
+        let result = create_provider_from_def("test", &def);
+        assert!(result.is_err());
+        let err = match result {
+            Err(e) => e.to_string(),
+            Ok(_) => panic!("Expected error"),
+        };
+        assert!(err.contains("unknown_provider"));
+    }
+
+    #[test]
+    fn test_openai_with_base_url() {
+        let def = make_def(None, "test-key", Some("https://proxy.example.com/v1/chat/completions"), None);
+        let result = create_provider_from_def("openai", &def);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name(), "openai");
     }
 }

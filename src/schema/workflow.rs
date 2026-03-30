@@ -74,6 +74,56 @@ pub struct DataSourceDef {
     pub config: HashMap<String, serde_json::Value>,
 }
 
+/// Provider definition for workflow-level LLM provider configuration.
+/// Allows workflows to declare their own provider instances with API keys,
+/// custom base URLs, and other configuration.
+///
+/// YAML example:
+/// ```yaml
+/// providers:
+///   openai:
+///     api_key: "${OPENAI_API_KEY}"
+///   my_local_llm:
+///     kind: openai_compatible
+///     api_key: "not-needed"
+///     base_url: "http://localhost:8000/v1/chat/completions"
+///     default_model: "llama-3-8b"
+/// ```
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ProviderDef {
+    /// Provider kind: "openai", "anthropic", "gemini", "deepseek", "xai",
+    /// "qwen", "zhipu", "moonshot", "minimax", "huoshan", "openai_compatible".
+    /// When omitted, defaults to the provider ID (the map key).
+    pub kind: Option<String>,
+
+    /// API key for the provider (supports ${ENV_VAR} expansion in YAML)
+    pub api_key: String,
+
+    /// Custom base URL (for proxies, Azure OpenAI, vLLM, Ollama, etc.)
+    /// Only meaningful for: openai, anthropic, openai_compatible
+    pub base_url: Option<String>,
+
+    /// Default model override (primarily for openai_compatible)
+    pub default_model: Option<String>,
+}
+
+// Custom Debug to mask api_key in logs
+impl std::fmt::Debug for ProviderDef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let masked = if self.api_key.len() > 4 {
+            format!("***{}", &self.api_key[self.api_key.len()-4..])
+        } else {
+            "****".to_string()
+        };
+        f.debug_struct("ProviderDef")
+            .field("kind", &self.kind)
+            .field("api_key", &masked)
+            .field("base_url", &self.base_url)
+            .field("default_model", &self.default_model)
+            .finish()
+    }
+}
+
 /// Subgraph (ToolBox) definition
 /// A mini-workflow that can be executed as a tool by Supervisor nodes
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -131,6 +181,13 @@ pub struct PreparedWorkflow {
     /// Workflow-level data sources override Engine-level ones with the same ID.
     #[serde(default)]
     pub data_sources: HashMap<String, DataSourceDef>,
+
+    /// Provider definitions (provider_id -> ProviderDef)
+    /// Allows workflows to declare LLM providers with API keys inline.
+    /// Workflow-level providers override Engine-level ones with the same ID.
+    /// Supports ${ENV_VAR} expansion in api_key and other string fields.
+    #[serde(default)]
+    pub providers: HashMap<String, ProviderDef>,
 
     /// Node definitions
     pub nodes: Vec<YamlNode>,
@@ -433,5 +490,84 @@ templates:
             .find(|e| e.from == "supervisor")
             .unwrap();
         assert!(exit_edge.exit_reason.is_some());
+    }
+
+    #[test]
+    fn test_workflow_with_providers() {
+        let yaml = r#"
+version: "1.0"
+name: "Provider Test"
+providers:
+  openai:
+    api_key: "sk-test-key-123"
+  my_local:
+    kind: openai_compatible
+    api_key: "local-key"
+    base_url: "http://localhost:8000/v1/chat/completions"
+    default_model: "llama-3-8b"
+nodes:
+  - id: start
+    type: start
+  - id: gen
+    type: generate
+    config:
+      provider: my_local
+      model: llama-3-8b
+  - id: response
+    type: response
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+"#;
+        let workflow = PreparedWorkflow::from_yaml(yaml).unwrap();
+        assert_eq!(workflow.providers.len(), 2);
+
+        // openai: kind omitted, defaults to None
+        let openai = workflow.providers.get("openai").unwrap();
+        assert!(openai.kind.is_none());
+        assert_eq!(openai.api_key, "sk-test-key-123");
+        assert!(openai.base_url.is_none());
+
+        // my_local: openai_compatible with base_url
+        let local = workflow.providers.get("my_local").unwrap();
+        assert_eq!(local.kind.as_deref(), Some("openai_compatible"));
+        assert_eq!(local.api_key, "local-key");
+        assert_eq!(local.base_url.as_deref(), Some("http://localhost:8000/v1/chat/completions"));
+        assert_eq!(local.default_model.as_deref(), Some("llama-3-8b"));
+    }
+
+    #[test]
+    fn test_workflow_without_providers_backward_compat() {
+        let yaml = r#"
+version: "0.1"
+name: "No Providers"
+nodes:
+  - id: start
+    type: start
+  - id: response
+    type: response
+edges:
+  - from: start
+    to: response
+"#;
+        let workflow = PreparedWorkflow::from_yaml(yaml).unwrap();
+        assert!(workflow.providers.is_empty());
+    }
+
+    #[test]
+    fn test_provider_def_debug_masks_key() {
+        let def = ProviderDef {
+            kind: Some("openai".to_string()),
+            api_key: "sk-super-secret-key-12345".to_string(),
+            base_url: None,
+            default_model: None,
+        };
+        let debug_str = format!("{:?}", def);
+        // Full key should NOT appear
+        assert!(!debug_str.contains("sk-super-secret-key-12345"));
+        // Last 4 chars should appear
+        assert!(debug_str.contains("2345"));
     }
 }
