@@ -142,6 +142,12 @@ pub struct PreparedWorkflow {
     #[serde(default)]
     pub templates: HashMap<String, Template>,
 
+    /// Transform scripts (transform_name -> Rhai source code)
+    /// Allows YAML to embed transform scripts inline, like templates.
+    /// Workflow-level transforms override Engine-level ones with the same name.
+    #[serde(default)]
+    pub transforms: HashMap<String, String>,
+
     /// Subgraphs (ToolBoxes) for Supervisor nodes
     /// Maps subgraph_id -> Subgraph definition
     #[serde(default)]

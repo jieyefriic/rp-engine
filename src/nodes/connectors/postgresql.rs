@@ -6,6 +6,7 @@
 //! Deprecated: `params` array with `{{node.field}}` syntax (string interpolation, unsafe)
 
 use std::collections::HashMap;
+use async_trait::async_trait;
 use tokio_postgres::{NoTls, Row};
 use tokio_postgres::types::{ToSql, Type as PgType, IsNull, Json};
 use bytes::BytesMut;
@@ -13,12 +14,81 @@ use serde_json::Value;
 use tracing::{debug, error};
 use chrono::{DateTime, Utc, NaiveDateTime};
 
+use deadpool_postgres::GenericClient;
+
 use crate::state::ExecutionState;
 use crate::error::EngineError;
 use super::{get_required_string, get_optional_string, get_optional_u64, resolve_template_vars, ConnectorContext};
 
-/// Wrapper enum for dynamic SQL parameter types
-/// This allows us to store different types in a Vec and implement ToSql
+// ============================================================================
+// PgClient trait — unifies tokio_postgres::Client and deadpool_postgres::Object
+// ============================================================================
+
+/// Internal trait abstracting over direct and pooled PostgreSQL connections.
+///
+/// Both `tokio_postgres::Client` and `deadpool_postgres::Object` expose the same
+/// `.query()` / `.execute()` API. This trait eliminates the need for duplicate
+/// implementations of every operation.
+#[async_trait]
+trait PgClient: Send + Sync {
+    async fn query(
+        &self,
+        statement: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<Vec<Row>, tokio_postgres::Error>;
+
+    async fn pg_execute(
+        &self,
+        statement: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<u64, tokio_postgres::Error>;
+}
+
+#[async_trait]
+impl PgClient for tokio_postgres::Client {
+    async fn query(
+        &self,
+        statement: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<Vec<Row>, tokio_postgres::Error> {
+        tokio_postgres::Client::query(self, statement, params).await
+    }
+
+    async fn pg_execute(
+        &self,
+        statement: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<u64, tokio_postgres::Error> {
+        tokio_postgres::Client::execute(self, statement, params).await
+    }
+}
+
+#[async_trait]
+impl PgClient for deadpool_postgres::Object {
+    async fn query(
+        &self,
+        statement: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<Vec<Row>, tokio_postgres::Error> {
+        GenericClient::query(self, statement, params).await
+    }
+
+    async fn pg_execute(
+        &self,
+        statement: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<u64, tokio_postgres::Error> {
+        GenericClient::execute(self, statement, params).await
+    }
+}
+
+// ============================================================================
+// SqlParam — type-safe SQL parameter wrapper
+// ============================================================================
+
+/// Wrapper enum for dynamic SQL parameter types.
+/// Used by all operations (query, insert, select, update, delete) to preserve
+/// type information when binding values to PostgreSQL queries.
 #[derive(Debug)]
 enum SqlParam {
     String(String),
@@ -82,6 +152,10 @@ impl ToSql for SqlParam {
 
     tokio_postgres::types::to_sql_checked!();
 }
+
+// ============================================================================
+// Parameterized query helpers
+// ============================================================================
 
 /// Prepare a parameterized SQL query from a template
 ///
@@ -157,6 +231,10 @@ fn value_to_sql_param(value: &Value) -> SqlParam {
     }
 }
 
+// ============================================================================
+// Main execute entry point
+// ============================================================================
+
 /// Unified PostgreSQL execute function
 ///
 /// Takes data source config, operation config, and connector context.
@@ -166,7 +244,6 @@ pub async fn execute(
     operation: &HashMap<String, Value>,
     ctx: &ConnectorContext<'_>,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    // Get operation type
     let op_type = operation.get("operation")
         .and_then(|v| v.as_str())
         .ok_or_else(|| {
@@ -177,21 +254,28 @@ pub async fn execute(
             EngineError::MissingField("operation".to_string())
         })?;
 
-    debug!(
-        operation = %op_type,
-        "Starting PostgreSQL operation"
-    );
+    debug!(operation = %op_type, "Starting PostgreSQL operation");
 
-    // Try to find a matching pool from ExecutionConfig
-    // We need to find which data_source_id matches this ds_config
-    let pool_opt = find_pool_for_config(ds_config, ctx);
-
-    if let Some(pool) = pool_opt {
-        // Use pooled connection (preferred)
+    // Acquire client: prefer pool, fallback to ad-hoc connection
+    let client: Box<dyn PgClient> = if let Some(pool) = find_pool_for_config(ds_config, ctx) {
         debug!(operation = %op_type, "Using pooled connection");
-        execute_with_pool_internal(pool, operation, ctx).await
+        let obj = pool.get().await
+            .map_err(|e| {
+                let pool_status = pool.status();
+                error!(
+                    error = %e,
+                    pool_size = pool_status.size,
+                    pool_available = pool_status.available,
+                    pool_waiting = pool_status.waiting,
+                    "Failed to get connection from PostgreSQL pool"
+                );
+                EngineError::DatabaseError(format!(
+                    "Failed to get connection from pool (size: {}, available: {}, waiting: {}): {}",
+                    pool_status.size, pool_status.available, pool_status.waiting, e
+                ))
+            })?;
+        Box::new(obj)
     } else {
-        // Fall back to creating a new connection
         debug!(operation = %op_type, "Creating new connection (no pool available)");
         let conn_string = get_connection_string(ds_config, ctx.state)?;
         let (client, db_connection) = tokio_postgres::connect(&conn_string, NoTls)
@@ -203,10 +287,7 @@ pub async fn execute(
                     database = ds_config.get("database").and_then(|v| v.as_str()).unwrap_or("unknown"),
                     "Failed to connect to PostgreSQL"
                 );
-                EngineError::DatabaseError(format!(
-                    "Connection failed to PostgreSQL: {}",
-                    e
-                ))
+                EngineError::DatabaseError(format!("Connection failed to PostgreSQL: {}", e))
             })?;
 
         tokio::spawn(async move {
@@ -215,16 +296,19 @@ pub async fn execute(
             }
         });
 
-        match op_type {
-            "query" => execute_query_internal(&client, operation, ctx.variables, ctx.state).await,
-            "insert" => execute_insert_internal(&client, operation, ctx.state).await,
-            "select" => execute_select_internal(&client, operation, ctx.state).await,
-            "update" => execute_update_internal(&client, operation, ctx.state).await,
-            "delete" => execute_delete_internal(&client, operation, ctx.state).await,
-            _ => {
-                error!(operation = %op_type, "Unknown PostgreSQL operation type");
-                Err(EngineError::InvalidOperation(format!("Unknown PostgreSQL operation: {}", op_type)))
-            }
+        Box::new(client)
+    };
+
+    // Dispatch to operation handler
+    match op_type {
+        "query" => execute_query(&*client, operation, ctx.variables, ctx.state).await,
+        "insert" => execute_insert(&*client, operation, ctx.variables, ctx.state).await,
+        "select" => execute_select(&*client, operation, ctx.variables, ctx.state).await,
+        "update" => execute_update(&*client, operation, ctx.variables, ctx.state).await,
+        "delete" => execute_delete(&*client, operation, ctx.variables, ctx.state).await,
+        _ => {
+            error!(operation = %op_type, "Unknown PostgreSQL operation type");
+            Err(EngineError::InvalidOperation(format!("Unknown PostgreSQL operation: {}", op_type)))
         }
     }
 }
@@ -234,10 +318,8 @@ fn find_pool_for_config<'a>(
     ds_config: &HashMap<String, Value>,
     ctx: &'a ConnectorContext<'_>,
 ) -> Option<&'a deadpool_postgres::Pool> {
-    // Look through data_sources in config to find a matching one
     for (ds_id, ds_def) in &ctx.config.data_sources {
         if ds_def.kind == "postgresql" || ds_def.kind == "postgres" {
-            // Check if this is the same config by comparing URLs
             let ds_url = get_optional_string(&ds_def.config, "url", ctx.state);
             let cfg_url = get_optional_string(ds_config, "url", ctx.state);
             if ds_url == cfg_url && ds_url.is_some() {
@@ -248,56 +330,15 @@ fn find_pool_for_config<'a>(
     None
 }
 
-/// Execute with pooled connection
-async fn execute_with_pool_internal(
-    pool: &deadpool_postgres::Pool,
-    operation: &HashMap<String, Value>,
-    ctx: &ConnectorContext<'_>,
-) -> Result<HashMap<String, Value>, EngineError> {
-    let client = pool.get().await
-        .map_err(|e| {
-            let pool_status = pool.status();
-            error!(
-                error = %e,
-                pool_size = pool_status.size,
-                pool_available = pool_status.available,
-                pool_waiting = pool_status.waiting,
-                "Failed to get connection from PostgreSQL pool"
-            );
-            EngineError::DatabaseError(format!(
-                "Failed to get connection from pool (size: {}, available: {}, waiting: {}): {}",
-                pool_status.size, pool_status.available, pool_status.waiting, e
-            ))
-        })?;
-
-    let op_type = operation.get("operation")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
-
-    match op_type {
-        "query" => execute_query_pooled(&client, operation, ctx.variables, ctx.state).await,
-        "insert" => execute_insert_pooled(&client, operation, ctx.state).await,
-        "select" => execute_select_pooled(&client, operation, ctx.state).await,
-        "update" => execute_update_pooled(&client, operation, ctx.state).await,
-        "delete" => execute_delete_pooled(&client, operation, ctx.state).await,
-        _ => {
-            error!(operation = %op_type, "Unknown PostgreSQL operation type");
-            Err(EngineError::InvalidOperation(format!("Unknown PostgreSQL operation: {}", op_type)))
-        }
-    }
-}
-
 /// Build PostgreSQL connection string
 fn get_connection_string(
     connection: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<String, EngineError> {
-    // Try direct connection string first
     if let Some(url) = get_optional_string(connection, "url", state) {
         return Ok(url);
     }
 
-    // Build from components
     let host = get_optional_string(connection, "host", state)
         .unwrap_or_else(|| "localhost".to_string());
     let port = get_optional_u64(connection, "port").unwrap_or(5432);
@@ -311,39 +352,36 @@ fn get_connection_string(
     ))
 }
 
-/// Execute raw SQL query (non-pooled client)
-async fn execute_query_internal(
-    client: &tokio_postgres::Client,
+// ============================================================================
+// Operation implementations (single version, works with any PgClient)
+// ============================================================================
+
+/// Execute raw SQL query
+///
+/// Supports two modes:
+/// 1. Variables mode: Use `{paramName}` in SQL with pre-resolved variables map (recommended)
+/// 2. Legacy params mode: Use `$1, $2...` with params array (deprecated)
+async fn execute_query(
+    client: &dyn PgClient,
     operation: &HashMap<String, Value>,
     variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
     let sql_template = get_required_string(operation, "sql", state)?;
 
-    // If variables are provided, use parameterized query
     let rows = if !variables.is_empty() {
         let (sql, params) = prepare_parameterized_query(&sql_template, variables);
         let param_refs: Vec<&(dyn ToSql + Sync)> = params.iter()
             .map(|p| p as &(dyn ToSql + Sync))
             .collect();
 
-        debug!(
-            sql = %sql,
-            params = ?params,
-            "Executing parameterized SQL query (non-pooled)"
-        );
+        debug!(sql = %sql, params = ?params, "Executing parameterized SQL query");
         client.query(&sql, &param_refs)
             .await
             .map_err(|e| {
-                error!(
-                    error = %e,
-                    sql = %sql,
-                    params = ?params,
-                    "PostgreSQL query failed (non-pooled)"
-                );
+                error!(error = %e, sql = %sql, params = ?params, "PostgreSQL query failed");
                 EngineError::DatabaseError(format!(
-                    "Query failed: {} | SQL: {} | Params: {:?}",
-                    e, sql, params
+                    "Query failed: {} | SQL: {} | Params: {:?}", e, sql, params
                 ))
             })?
     } else {
@@ -353,33 +391,21 @@ async fn execute_query_internal(
         let param_refs: Vec<&(dyn ToSql + Sync)> = params.iter()
             .map(|p| p as &(dyn ToSql + Sync))
             .collect();
-        debug!(
-            sql = %sql_template,
-            params = ?params,
-            "Executing SQL with params (non-pooled, legacy)"
-        );
+
+        debug!(sql = %sql_template, params = ?params, "Executing SQL with params (legacy)");
         client.query(&sql_template, &param_refs)
             .await
             .map_err(|e| {
-                error!(
-                    error = %e,
-                    sql = %sql_template,
-                    params = ?params,
-                    "PostgreSQL query failed (non-pooled)"
-                );
+                error!(error = %e, sql = %sql_template, params = ?params, "PostgreSQL query failed");
                 EngineError::DatabaseError(format!(
-                    "Query failed: {} | SQL: {} | Params: {:?}",
-                    e, sql_template, params
+                    "Query failed: {} | SQL: {} | Params: {:?}", e, sql_template, params
                 ))
             })?
     };
 
     let json_rows = rows_to_json(&rows);
 
-    debug!(
-        row_count = json_rows.len(),
-        "PostgreSQL query completed successfully"
-    );
+    debug!(row_count = json_rows.len(), "PostgreSQL query completed successfully");
 
     let mut outputs = HashMap::new();
     outputs.insert("rows".to_string(), Value::Array(json_rows.clone()));
@@ -397,45 +423,35 @@ async fn execute_query_internal(
     Ok(outputs)
 }
 
-/// Execute INSERT operation (non-pooled client)
-async fn execute_insert_internal(
-    client: &tokio_postgres::Client,
+/// Execute INSERT operation
+///
+/// Uses SqlParam for type-safe parameter binding.
+/// Values from `data` are converted via `value_to_sql_param()` preserving
+/// their original types (Int, Bool, Json, Uuid, etc.)
+async fn execute_insert(
+    client: &dyn PgClient,
     operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
     let table = get_required_string(operation, "table", state)?;
 
-    // Get data to insert
     let data = operation.get("data")
         .and_then(|v| v.as_object())
         .ok_or_else(|| EngineError::MissingField("data".to_string()))?;
 
-    // Build column names and placeholders
     let mut columns: Vec<String> = Vec::new();
     let mut placeholders: Vec<String> = Vec::new();
-    let mut values: Vec<String> = Vec::new();
+    let mut params: Vec<SqlParam> = Vec::new();
 
     for (i, (col, val)) in data.iter().enumerate() {
         columns.push(format!("\"{}\"", col));
         placeholders.push(format!("${}", i + 1));
-        let resolved = match val {
-            Value::String(s) => resolve_template_vars(s, state),
-            other => other.to_string(),
-        };
-        values.push(resolved);
+        let resolved = resolve_value(val, variables);
+        params.push(value_to_sql_param(&resolved));
     }
 
-    // Build RETURNING clause
-    let returning = operation.get("returning")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            let cols: Vec<String> = arr.iter()
-                .filter_map(|v| v.as_str())
-                .map(|s| format!("\"{}\"", s))
-                .collect();
-            format!(" RETURNING {}", cols.join(", "))
-        })
-        .unwrap_or_default();
+    let returning = build_returning_clause(operation);
 
     let sql = format!(
         "INSERT INTO \"{}\" ({}) VALUES ({}){}",
@@ -445,11 +461,11 @@ async fn execute_insert_internal(
         returning
     );
 
-    let params: Vec<&(dyn ToSql + Sync)> = values.iter()
-        .map(|v| v as &(dyn ToSql + Sync))
+    let param_refs: Vec<&(dyn ToSql + Sync)> = params.iter()
+        .map(|p| p as &(dyn ToSql + Sync))
         .collect();
 
-    let rows = client.query(&sql, &params)
+    let rows = client.query(&sql, &param_refs)
         .await
         .map_err(|e| EngineError::DatabaseError(e.to_string()))?;
 
@@ -462,15 +478,15 @@ async fn execute_insert_internal(
     Ok(outputs)
 }
 
-/// Execute SELECT operation (non-pooled client)
-async fn execute_select_internal(
-    client: &tokio_postgres::Client,
+/// Execute SELECT operation
+async fn execute_select(
+    client: &dyn PgClient,
     operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
     let table = get_required_string(operation, "table", state)?;
 
-    // Get columns (default to *)
     let columns = operation.get("columns")
         .and_then(|v| v.as_array())
         .map(|arr| {
@@ -482,20 +498,16 @@ async fn execute_select_internal(
         })
         .unwrap_or_else(|| "*".to_string());
 
-    // Build WHERE clause
-    let (where_clause, params) = build_where_clause(operation, state)?;
+    let (where_clause, params) = build_where_clause(operation, variables);
 
-    // Get ORDER BY
     let order_by = get_optional_string(operation, "order_by", state)
         .map(|o| format!(" ORDER BY {}", o))
         .unwrap_or_default();
 
-    // Get LIMIT
     let limit = get_optional_u64(operation, "limit")
         .map(|l| format!(" LIMIT {}", l))
         .unwrap_or_default();
 
-    // Get OFFSET
     let offset = get_optional_u64(operation, "offset")
         .map(|o| format!(" OFFSET {}", o))
         .unwrap_or_default();
@@ -522,56 +534,34 @@ async fn execute_select_internal(
     Ok(outputs)
 }
 
-/// Execute UPDATE operation (non-pooled client)
-async fn execute_update_internal(
-    client: &tokio_postgres::Client,
+/// Execute UPDATE operation
+///
+/// Uses SqlParam for type-safe SET values.
+async fn execute_update(
+    client: &dyn PgClient,
     operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
     let table = get_required_string(operation, "table", state)?;
 
-    // Get SET data
     let set_data = operation.get("set")
         .and_then(|v| v.as_object())
         .ok_or_else(|| EngineError::MissingField("set".to_string()))?;
 
-    // Build SET clause
     let mut set_parts: Vec<String> = Vec::new();
-    let mut params: Vec<String> = Vec::new();
+    let mut params: Vec<SqlParam> = Vec::new();
 
     for (col, val) in set_data.iter() {
-        let value_str = match val {
-            Value::String(s) => {
-                let resolved = resolve_template_vars(s, state);
-                // Check if it's a SQL function like NOW()
-                if resolved.to_uppercase().contains("NOW()") ||
-                   resolved.to_uppercase().contains("CURRENT_TIMESTAMP") {
-                    set_parts.push(format!("\"{}\" = {}", col, resolved));
-                    continue;
-                }
-                resolved
-            }
-            other => other.to_string(),
-        };
-        set_parts.push(format!("\"{}\" = ${}", col, params.len() + 1));
-        params.push(value_str);
+        let resolved = resolve_value(val, variables);
+        params.push(value_to_sql_param(&resolved));
+        set_parts.push(format!("\"{}\" = ${}", col, params.len()));
     }
 
-    // Build WHERE clause
-    let (where_clause, where_params) = build_where_clause_with_offset(operation, state, params.len())?;
+    let (where_clause, where_params) = build_where_clause_with_offset(operation, variables, params.len());
     params.extend(where_params);
 
-    // Build RETURNING clause
-    let returning = operation.get("returning")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            let cols: Vec<String> = arr.iter()
-                .filter_map(|v| v.as_str())
-                .map(|s| format!("\"{}\"", s))
-                .collect();
-            format!(" RETURNING {}", cols.join(", "))
-        })
-        .unwrap_or_default();
+    let returning = build_returning_clause(operation);
 
     let sql = format!(
         "UPDATE \"{}\" SET {}{}{}",
@@ -598,16 +588,16 @@ async fn execute_update_internal(
     Ok(outputs)
 }
 
-/// Execute DELETE operation (non-pooled client)
-async fn execute_delete_internal(
-    client: &tokio_postgres::Client,
+/// Execute DELETE operation
+async fn execute_delete(
+    client: &dyn PgClient,
     operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
     let table = get_required_string(operation, "table", state)?;
 
-    // Build WHERE clause (required for safety)
-    let (where_clause, params) = build_where_clause(operation, state)?;
+    let (where_clause, params) = build_where_clause(operation, variables);
 
     if where_clause.is_empty() {
         return Err(EngineError::DatabaseError("DELETE requires WHERE clause for safety".to_string()));
@@ -619,7 +609,7 @@ async fn execute_delete_internal(
         .map(|p| p as &(dyn ToSql + Sync))
         .collect();
 
-    let result = client.execute(&sql, &param_refs)
+    let result = client.pg_execute(&sql, &param_refs)
         .await
         .map_err(|e| EngineError::DatabaseError(e.to_string()))?;
 
@@ -629,7 +619,48 @@ async fn execute_delete_internal(
     Ok(outputs)
 }
 
-/// Parse query parameters from config
+// ============================================================================
+// Shared helpers
+// ============================================================================
+
+/// Resolve a JSON value through variables.
+///
+/// If the value is a string containing `{paramName}` patterns, resolve them
+/// from the pre-resolved variables map. For non-string values, return as-is.
+fn resolve_value(val: &Value, variables: &HashMap<String, Value>) -> Value {
+    match val {
+        Value::String(s) => {
+            let trimmed = s.trim();
+            // Exact single-variable reference: "{varName}" → inject raw typed value
+            if trimmed.starts_with('{') && trimmed.ends_with('}') && !trimmed.contains(' ') {
+                let inner = &trimmed[1..trimmed.len() - 1];
+                if !inner.is_empty() && !inner.contains('{') && !inner.contains('}') {
+                    if let Some(resolved) = variables.get(inner) {
+                        return resolved.clone();
+                    }
+                }
+            }
+            // Mixed template or no match: do string interpolation
+            let re = regex_lite::Regex::new(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}").unwrap();
+            let result = re.replace_all(s, |caps: &regex_lite::Captures| {
+                let param_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                if let Some(value) = variables.get(param_name) {
+                    match value {
+                        Value::String(s) => s.clone(),
+                        Value::Null => String::new(),
+                        other => other.to_string(),
+                    }
+                } else {
+                    format!("{{{}}}", param_name)
+                }
+            }).to_string();
+            Value::String(result)
+        }
+        other => other.clone(),
+    }
+}
+
+/// Parse query parameters from config (legacy $1, $2... mode)
 fn parse_query_params(
     connection: &HashMap<String, Value>,
     state: &ExecutionState,
@@ -649,43 +680,58 @@ fn parse_query_params(
     Ok(params)
 }
 
-/// Build WHERE clause from config
+/// Build WHERE clause from operation config using SqlParam for type safety.
 fn build_where_clause(
-    connection: &HashMap<String, Value>,
-    state: &ExecutionState,
-) -> Result<(String, Vec<String>), EngineError> {
-    build_where_clause_with_offset(connection, state, 0)
+    operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
+) -> (String, Vec<SqlParam>) {
+    build_where_clause_with_offset(operation, variables, 0)
 }
 
-/// Build WHERE clause with parameter offset
+/// Build WHERE clause with parameter offset, using SqlParam for type safety.
 fn build_where_clause_with_offset(
-    connection: &HashMap<String, Value>,
-    state: &ExecutionState,
+    operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
     offset: usize,
-) -> Result<(String, Vec<String>), EngineError> {
-    let where_obj = match connection.get("where").and_then(|v| v.as_object()) {
+) -> (String, Vec<SqlParam>) {
+    let where_obj = match operation.get("where").and_then(|v| v.as_object()) {
         Some(obj) => obj,
-        None => return Ok((String::new(), Vec::new())),
+        None => return (String::new(), Vec::new()),
     };
 
     let mut conditions: Vec<String> = Vec::new();
-    let mut params: Vec<String> = Vec::new();
+    let mut params: Vec<SqlParam> = Vec::new();
 
     for (col, val) in where_obj {
-        let value_str = match val {
-            Value::String(s) => resolve_template_vars(s, state),
-            other => other.to_string(),
-        };
-        conditions.push(format!("\"{}\" = ${}", col, offset + params.len() + 1));
-        params.push(value_str);
+        let resolved = resolve_value(val, variables);
+        params.push(value_to_sql_param(&resolved));
+        conditions.push(format!("\"{}\" = ${}", col, offset + params.len()));
     }
 
     if conditions.is_empty() {
-        Ok((String::new(), Vec::new()))
+        (String::new(), Vec::new())
     } else {
-        Ok((format!(" WHERE {}", conditions.join(" AND ")), params))
+        (format!(" WHERE {}", conditions.join(" AND ")), params)
     }
 }
+
+/// Build RETURNING clause from operation config.
+fn build_returning_clause(operation: &HashMap<String, Value>) -> String {
+    operation.get("returning")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            let cols: Vec<String> = arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| format!("\"{}\"", s))
+                .collect();
+            format!(" RETURNING {}", cols.join(", "))
+        })
+        .unwrap_or_default()
+}
+
+// ============================================================================
+// Row conversion
+// ============================================================================
 
 /// Convert PostgreSQL rows to JSON
 fn rows_to_json(rows: &[Row]) -> Vec<Value> {
@@ -740,331 +786,4 @@ fn row_value_to_json(row: &Row, idx: usize, pg_type: &tokio_postgres::types::Typ
             .map(Value::String)
             .unwrap_or(Value::Null),
     }
-}
-
-// ============================================================================
-// Pooled versions of operation functions
-// These use deadpool's Object<Manager> instead of tokio_postgres::Client
-// ============================================================================
-
-/// Execute raw SQL query with pooled connection
-///
-/// Supports two modes:
-/// 1. Variables mode: Use `{paramName}` in SQL with pre-resolved variables map (recommended)
-/// 2. Legacy params mode: Use `$1, $2...` with params array
-async fn execute_query_pooled(
-    client: &deadpool_postgres::Object,
-    operation: &HashMap<String, Value>,
-    variables: &HashMap<String, Value>,
-    state: &ExecutionState,
-) -> Result<HashMap<String, Value>, EngineError> {
-    let sql_template = get_required_string(operation, "sql", state)?;
-
-    // If variables are provided, use parameterized query
-    // Otherwise, use legacy params mode
-    let rows = if !variables.is_empty() {
-        // Variables mode: use parameterized query (safe from SQL injection)
-        let (sql, params) = prepare_parameterized_query(&sql_template, variables);
-        let param_refs: Vec<&(dyn ToSql + Sync)> = params.iter()
-            .map(|p| p as &(dyn ToSql + Sync))
-            .collect();
-
-        debug!(
-            sql = %sql,
-            params = ?params,
-            "Executing parameterized SQL query"
-        );
-
-        client.query(&sql, &param_refs)
-            .await
-            .map_err(|e| {
-                error!(
-                    error = %e,
-                    sql = %sql,
-                    params = ?params,
-                    "PostgreSQL query failed"
-                );
-                EngineError::DatabaseError(format!(
-                    "Query failed: {} | SQL: {} | Params: {:?}",
-                    e, sql, params
-                ))
-            })?
-    } else {
-        // Legacy params mode (DEPRECATED): use $1, $2... with params array
-        tracing::warn!("DEPRECATED: PostgreSQL query using legacy params mode. Migrate to 'variables' + '{{paramName}}' parameterized binding.");
-        let params = parse_query_params(operation, state)?;
-        let param_refs: Vec<&(dyn ToSql + Sync)> = params.iter()
-            .map(|p| p as &(dyn ToSql + Sync))
-            .collect();
-
-        debug!(
-            sql = %sql_template,
-            params = ?params,
-            "Executing SQL with params (legacy)"
-        );
-
-        client.query(&sql_template, &param_refs)
-            .await
-            .map_err(|e| {
-                error!(
-                    error = %e,
-                    sql = %sql_template,
-                    params = ?params,
-                    "PostgreSQL query failed"
-                );
-                EngineError::DatabaseError(format!(
-                    "Query failed: {} | SQL: {} | Params: {:?}",
-                    e, sql_template, params
-                ))
-            })?
-    };
-
-    let json_rows = rows_to_json(&rows);
-
-    let mut outputs = HashMap::new();
-    outputs.insert("rows".to_string(), Value::Array(json_rows.clone()));
-    outputs.insert("count".to_string(), Value::Number(json_rows.len().into()));
-
-    // Also flatten first row fields to top level for convenience
-    if let Some(first_row) = json_rows.first() {
-        if let Value::Object(obj) = first_row {
-            for (key, value) in obj {
-                outputs.insert(key.clone(), value.clone());
-            }
-        }
-    }
-
-    Ok(outputs)
-}
-
-/// Execute INSERT operation with pooled connection
-async fn execute_insert_pooled(
-    client: &deadpool_postgres::Object,
-    operation: &HashMap<String, Value>,
-    state: &ExecutionState,
-) -> Result<HashMap<String, Value>, EngineError> {
-    let table = get_required_string(operation, "table", state)?;
-
-    // Get data to insert
-    let data = operation.get("data")
-        .and_then(|v| v.as_object())
-        .ok_or_else(|| EngineError::MissingField("data".to_string()))?;
-
-    // Build column names and placeholders
-    let mut columns: Vec<String> = Vec::new();
-    let mut placeholders: Vec<String> = Vec::new();
-    let mut values: Vec<String> = Vec::new();
-
-    for (i, (col, val)) in data.iter().enumerate() {
-        columns.push(format!("\"{}\"", col));
-        placeholders.push(format!("${}", i + 1));
-        let resolved = match val {
-            Value::String(s) => resolve_template_vars(s, state),
-            other => other.to_string(),
-        };
-        values.push(resolved);
-    }
-
-    // Build RETURNING clause
-    let returning = operation.get("returning")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            let cols: Vec<String> = arr.iter()
-                .filter_map(|v| v.as_str())
-                .map(|s| format!("\"{}\"", s))
-                .collect();
-            format!(" RETURNING {}", cols.join(", "))
-        })
-        .unwrap_or_default();
-
-    let sql = format!(
-        "INSERT INTO \"{}\" ({}) VALUES ({}){}",
-        table,
-        columns.join(", "),
-        placeholders.join(", "),
-        returning
-    );
-
-    let params: Vec<&(dyn ToSql + Sync)> = values.iter()
-        .map(|v| v as &(dyn ToSql + Sync))
-        .collect();
-
-    let rows = client.query(&sql, &params)
-        .await
-        .map_err(|e| EngineError::DatabaseError(e.to_string()))?;
-
-    let json_rows = rows_to_json(&rows);
-
-    let mut outputs = HashMap::new();
-    outputs.insert("rows".to_string(), Value::Array(json_rows.clone()));
-    outputs.insert("count".to_string(), Value::Number(json_rows.len().max(1).into()));
-
-    Ok(outputs)
-}
-
-/// Execute SELECT operation with pooled connection
-async fn execute_select_pooled(
-    client: &deadpool_postgres::Object,
-    operation: &HashMap<String, Value>,
-    state: &ExecutionState,
-) -> Result<HashMap<String, Value>, EngineError> {
-    let table = get_required_string(operation, "table", state)?;
-
-    // Get columns (default to *)
-    let columns = operation.get("columns")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str())
-                .map(|s| format!("\"{}\"", s))
-                .collect::<Vec<_>>()
-                .join(", ")
-        })
-        .unwrap_or_else(|| "*".to_string());
-
-    // Build WHERE clause
-    let (where_clause, params) = build_where_clause(operation, state)?;
-
-    // Get ORDER BY
-    let order_by = get_optional_string(operation, "order_by", state)
-        .map(|o| format!(" ORDER BY {}", o))
-        .unwrap_or_default();
-
-    // Get LIMIT
-    let limit = get_optional_u64(operation, "limit")
-        .map(|l| format!(" LIMIT {}", l))
-        .unwrap_or_default();
-
-    // Get OFFSET
-    let offset = get_optional_u64(operation, "offset")
-        .map(|o| format!(" OFFSET {}", o))
-        .unwrap_or_default();
-
-    let sql = format!(
-        "SELECT {} FROM \"{}\"{}{}{}{}",
-        columns, table, where_clause, order_by, limit, offset
-    );
-
-    let param_refs: Vec<&(dyn ToSql + Sync)> = params.iter()
-        .map(|p| p as &(dyn ToSql + Sync))
-        .collect();
-
-    let rows = client.query(&sql, &param_refs)
-        .await
-        .map_err(|e| EngineError::DatabaseError(e.to_string()))?;
-
-    let json_rows = rows_to_json(&rows);
-
-    let mut outputs = HashMap::new();
-    outputs.insert("rows".to_string(), Value::Array(json_rows.clone()));
-    outputs.insert("count".to_string(), Value::Number(json_rows.len().into()));
-
-    Ok(outputs)
-}
-
-/// Execute UPDATE operation with pooled connection
-async fn execute_update_pooled(
-    client: &deadpool_postgres::Object,
-    operation: &HashMap<String, Value>,
-    state: &ExecutionState,
-) -> Result<HashMap<String, Value>, EngineError> {
-    let table = get_required_string(operation, "table", state)?;
-
-    // Get SET data
-    let set_data = operation.get("set")
-        .and_then(|v| v.as_object())
-        .ok_or_else(|| EngineError::MissingField("set".to_string()))?;
-
-    // Build SET clause
-    let mut set_parts: Vec<String> = Vec::new();
-    let mut params: Vec<String> = Vec::new();
-
-    for (col, val) in set_data.iter() {
-        let value_str = match val {
-            Value::String(s) => {
-                let resolved = resolve_template_vars(s, state);
-                // Check if it's a SQL function like NOW()
-                if resolved.to_uppercase().contains("NOW()") ||
-                   resolved.to_uppercase().contains("CURRENT_TIMESTAMP") {
-                    set_parts.push(format!("\"{}\" = {}", col, resolved));
-                    continue;
-                }
-                resolved
-            }
-            other => other.to_string(),
-        };
-        set_parts.push(format!("\"{}\" = ${}", col, params.len() + 1));
-        params.push(value_str);
-    }
-
-    // Build WHERE clause
-    let (where_clause, where_params) = build_where_clause_with_offset(operation, state, params.len())?;
-    params.extend(where_params);
-
-    // Build RETURNING clause
-    let returning = operation.get("returning")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            let cols: Vec<String> = arr.iter()
-                .filter_map(|v| v.as_str())
-                .map(|s| format!("\"{}\"", s))
-                .collect();
-            format!(" RETURNING {}", cols.join(", "))
-        })
-        .unwrap_or_default();
-
-    let sql = format!(
-        "UPDATE \"{}\" SET {}{}{}",
-        table,
-        set_parts.join(", "),
-        where_clause,
-        returning
-    );
-
-    let param_refs: Vec<&(dyn ToSql + Sync)> = params.iter()
-        .map(|p| p as &(dyn ToSql + Sync))
-        .collect();
-
-    let rows = client.query(&sql, &param_refs)
-        .await
-        .map_err(|e| EngineError::DatabaseError(e.to_string()))?;
-
-    let json_rows = rows_to_json(&rows);
-
-    let mut outputs = HashMap::new();
-    outputs.insert("rows".to_string(), Value::Array(json_rows.clone()));
-    outputs.insert("count".to_string(), Value::Number(json_rows.len().into()));
-
-    Ok(outputs)
-}
-
-/// Execute DELETE operation with pooled connection
-async fn execute_delete_pooled(
-    client: &deadpool_postgres::Object,
-    operation: &HashMap<String, Value>,
-    state: &ExecutionState,
-) -> Result<HashMap<String, Value>, EngineError> {
-    let table = get_required_string(operation, "table", state)?;
-
-    // Build WHERE clause (required for safety)
-    let (where_clause, params) = build_where_clause(operation, state)?;
-
-    if where_clause.is_empty() {
-        return Err(EngineError::DatabaseError("DELETE requires WHERE clause for safety".to_string()));
-    }
-
-    let sql = format!("DELETE FROM \"{}\"{}",table, where_clause);
-
-    let param_refs: Vec<&(dyn ToSql + Sync)> = params.iter()
-        .map(|p| p as &(dyn ToSql + Sync))
-        .collect();
-
-    let result = client.execute(&sql, &param_refs)
-        .await
-        .map_err(|e| EngineError::DatabaseError(e.to_string()))?;
-
-    let mut outputs = HashMap::new();
-    outputs.insert("count".to_string(), Value::Number(result.into()));
-
-    Ok(outputs)
 }
