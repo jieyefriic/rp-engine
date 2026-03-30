@@ -445,6 +445,11 @@ pub async fn execute_workflow(
         config.templates.insert(id.clone(), template.clone());
     }
 
+    // Merge workflow transforms into config
+    for (name, source) in &workflow.transforms {
+        config.transforms.insert(name.clone(), source.clone());
+    }
+
     // Merge workflow subgraphs into config
     for (id, subgraph) in &workflow.subgraphs {
         config.subgraphs.insert(id.clone(), subgraph.clone());

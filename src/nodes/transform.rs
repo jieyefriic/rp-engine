@@ -133,36 +133,38 @@ impl NodeExecutor for TransformExecutor {
 
         debug!(node = %node_id, "Starting transform node execution");
 
-        // Get script file name
-        let script_name = node_config.file.as_ref()
-            .ok_or_else(|| {
-                error!(node = %node_id, "Transform node requires 'file' in config");
-                EngineError::TransformError(
-                    format!("Node '{}': Transform node requires 'file' config field", node_id)
-                )
-            })?;
-
-        // Look up script source from loaded transforms
-        let script_source = config.transforms.get(script_name)
-            .ok_or_else(|| {
-                error!(
-                    node = %node_id,
-                    script = %script_name,
-                    available = ?config.transforms.keys().collect::<Vec<_>>(),
-                    "Transform script not found"
-                );
-                EngineError::TransformError(
-                    format!("Node '{}': Transform script '{}' not found. Available: {:?}",
-                        node_id, script_name, config.transforms.keys().collect::<Vec<_>>())
-                )
-            })?;
+        // Resolve script source: inline `script` takes precedence, then `file` lookup
+        let (script_source, script_label) = if let Some(inline) = &node_config.script {
+            // Inline script embedded directly in node config
+            (inline.as_str(), "<inline>")
+        } else if let Some(script_name) = &node_config.file {
+            // Look up by name from workflow.transforms or Engine-level transforms
+            let source = config.transforms.get(script_name.as_str())
+                .ok_or_else(|| {
+                    error!(
+                        node = %node_id,
+                        script = %script_name,
+                        available = ?config.transforms.keys().collect::<Vec<_>>(),
+                        "Transform script not found"
+                    );
+                    EngineError::TransformError(
+                        format!("Node '{}': Transform script '{}' not found. Available: {:?}",
+                            node_id, script_name, config.transforms.keys().collect::<Vec<_>>())
+                    )
+                })?;
+            (source.as_str(), script_name.as_str())
+        } else {
+            return Err(EngineError::TransformError(
+                format!("Node '{}': Transform node requires 'script' or 'file' in config", node_id)
+            ));
+        };
 
         // Resolve variables from state (shared logic handles literals + state paths)
         let variables = super::resolve_variables(&node_config.variables, state);
 
         debug!(
             node = %node_id,
-            script = %script_name,
+            script = %script_label,
             variable_count = variables.len(),
             "Executing transform script"
         );
@@ -188,12 +190,12 @@ impl NodeExecutor for TransformExecutor {
             .map_err(|e| {
                 error!(
                     node = %node_id,
-                    script = %script_name,
+                    script = %script_label,
                     error = %e,
                     "Transform script execution failed"
                 );
                 EngineError::TransformError(
-                    format!("Node '{}': Script '{}' execution failed: {}", node_id, script_name, e)
+                    format!("Node '{}': Script '{}' execution failed: {}", node_id, script_label, e)
                 )
             })?;
 
@@ -215,7 +217,7 @@ impl NodeExecutor for TransformExecutor {
 
         info!(
             node = %node_id,
-            script = %script_name,
+            script = %script_label,
             output_keys = ?output.keys().collect::<Vec<_>>(),
             "Transform script completed"
         );
@@ -475,7 +477,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_transform_missing_file_config() {
+    async fn test_transform_missing_file_and_script_config() {
         let config = make_config_with_transforms(HashMap::new());
         let state = ExecutionState::new(HashMap::new());
         let node = YamlNode {
@@ -487,6 +489,80 @@ mod tests {
         let result = TransformExecutor.execute(&node, &state, &config).await;
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
-        assert!(err.contains("file"));
+        assert!(err.contains("script") || err.contains("file"));
+    }
+
+    // ---- Inline script tests ----
+
+    fn make_inline_transform_node(id: &str, script: &str, variables: HashMap<String, VariableBinding>) -> YamlNode {
+        YamlNode {
+            id: id.to_string(),
+            node_type: NodeType::Transform,
+            config: NodeConfig {
+                script: Some(script.to_string()),
+                variables,
+                ..Default::default()
+            },
+        }
+    }
+
+    #[tokio::test]
+    async fn test_transform_inline_script() {
+        let config = ExecutionConfig::default(); // no transforms_dir needed
+        let state = ExecutionState::new(HashMap::new());
+        let node = make_inline_transform_node("t1", r#"
+            #{
+                "greeting": "hello inline",
+                "count": 99
+            }
+        "#, HashMap::new());
+
+        let result = TransformExecutor.execute(&node, &state, &config).await.unwrap();
+        assert_eq!(result.get("greeting").unwrap(), &Value::String("hello inline".into()));
+        assert_eq!(result.get("count").unwrap(), &Value::Number(99.into()));
+    }
+
+    #[tokio::test]
+    async fn test_transform_inline_script_with_variables() {
+        let config = ExecutionConfig::default();
+        let mut state = ExecutionState::new(HashMap::new());
+        state.write("start", {
+            let mut m = HashMap::new();
+            m.insert("name".to_string(), Value::String("World".to_string()));
+            m
+        });
+
+        let mut vars = HashMap::new();
+        vars.insert("name".to_string(), VariableBinding::Single("start.name".to_string()));
+        let node = make_inline_transform_node("t1", r#"
+            #{
+                "message": "Hello, " + name
+            }
+        "#, vars);
+
+        let result = TransformExecutor.execute(&node, &state, &config).await.unwrap();
+        assert_eq!(result.get("message").unwrap(), &Value::String("Hello, World".into()));
+    }
+
+    #[tokio::test]
+    async fn test_transform_inline_script_overrides_file() {
+        // When both `script` and `file` are present, `script` wins
+        let mut transforms = HashMap::new();
+        transforms.insert("from_file".to_string(), r#"#{ "source": "file" }"#.to_string());
+        let config = make_config_with_transforms(transforms);
+        let state = ExecutionState::new(HashMap::new());
+
+        let node = YamlNode {
+            id: "t1".to_string(),
+            node_type: NodeType::Transform,
+            config: NodeConfig {
+                file: Some("from_file".to_string()),
+                script: Some(r#"#{ "source": "inline" }"#.to_string()),
+                ..Default::default()
+            },
+        };
+
+        let result = TransformExecutor.execute(&node, &state, &config).await.unwrap();
+        assert_eq!(result.get("source").unwrap(), &Value::String("inline".into()));
     }
 }

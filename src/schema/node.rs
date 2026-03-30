@@ -455,8 +455,12 @@ pub struct NodeConfig {
     pub arguments: HashMap<String, String>,
 
     // Transform node fields
-    /// Script file name (without .rhai extension), loaded from transforms_dir
+    /// Script file name, references transforms defined in workflow.transforms or Engine-level transforms_dir
     pub file: Option<String>,
+
+    /// Inline Rhai script source code (takes precedence over `file`)
+    /// Allows YAML to be self-contained without requiring external .rhai files
+    pub script: Option<String>,
 
     // Workflow node fields
     /// Sub-workflow reference (only used by workflow type nodes)
