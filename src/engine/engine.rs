@@ -214,6 +214,12 @@ impl Engine {
             config.data_sources.insert(id.clone(), ds.clone());
         }
 
+        // Merge workflow-specific providers (override engine-level)
+        for (id, provider_def) in &workflow.providers {
+            let provider = crate::providers::create_provider_from_def(id, provider_def)?;
+            config.providers.register(id, provider);
+        }
+
         // Execute workflow
         let result = execute_workflow(workflow, input_map.clone(), config, None).await?;
 
@@ -279,6 +285,12 @@ impl Engine {
             config.data_sources.insert(id.clone(), ds.clone());
         }
 
+        // Merge workflow-specific providers (override engine-level)
+        for (id, provider_def) in &workflow.providers {
+            let provider = crate::providers::create_provider_from_def(id, provider_def)?;
+            config.providers.register(id, provider);
+        }
+
         let resume_params = ResumeParams {
             checkpoint_state,
             resume_from: resume_from.to_string(),
@@ -318,7 +330,7 @@ impl Engine {
         };
 
         // Build execution config
-        let config = ExecutionConfig::default()
+        let mut config = ExecutionConfig::default()
             .with_providers(self.providers.clone())
             .with_embedding_providers(self.embedding_providers.clone())
             .with_search_providers(self.search_providers.clone())
@@ -330,6 +342,17 @@ impl Engine {
             .with_max_iterations(self.max_iterations)
             .with_workflows(self.workflows.clone())
             .with_transforms(self.transforms.clone());
+
+        // Merge workflow-specific data sources
+        for (id, ds) in &workflow.data_sources {
+            config.data_sources.insert(id.clone(), ds.clone());
+        }
+
+        // Merge workflow-specific providers (override engine-level)
+        for (id, provider_def) in &workflow.providers {
+            let provider = crate::providers::create_provider_from_def(id, provider_def)?;
+            config.providers.register(id, provider);
+        }
 
         execute_workflow(&workflow, input_map, config, None).await
     }

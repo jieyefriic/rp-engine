@@ -43,7 +43,7 @@ pub mod providers;
 
 // Re-exports
 pub use error::EngineError;
-pub use schema::{PreparedWorkflow, YamlNode, YamlEdge, Template, NodeConfig, NodeType};
+pub use schema::{PreparedWorkflow, YamlNode, YamlEdge, Template, NodeConfig, NodeType, ProviderDef};
 pub use state::{ExecutionState, ExecutionRecord, CheckpointState, EdgeCountEntry};
 pub use engine::{ExecutionResult, ExecutionConfig, ExecutionStatus, Engine, EngineBuilder, StateSavingConfig, ConnectionPools, PoolConfig, ResumeParams, StreamHandler, SharedStreamHandler};
 
@@ -60,8 +60,9 @@ pub use providers::{
     OpenAIProvider, AnthropicProvider, GeminiProvider,
     DeepSeekProvider, XAIProvider, QwenProvider, ZhipuProvider, MoonshotProvider, MiniMaxProvider,
     OpenAICompatibleProvider,
-    // Registry helper
+    // Registry helpers
     create_registry_with_keys,
+    create_provider_from_def,
     // Embedding types
     EmbeddingProvider, EmbeddingRegistry, EmbeddingOptions, EmbeddingResponse, Embedding, EmbeddingUsage,
     DashScopeEmbeddingProvider, OpenAIEmbeddingProvider,

@@ -5,7 +5,7 @@ mod node;
 mod edge;
 mod template;
 
-pub use workflow::{PreparedWorkflow, Subgraph, ToolRef, InputSchema, InputField, DataSourceDef};
+pub use workflow::{PreparedWorkflow, Subgraph, ToolRef, InputSchema, InputField, DataSourceDef, ProviderDef};
 pub use node::{YamlNode, NodeConfig, NodeType, VariableBinding, TemplateSelector, TemplateCondition};
 pub use edge::{YamlEdge, ExitReason};
 pub use template::{Template, TemplateConfig, OutputField};
