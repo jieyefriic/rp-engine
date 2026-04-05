@@ -428,7 +428,116 @@ async fn search(query, options) -> Result<SearchResponse, ProviderError>
 
 ---
 
-## 五、已知架构问题
+## 五、YAML Provider 注入机制 (2026-03-30 新增)
+
+### 5.1 背景与动机
+
+此前 LLM API key 只能通过 `EngineBuilder::provider("openai", key)` 在 Rust 代码层注入。YAML 中的 Generate 节点只写 provider 名称（如 `provider: openai`），无法携带 API key。这导致：
+1. Server 共享 Engine 单例无法支持 per-user / per-workflow 的 API key
+2. 工作流无法自包含地声明所需的 provider 配置
+
+### 5.2 凭据注入路径总览
+
+| 凭据类型 | YAML 可注入？ | 注入方式 |
+|----------|-------------|---------|
+| LLM API Key | **可以** (新增) | YAML `providers` 字段 + `${ENV_VAR}` 展开，或 `EngineBuilder::provider()` |
+| Embedding API Key | 不能 | 仅 `EngineBuilder::embedding_provider()` |
+| Search API Key | 不能 | 仅 `EngineBuilder::search_provider()` |
+| PostgreSQL 密码 | 可以 | YAML `data_sources.config` + `${ENV_VAR}` |
+| Redis 密码 | 可以 | YAML `data_sources.config` 或 `EngineBuilder::redis()` |
+| S3 access_key/secret_key | 可以 | YAML `data_sources.config` |
+| Qdrant API Key | 可以 | YAML `data_sources.config` |
+| REST/GraphQL auth | 可以 | YAML `data_sources.config.auth` |
+
+### 5.3 新增 `ProviderDef` 结构体
+
+**文件**: `src/schema/workflow.rs`
+
+```rust
+pub struct ProviderDef {
+    pub kind: Option<String>,        // 省略时默认用 map key
+    pub api_key: String,             // 支持 ${ENV_VAR} 展开
+    pub base_url: Option<String>,    // 自定义端点 (openai/anthropic/openai_compatible)
+    pub default_model: Option<String>, // 仅 openai_compatible
+}
+```
+
+- 自定义 `Debug` 实现遮蔽 `api_key`（仅显示末 4 位），防止日志泄露
+- `kind` 支持: `openai`, `anthropic`, `gemini`, `deepseek`, `xai`, `qwen`, `zhipu`, `moonshot`, `minimax`, `huoshan`, `openai_compatible`
+
+### 5.4 `PreparedWorkflow.providers` 字段
+
+```rust
+#[serde(default)]
+pub providers: HashMap<String, ProviderDef>,
+```
+
+`#[serde(default)]` 确保无该字段的旧 YAML 正常解析（空 HashMap），完全向后兼容。
+
+### 5.5 Provider 工厂函数
+
+**文件**: `src/providers/mod.rs`
+
+```rust
+pub fn create_provider_from_def(
+    provider_id: &str,
+    def: &ProviderDef,
+) -> Result<Arc<dyn LLMProvider>, EngineError>
+```
+
+内部按 `kind`（或 fallback 到 `provider_id`）match 到对应构造器。`openai_compatible` 要求必填 `base_url`。
+
+### 5.6 合并逻辑
+
+在三个执行入口点（`run_internal()`, `resume()`, `run_yaml()`），紧跟 `data_sources` 合并之后，遍历 `workflow.providers` 创建 provider 实例并注册到 `config.providers`。YAML 级 provider **覆盖**同名 engine 级 provider。
+
+同时修复了 `run_yaml()` 缺失的 `data_sources` 合并（pre-existing bug）。
+
+### 5.7 YAML 语法
+
+```yaml
+version: "1.0"
+name: my_workflow
+
+providers:
+  openai:
+    api_key: "${OPENAI_API_KEY}"          # 环境变量引用
+  anthropic:
+    api_key: "${ANTHROPIC_API_KEY}"
+    base_url: "https://proxy.example.com" # 可选自定义端点
+  my_local_llm:
+    kind: openai_compatible               # 自定义 OpenAI 兼容端点
+    api_key: "not-needed"
+    base_url: "http://localhost:8000/v1/chat/completions"
+    default_model: "llama-3-8b"
+
+nodes:
+  - id: gen
+    type: generate
+    config:
+      provider: my_local_llm              # 引用 YAML 定义的 provider
+      model: llama-3-8b
+```
+
+### 5.8 Server 集成方式
+
+1. **Server 全局 key**: 继续用 `EngineBuilder::provider()` 在启动时注入
+2. **Per-user key via YAML**: Server 在调用 `run_yaml()` 前将用户 key 注入 YAML 的 `providers` 段
+3. **编程注入**: 导出的 `create_provider_from_def()` 允许 Server 自行构建 `ProviderRegistry` 用于未来的 `run_with_providers()` API
+
+### 5.9 修改文件清单
+
+| 文件 | 变更 |
+|------|------|
+| `src/schema/workflow.rs` | +`ProviderDef` 结构体, +`PreparedWorkflow.providers` 字段, +3 测试 |
+| `src/providers/mod.rs` | +`create_provider_from_def()` 工厂函数, +6 测试 |
+| `src/engine/engine.rs` | 3 处 provider 合并 + 修复 `run_yaml()` data_sources 合并 |
+| `src/schema/mod.rs` | Re-export `ProviderDef` |
+| `src/lib.rs` | Re-export `ProviderDef`, `create_provider_from_def` |
+
+---
+
+## 六、已知架构问题（部分已修复）
 
 1. **双 API 路径**: `Engine.run()` vs 独立 `execute_workflow()` -- 建议统一
 2. **ExecutionConfig 过大**: "上帝对象" -- 建议拆分
@@ -440,7 +549,7 @@ async fn search(query, options) -> Result<SearchResponse, ProviderError>
 
 ---
 
-## 六、发展路线
+## 七、发展路线
 
 | 阶段 | 状态 | 内容 |
 |------|------|------|

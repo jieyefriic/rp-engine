@@ -2,7 +2,7 @@
   {
     "id": "openai",
     "name": "OpenAI",
-    "defaultModel": "gpt-4o-mini",
+    "defaultModel": "gpt-4o",
     "sampling": {
       "maxTemperature": 2,
       "supportsTopP": true,
@@ -15,17 +15,11 @@
       { "id": "gpt-5-mini", "name": "GPT-5 Mini", "modelType": "chat", "contextWindow": 272000, "maxTokens": 128000, "inputPrice": 0.25, "outputPrice": 2, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "reasoning_effort", "minMaxTokens": 4096 }, "modelNote": "Reasoning model: max_completion_tokens shared between reasoning + output. Min 4096 tokens recommended." },
       { "id": "gpt-5-nano", "name": "GPT-5 Nano", "modelType": "chat", "contextWindow": 272000, "maxTokens": 128000, "inputPrice": 0.05, "outputPrice": 0.4, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "reasoning_effort", "minMaxTokens": 4096 }, "modelNote": "Reasoning model: max_completion_tokens shared between reasoning + output. Min 4096 tokens recommended." },
       { "id": "gpt-5.1", "name": "GPT-5.1", "modelType": "chat", "contextWindow": 400000, "maxTokens": 128000, "inputPrice": 1.25, "outputPrice": 10, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "reasoning_effort", "minMaxTokens": 4096 }, "modelNote": "Configurable reasoning: set reasoning_effort to 'none' for non-reasoning mode. 400K context." },
-      { "id": "gpt-5.1-codex", "name": "GPT-5.1 Codex", "modelType": "code", "contextWindow": 400000, "maxTokens": 128000, "inputPrice": 1.25, "outputPrice": 10, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "reasoning_effort", "minMaxTokens": 4096 }, "modelNote": "Optimized for long-running agentic coding tasks." },
-      { "id": "gpt-5.1-codex-mini", "name": "GPT-5.1 Codex Mini", "modelType": "code", "contextWindow": 400000, "maxTokens": 128000, "inputPrice": 0.25, "outputPrice": 2, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "reasoning_effort", "minMaxTokens": 4096 }, "modelNote": "Mini version of GPT-5.1 Codex for agentic coding." },
       { "id": "gpt-5.2", "name": "GPT-5.2", "modelType": "chat", "contextWindow": 400000, "maxTokens": 128000, "inputPrice": 1.75, "outputPrice": 14, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "reasoning_effort", "minMaxTokens": 8192 }, "modelNote": "Flagship model for coding & agentic tasks. Aug 2025 knowledge cutoff.", "badge": "New" },
       { "id": "gpt-5.2-chat-latest", "name": "GPT-5.2 Instant", "modelType": "chat", "contextWindow": 400000, "maxTokens": 128000, "inputPrice": 1.75, "outputPrice": 14, "thinking": "none", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "modelNote": "Low-latency variant for daily tasks without reasoning." },
       { "id": "gpt-4o", "name": "GPT-4o", "modelType": "chat", "contextWindow": 128000, "maxTokens": 16384, "inputPrice": 2.5, "outputPrice": 10, "thinking": "none", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true },
-      { "id": "gpt-4o-mini", "name": "GPT-4o Mini", "modelType": "chat", "contextWindow": 128000, "maxTokens": 16384, "inputPrice": 0.15, "outputPrice": 0.6, "thinking": "none", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true },
-      { "id": "gpt-4-turbo", "name": "GPT-4 Turbo", "modelType": "chat", "contextWindow": 128000, "maxTokens": 4096, "inputPrice": 10, "outputPrice": 30, "thinking": "none", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true },
       { "id": "o4-mini", "name": "o4-mini", "modelType": "chat", "contextWindow": 200000, "maxTokens": 100000, "inputPrice": 1.1, "outputPrice": 4.4, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "samplingOverride": { "maxTemperature": 1 }, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "reasoning_effort", "minMaxTokens": 8192 }, "modelNote": "Reasoning model: max_completion_tokens shared between reasoning + output. Min 8192 tokens recommended." },
-      { "id": "o3", "name": "o3", "modelType": "chat", "contextWindow": 200000, "maxTokens": 100000, "inputPrice": 10, "outputPrice": 40, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "samplingOverride": { "maxTemperature": 1 }, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "reasoning_effort", "minMaxTokens": 8192 }, "modelNote": "Reasoning model: max_completion_tokens shared between reasoning + output. Min 8192 tokens recommended." },
-      { "id": "o3-mini", "name": "o3-mini", "modelType": "chat", "contextWindow": 200000, "maxTokens": 100000, "inputPrice": 1.1, "outputPrice": 4.4, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": false, "samplingOverride": { "maxTemperature": 1 }, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "reasoning_effort", "minMaxTokens": 8192 }, "modelNote": "Reasoning model: max_completion_tokens shared between reasoning + output. Min 8192 tokens recommended." },
-      { "id": "o1", "name": "o1", "modelType": "chat", "contextWindow": 200000, "maxTokens": 100000, "inputPrice": 15, "outputPrice": 60, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "samplingOverride": { "maxTemperature": 1 }, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "reasoning_effort", "minMaxTokens": 8192 }, "modelNote": "Reasoning model: max_completion_tokens shared between reasoning + output. Min 8192 tokens recommended." }
+      { "id": "o3", "name": "o3", "modelType": "chat", "contextWindow": 200000, "maxTokens": 100000, "inputPrice": 10, "outputPrice": 40, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "samplingOverride": { "maxTemperature": 1 }, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "reasoning_effort", "minMaxTokens": 8192 }, "modelNote": "Reasoning model: max_completion_tokens shared between reasoning + output. Min 8192 tokens recommended." }
     ]
   },
   {
@@ -43,11 +37,7 @@
       { "id": "claude-opus-4-6", "name": "Claude Opus 4.6", "modelType": "chat", "contextWindow": 1000000, "maxTokens": 128000, "inputPrice": 5, "outputPrice": 25, "thinking": "optional", "json": true, "thinkingJsonCompat": "partial", "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "thinking_budget", "minBudget": 1024, "maxBudget": 128000, "defaultBudget": 10000, "canDisable": true }, "modelNote": "1M context window. Agent teams support. Pricing: $10/M input, $37.50/M output for prompts >200k tokens.", "badge": "New" },
       { "id": "claude-opus-4-5-20251101", "name": "Claude Opus 4.5", "modelType": "chat", "contextWindow": 200000, "maxTokens": 64000, "inputPrice": 5, "outputPrice": 25, "thinking": "optional", "json": true, "thinkingJsonCompat": "partial", "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "thinking_budget", "minBudget": 1024, "maxBudget": 128000, "defaultBudget": 10000, "canDisable": true } },
       { "id": "claude-sonnet-4-5-20250929", "name": "Claude Sonnet 4.5", "modelType": "chat", "contextWindow": 200000, "maxTokens": 64000, "inputPrice": 3, "outputPrice": 15, "thinking": "optional", "json": true, "thinkingJsonCompat": "partial", "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "thinking_budget", "minBudget": 1024, "maxBudget": 128000, "defaultBudget": 10000, "canDisable": true } },
-      { "id": "claude-haiku-4-5-20251001", "name": "Claude Haiku 4.5", "modelType": "chat", "contextWindow": 200000, "maxTokens": 64000, "inputPrice": 1, "outputPrice": 5, "thinking": "optional", "json": true, "thinkingJsonCompat": "partial", "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "thinking_budget", "minBudget": 1024, "maxBudget": 128000, "defaultBudget": 10000, "canDisable": true } },
-      { "id": "claude-opus-4-20250514", "name": "Claude Opus 4", "modelType": "chat", "contextWindow": 200000, "maxTokens": 64000, "inputPrice": 15, "outputPrice": 75, "thinking": "optional", "json": true, "thinkingJsonCompat": "partial", "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "thinking_budget", "minBudget": 1024, "maxBudget": 128000, "defaultBudget": 10000, "canDisable": true } },
-      { "id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4", "modelType": "chat", "contextWindow": 200000, "maxTokens": 64000, "inputPrice": 3, "outputPrice": 15, "thinking": "optional", "json": true, "thinkingJsonCompat": "partial", "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "thinking_budget", "minBudget": 1024, "maxBudget": 128000, "defaultBudget": 10000, "canDisable": true } },
-      { "id": "claude-3-7-sonnet-20250219", "name": "Claude 3.7 Sonnet", "modelType": "chat", "contextWindow": 200000, "maxTokens": 64000, "inputPrice": 3, "outputPrice": 15, "thinking": "optional", "json": true, "thinkingJsonCompat": false, "functionCalling": true, "vision": true, "samplingOverride": { "allowBothTempAndTopP": true }, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "thinking_budget", "minBudget": 1024, "maxBudget": 128000, "defaultBudget": 10000, "canDisable": true } },
-      { "id": "claude-3-5-haiku-20241022", "name": "Claude 3.5 Haiku", "modelType": "chat", "contextWindow": 200000, "maxTokens": 8192, "inputPrice": 0.8, "outputPrice": 4, "thinking": "none", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "samplingOverride": { "allowBothTempAndTopP": true } }
+      { "id": "claude-haiku-4-5-20251001", "name": "Claude Haiku 4.5", "modelType": "chat", "contextWindow": 200000, "maxTokens": 64000, "inputPrice": 1, "outputPrice": 5, "thinking": "optional", "json": true, "thinkingJsonCompat": "partial", "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "thinking_budget", "minBudget": 1024, "maxBudget": 128000, "defaultBudget": 10000, "canDisable": true } }
     ]
   },
   {
@@ -75,7 +65,7 @@
   {
     "id": "xai",
     "name": "xAI Grok",
-    "defaultModel": "grok-3-mini",
+    "defaultModel": "grok-4-fast",
     "sampling": {
       "maxTemperature": 2,
       "supportsTopP": true,
@@ -86,10 +76,7 @@
     "models": [
       { "id": "grok-4", "name": "Grok 4", "modelType": "chat", "contextWindow": 256000, "maxTokens": 32000, "inputPrice": 3, "outputPrice": 15, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true },
       { "id": "grok-4-fast", "name": "Grok 4 Fast", "modelType": "chat", "contextWindow": 2000000, "maxTokens": 32000, "inputPrice": 0.2, "outputPrice": 0.5, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true },
-      { "id": "grok-4-1-fast-reasoning", "name": "Grok 4.1 Fast", "modelType": "chat", "contextWindow": 2000000, "maxTokens": 32000, "inputPrice": 0.2, "outputPrice": 0.5, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "badge": "New" },
-      { "id": "grok-3", "name": "Grok 3", "modelType": "chat", "contextWindow": 131072, "maxTokens": 32000, "inputPrice": 3, "outputPrice": 15, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true },
-      { "id": "grok-3-fast", "name": "Grok 3 Fast", "modelType": "chat", "contextWindow": 131072, "maxTokens": 32000, "inputPrice": 5, "outputPrice": 25, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true },
-      { "id": "grok-3-mini", "name": "Grok 3 Mini", "modelType": "chat", "contextWindow": 131072, "maxTokens": 32000, "inputPrice": 0.3, "outputPrice": 0.5, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": false }
+      { "id": "grok-4-1-fast-reasoning", "name": "Grok 4.1 Fast", "modelType": "chat", "contextWindow": 2000000, "maxTokens": 32000, "inputPrice": 0.2, "outputPrice": 0.5, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "badge": "New" }
     ]
   },
   {
@@ -122,7 +109,9 @@
       "allowBothTempAndTopP": true
     },
     "models": [
-      { "id": "qwen3-max", "name": "Qwen3 Max", "modelType": "chat", "contextWindow": 262144, "maxTokens": 32768, "inputPrice": 0.86, "outputPrice": 3.44, "thinking": "optional", "json": true, "thinkingJsonCompat": "partial", "functionCalling": true, "vision": false, "badge": "New" },
+      { "id": "qwen3.5-plus", "name": "Qwen3.5 Plus", "modelType": "chat", "contextWindow": 1000000, "maxTokens": 65536, "inputPrice": 0.4, "outputPrice": 2.4, "thinking": "optional", "json": true, "thinkingJsonCompat": "partial", "functionCalling": true, "vision": true, "badge": "New" },
+      { "id": "qwen3.5-flash", "name": "Qwen3.5 Flash", "modelType": "chat", "contextWindow": 1000000, "maxTokens": 65536, "inputPrice": 0.1, "outputPrice": 0.4, "thinking": "optional", "json": true, "thinkingJsonCompat": "partial", "functionCalling": true, "vision": true, "badge": "New" },
+      { "id": "qwen3-max", "name": "Qwen3 Max", "modelType": "chat", "contextWindow": 262144, "maxTokens": 32768, "inputPrice": 0.86, "outputPrice": 3.44, "thinking": "optional", "json": true, "thinkingJsonCompat": "partial", "functionCalling": true, "vision": false },
       { "id": "qwen-plus", "name": "Qwen Plus", "modelType": "chat", "contextWindow": 131072, "maxTokens": 16384, "inputPrice": 0.42, "outputPrice": 1.26, "thinking": "optional", "json": true, "thinkingJsonCompat": "partial", "functionCalling": true, "vision": false },
       { "id": "qwen-flash", "name": "Qwen Flash", "modelType": "chat", "contextWindow": 1000000, "maxTokens": 8192, "inputPrice": 0.06, "outputPrice": 0.24, "thinking": "optional", "json": true, "thinkingJsonCompat": "partial", "functionCalling": true, "vision": false },
       { "id": "qwen-vl-plus", "name": "Qwen VL Plus", "modelType": "chat", "contextWindow": 131072, "maxTokens": 8192, "inputPrice": 0.56, "outputPrice": 1.68, "thinking": "none", "json": true, "thinkingJsonCompat": true, "functionCalling": false, "vision": true },
@@ -174,6 +163,23 @@
     "models": [
       { "id": "MiniMax-M2.5", "name": "MiniMax M2.5", "modelType": "chat", "contextWindow": 205000, "maxTokens": 16384, "inputPrice": 0.3, "outputPrice": 1.2, "thinking": "none", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": false, "badge": "New" },
       { "id": "M2-her", "name": "M2 Her", "modelType": "chat", "contextWindow": 205000, "maxTokens": 2048, "inputPrice": 0.3, "outputPrice": 1.2, "thinking": "none", "json": true, "thinkingJsonCompat": true, "functionCalling": false, "vision": false, "modelNote": "角色扮演/对话优化模型" }
+    ]
+  },
+  {
+    "id": "huoshan",
+    "name": "豆包",
+    "defaultModel": "doubao-seed-2-0-lite-260215",
+    "sampling": {
+      "maxTemperature": 2,
+      "supportsTopP": true,
+      "supportsTopK": false,
+      "defaultTopP": 1,
+      "allowBothTempAndTopP": true
+    },
+    "models": [
+      { "id": "doubao-seed-2-0-pro-260215", "name": "Doubao Seed 2.0 Pro", "modelType": "chat", "contextWindow": 128000, "maxTokens": 16384, "inputPrice": 0.44, "outputPrice": 2.22, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "thinking_toggle", "canDisable": true }, "modelNote": "旗舰级全能通用模型，强调多模态理解、长上下文推理、结构化生成", "badge": "New" },
+      { "id": "doubao-seed-2-0-lite-260215", "name": "Doubao Seed 2.0 Lite", "modelType": "chat", "contextWindow": 128000, "maxTokens": 16384, "inputPrice": 0.08, "outputPrice": 0.50, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "thinking_toggle", "canDisable": true }, "modelNote": "兼顾性能与成本的均衡型模型，适合作为通用生产级模型", "badge": "New" },
+      { "id": "doubao-seed-2-0-mini-260215", "name": "Doubao Seed 2.0 Mini", "modelType": "chat", "contextWindow": 256000, "maxTokens": 16384, "inputPrice": 0.03, "outputPrice": 0.28, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "thinking_toggle", "canDisable": true }, "modelNote": "面向低时延、高并发与成本敏感场景，256K上下文", "badge": "New" }
     ]
   }
 ]
