@@ -7,7 +7,8 @@ mod engine;
 mod stream_handler;
 
 pub use graph::ExecutionGraph;
-pub use executor::{execute_workflow, ExecutionResult, ExecutionConfig, ExecutionStatus, ExecutionTiming, ConnectionPools, PoolConfig, ResumeParams};
+pub(crate) use executor::execute_workflow;
+pub use executor::{ExecutionResult, ExecutionConfig, ExecutionStatus, ExecutionTiming, ConnectionPools, PoolConfig, ResumeParams};
 pub use builder::{EngineBuilder, StateSavingConfig};
 pub use engine::Engine;
 pub use stream_handler::{StreamHandler, SharedStreamHandler};
