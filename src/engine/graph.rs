@@ -177,13 +177,33 @@ impl<'a> ExecutionGraph<'a> {
                 continue;
             }
 
-            // Check if any source has a value
-            let has_value = path_sources.iter().any(|path| {
-                state.has_output(path)
-            });
+            // Separate self-referencing paths (source == current node) from external paths
+            let mut self_refs: Vec<&str> = Vec::new();
+            let mut external_refs: Vec<&str> = Vec::new();
+            for path in &path_sources {
+                let source = path.split('[').next().unwrap_or("")
+                    .split('.').next().unwrap_or("");
+                if source == node_id {
+                    self_refs.push(path);
+                } else {
+                    external_refs.push(path);
+                }
+            }
+
+            // Self-referencing paths (e.g. think[*].thought in a loop) are optional
+            // on the first iteration — the node hasn't produced output yet, so we
+            // skip them. On subsequent iterations they will have values.
+            let has_value = external_refs.iter().any(|path| state.has_output(path))
+                || self_refs.iter().any(|path| state.has_output(path));
 
             if has_value {
                 continue; // Value available from at least one source
+            }
+
+            // If ALL sources are self-references and none have values yet,
+            // this is the first iteration of a loop — allow execution.
+            if external_refs.is_empty() && !self_refs.is_empty() {
+                continue;
             }
 
             // No value yet — check if default can be used
@@ -192,7 +212,8 @@ impl<'a> ExecutionGraph<'a> {
                 // each source node has either completed execution or is confirmed dead.
                 // This prevents premature execution while a live source is still running.
                 let all_settled = path_sources.iter().all(|path| {
-                    let source_node = path.split('.').next().unwrap_or("");
+                    let source_node = path.split('[').next().unwrap_or("")
+                        .split('.').next().unwrap_or("");
                     state.has_node_output(source_node) || state.is_dead(source_node)
                 });
                 if all_settled {
