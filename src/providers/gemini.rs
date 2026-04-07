@@ -147,10 +147,11 @@ impl GeminiProvider {
 
         Ok(ChatResponse {
             content,
-            thinking, // Gemini returns thinking content separately
+            thinking,
             usage,
             model: DEFAULT_MODEL.to_string(),
             raw: data,
+            tool_calls: None,
         })
     }
 

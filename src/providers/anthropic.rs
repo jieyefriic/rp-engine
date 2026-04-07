@@ -202,10 +202,11 @@ impl AnthropicProvider {
 
         Ok(ChatResponse {
             content,
-            thinking: None, // Anthropic doesn't return thinking content to client
+            thinking: None,
             usage,
             model,
             raw: data,
+            tool_calls: None,
         })
     }
 
