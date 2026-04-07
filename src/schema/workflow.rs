@@ -139,7 +139,7 @@ pub struct Subgraph {
 /// Maps a tool name to a subgraph that implements the tool
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolRef {
-    /// Tool name (used by Planner to call the tool)
+    /// Tool name (used by Planner/LLM to call the tool)
     pub name: String,
 
     /// Human-readable description of what this tool does
@@ -148,6 +148,11 @@ pub struct ToolRef {
     /// Reference to subgraph ID that implements this tool
     #[serde(rename = "ref")]
     pub subgraph_ref: String,
+
+    /// JSON Schema for tool parameters (for native function calling)
+    /// If absent, tool accepts freeform arguments
+    #[serde(default)]
+    pub parameters: Option<serde_json::Value>,
 }
 
 /// Supported YAML spec versions

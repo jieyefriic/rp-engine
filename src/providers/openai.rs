@@ -16,7 +16,7 @@ use serde_json::{json, Value};
 use crate::error::ProviderError;
 use super::{
     LLMProvider, Message, ChatOptions, ChatResponse, StreamResponse,
-    StreamCallback, TokenUsage, ReasoningEffort,
+    StreamCallback, TokenUsage, ReasoningEffort, ToolCall,
 };
 use super::content::build_openai_messages;
 use super::streaming::{process_sse_stream, parse_openai_chunk};
@@ -113,6 +113,20 @@ impl OpenAIProvider {
             body["response_format"] = json!({"type": "json_object"});
         }
 
+        // Native function calling
+        if let Some(ref tools) = options.tools {
+            if !tools.is_empty() {
+                body["tools"] = json!(tools.iter().map(|t| json!({
+                    "type": "function",
+                    "function": {
+                        "name": t.name,
+                        "description": t.description,
+                        "parameters": t.parameters,
+                    }
+                })).collect::<Vec<_>>());
+            }
+        }
+
         body
     }
 
@@ -148,13 +162,27 @@ impl OpenAIProvider {
             TokenUsage::default()
         };
 
+        // Parse tool_calls from response
+        let tool_calls = data["choices"][0]["message"]["tool_calls"]
+            .as_array()
+            .map(|calls| {
+                calls.iter().filter_map(|tc| {
+                    let id = tc["id"].as_str()?.to_string();
+                    let name = tc["function"]["name"].as_str()?.to_string();
+                    let args_str = tc["function"]["arguments"].as_str().unwrap_or("{}");
+                    let arguments = serde_json::from_str(args_str).unwrap_or(json!({}));
+                    Some(ToolCall { id, name, arguments })
+                }).collect::<Vec<_>>()
+            })
+            .filter(|v| !v.is_empty());
+
         Ok(ChatResponse {
             content,
             thinking: None,
             usage,
             model,
             raw: data,
-            tool_calls: None,
+            tool_calls,
         })
     }
 

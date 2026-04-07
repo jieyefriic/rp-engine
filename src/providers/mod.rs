@@ -403,6 +403,11 @@ impl ChatOptions {
         self.enable_search = enable;
         self
     }
+
+    pub fn with_tools(mut self, tools: Vec<ToolDefinition>) -> Self {
+        self.tools = Some(tools);
+        self
+    }
 }
 
 // ============================================================================
