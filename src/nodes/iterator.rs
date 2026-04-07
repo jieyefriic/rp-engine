@@ -10,11 +10,11 @@ use async_trait::async_trait;
 use serde_json::{json, Value};
 use tracing::{debug, info};
 
-use crate::schema::{YamlNode, YamlEdge, NodeType};
+use crate::schema::YamlNode;
 use crate::state::ExecutionState;
 use crate::engine::ExecutionConfig;
 use crate::error::EngineError;
-use super::supervisor::{SupervisorTokenUsage, LLMCallUsage};
+use super::supervisor::SupervisorTokenUsage;
 use super::{NodeExecutor, resolve_variables, resolve_single_binding};
 
 pub struct IteratorExecutor;
@@ -274,138 +274,13 @@ async fn execute_single_iteration(
         input.insert(name.clone(), value.clone());
     }
 
-    // Create isolated execution state
-    let mut state = ExecutionState::new(input);
-
-    // Execute the subgraph (same pattern as supervisor.rs:696-841)
-    let result = execute_subgraph_nodes(subgraph, &mut state, config).await?;
+    // Delegate to shared subgraph runner
+    let result = super::subgraph_runner::execute(subgraph, input, config).await?;
 
     Ok(IterationResult::Success {
         index,
         outputs: result.outputs,
         usage: result.usage,
-    })
-}
-
-/// Result from executing a subgraph's nodes
-struct SubgraphRunResult {
-    outputs: Value,
-    usage: SupervisorTokenUsage,
-}
-
-/// Execute all nodes in a subgraph using dependency-based scheduling
-/// (Follows the same pattern as supervisor.rs execute_subgraph)
-async fn execute_subgraph_nodes(
-    subgraph: &crate::schema::Subgraph,
-    state: &mut ExecutionState,
-    config: &ExecutionConfig,
-) -> Result<SubgraphRunResult, EngineError> {
-    // Build node map and incoming edges
-    let node_map: HashMap<&str, &YamlNode> = subgraph.nodes.iter()
-        .map(|n| (n.id.as_str(), n))
-        .collect();
-    let incoming_edges: HashMap<&str, Vec<&YamlEdge>> = {
-        let mut map: HashMap<&str, Vec<&YamlEdge>> = HashMap::new();
-        for edge in &subgraph.edges {
-            map.entry(edge.to.as_str()).or_default().push(edge);
-        }
-        map
-    };
-
-    // Check if node inputs are satisfied
-    let inputs_satisfied = |node_id: &str, state: &ExecutionState| -> bool {
-        let node = match node_map.get(node_id) {
-            Some(n) => *n,
-            None => return false,
-        };
-
-        if node.node_type == NodeType::Start {
-            return true;
-        }
-
-        // Check variable bindings
-        if !node.config.variables.is_empty() {
-            for (_var_name, binding) in &node.config.variables {
-                if binding.is_empty() || binding.has_default() {
-                    continue;
-                }
-                let has_value = binding.sources().iter().any(|path| {
-                    !path.is_empty() && state.has_output(path)
-                });
-                if !has_value {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        // Fall back to edge-based check
-        let edges = incoming_edges.get(node_id).map(|v| v.as_slice()).unwrap_or(&[]);
-        if edges.is_empty() {
-            return true;
-        }
-        edges.iter().any(|e| state.has_node_output(&e.from))
-    };
-
-    // Initialize tracking
-    let mut pending: std::collections::HashSet<String> = subgraph.nodes.iter()
-        .map(|n| n.id.clone())
-        .collect();
-    let mut executed: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let mut final_outputs: HashMap<String, Value> = HashMap::new();
-    let mut total_usage = SupervisorTokenUsage::default();
-
-    // Execute nodes in dependency order
-    while !pending.is_empty() {
-        let ready: Vec<String> = pending.iter()
-            .filter(|id| !executed.contains(*id) && inputs_satisfied(id, state))
-            .cloned()
-            .collect();
-
-        if ready.is_empty() {
-            break;
-        }
-
-        for node_id in ready {
-            let node = match node_map.get(node_id.as_str()) {
-                Some(n) => *n,
-                None => continue,
-            };
-
-            let executor = crate::nodes::create_executor(&node.node_type);
-            let outputs = executor.execute(node, state, config).await?;
-
-            // Extract token usage
-            if let Some(usage_val) = outputs.get("_usage") {
-                let provider = usage_val.get("provider")
-                    .and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
-                let model = usage_val.get("model")
-                    .and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
-                let input_tokens = usage_val.get("input_tokens")
-                    .and_then(|v| v.as_u64()).unwrap_or(0);
-                let output_tokens = usage_val.get("output_tokens")
-                    .and_then(|v| v.as_u64()).unwrap_or(0);
-                total_usage.add_from_llm_call(&LLMCallUsage::new(provider, model, input_tokens, output_tokens));
-            }
-
-            // Write to state
-            state.write(&node.id, outputs.clone());
-
-            // Track final outputs (response node preferred)
-            if node.node_type == NodeType::Response {
-                final_outputs = outputs;
-            } else if final_outputs.is_empty() {
-                final_outputs = outputs;
-            }
-
-            executed.insert(node_id.clone());
-            pending.remove(&node_id);
-        }
-    }
-
-    Ok(SubgraphRunResult {
-        outputs: json!(final_outputs),
-        usage: total_usage,
     })
 }
 
