@@ -238,6 +238,21 @@ impl NodeExecutor for GenerateExecutor {
             options = options.with_json_output();
         }
 
+        // Build tool definitions for native function calling
+        if !node_config.tools.is_empty() {
+            let tool_defs: Vec<crate::providers::ToolDefinition> = node_config.tools.iter()
+                .map(|t| crate::providers::ToolDefinition {
+                    name: t.name.clone(),
+                    description: t.description.clone().unwrap_or_default(),
+                    parameters: t.parameters.clone().unwrap_or(serde_json::json!({
+                        "type": "object",
+                        "properties": {},
+                    })),
+                })
+                .collect();
+            options = options.with_tools(tool_defs);
+        }
+
         debug!(
             node = %node_id,
             provider = %provider_id,
@@ -249,80 +264,129 @@ impl NodeExecutor for GenerateExecutor {
 
         // Determine if we should stream
         // Streaming requires: 1) node config opt-in, 2) stream handler present,
-        // 3) no JSON schema (JSON mode needs complete response)
+        // 3) no JSON schema (JSON mode needs complete response), 4) no tools (tool calling needs full response)
         let has_json_schema = output_schema.map(|s| !s.is_empty()).unwrap_or(false);
+        let has_tools = options.tools.is_some();
         let should_stream = node_config.stream
             && config.stream_handler.is_some()
-            && !has_json_schema;
+            && !has_json_schema
+            && !has_tools;
 
-        // Make the API call (streaming or non-streaming)
+        // Make the API call (streaming or non-streaming, with optional tool calling loop)
         // Returns: (content, thinking, usage, ttft)
         let (content, thinking, usage, ttft) = if should_stream {
-            // Streaming path: wrap StreamHandler into StreamCallback, call provider.stream()
+            // Streaming path (no tool calling)
             let handler = config.stream_handler.as_ref().unwrap().clone();
             let node_id_owned = node_id.clone();
             let callback: StreamCallback = Box::new(move |chunk: &str, accumulated: &str| {
                 handler.on_text_chunk(&node_id_owned, chunk, accumulated);
             });
 
-            debug!(
-                node = %node_id,
-                provider = %provider_id,
-                model = %model_id,
-                template = template_name.as_deref().unwrap_or("(none)"),
-                has_images = has_images,
-                "Making streaming LLM API call"
-            );
-
             match provider.stream(messages, options, callback).await {
-                Ok(r) => {
-                    debug!(
-                        node = %node_id,
-                        provider = %provider_id,
-                        model = %model_id,
-                        response_len = r.content.len(),
-                        ttft_ms = ?r.ttft,
-                        has_usage = r.usage.is_some(),
-                        "Streaming LLM call completed"
-                    );
-                    (r.content, None, r.usage, r.ttft)
-                }
+                Ok(r) => (r.content, None, r.usage, r.ttft),
                 Err(e) => {
-                    error!(
-                        node = %node_id,
-                        provider = %provider_id,
-                        model = %model_id,
-                        template = template_name.as_deref().unwrap_or("(none)"),
-                        error = %e,
-                        "Streaming LLM API call failed"
-                    );
+                    error!(node = %node_id, error = %e, "Streaming LLM call failed");
                     return Err(EngineError::ProviderError(e));
                 }
             }
+        } else if has_tools {
+            // Tool calling loop: LLM may request tool calls, we execute and feed back
+            let max_rounds = node_config.max_tool_rounds.unwrap_or(10);
+            let mut conversation = messages;
+            let mut total_usage = crate::providers::TokenUsage::default();
+            let mut final_content = String::new();
+            let mut final_thinking = None;
+
+            for round in 0..max_rounds {
+                let response = provider.chat(conversation.clone(), options.clone()).await
+                    .map_err(|e| {
+                        error!(node = %node_id, round = round, error = %e, "Tool calling LLM call failed");
+                        EngineError::ProviderError(e)
+                    })?;
+
+                // Accumulate usage
+                total_usage.input_tokens += response.usage.input_tokens;
+                total_usage.output_tokens += response.usage.output_tokens;
+                total_usage.total_tokens += response.usage.total_tokens;
+
+                if let Some(ref tool_calls) = response.tool_calls {
+                    if !tool_calls.is_empty() {
+                        debug!(
+                            node = %node_id,
+                            round = round,
+                            tool_calls = tool_calls.len(),
+                            tools = ?tool_calls.iter().map(|tc| &tc.name).collect::<Vec<_>>(),
+                            "LLM requested tool calls"
+                        );
+
+                        // Add assistant message with tool calls to conversation
+                        conversation.push(Message {
+                            role: crate::providers::MessageRole::Assistant,
+                            content: crate::providers::MessageContent::Text(response.content.clone()),
+                            tool_call_id: None,
+                            tool_calls: Some(tool_calls.clone()),
+                        });
+
+                        // Execute each tool call via subgraph
+                        for tc in tool_calls {
+                            let tool_ref = node_config.tools.iter()
+                                .find(|t| t.name == tc.name);
+
+                            let result_content = if let Some(tool) = tool_ref {
+                                // Parse arguments as input HashMap
+                                let input: HashMap<String, Value> = match &tc.arguments {
+                                    Value::Object(obj) => obj.iter()
+                                        .map(|(k, v)| (k.clone(), v.clone()))
+                                        .collect(),
+                                    _ => HashMap::new(),
+                                };
+
+                                // Execute subgraph
+                                if let Some(subgraph) = config.subgraphs.get(&tool.subgraph_ref) {
+                                    match super::subgraph_runner::execute(subgraph, input, config).await {
+                                        Ok(result) => {
+                                            total_usage.input_tokens += result.usage.input_tokens;
+                                            total_usage.output_tokens += result.usage.output_tokens;
+                                            serde_json::to_string(&result.outputs).unwrap_or_default()
+                                        }
+                                        Err(e) => format!("Tool execution error: {}", e),
+                                    }
+                                } else {
+                                    format!("Subgraph '{}' not found", tool.subgraph_ref)
+                                }
+                            } else {
+                                format!("Unknown tool: {}", tc.name)
+                            };
+
+                            // Add tool result to conversation
+                            conversation.push(Message::tool_result(&tc.id, result_content));
+                        }
+
+                        continue; // Next round — send tool results back to LLM
+                    }
+                }
+
+                // No tool calls — LLM gave final response
+                final_content = response.content;
+                final_thinking = response.thinking;
+                break;
+            }
+
+            (final_content, final_thinking, Some(total_usage), None)
         } else {
-            // Non-streaming path: call provider.chat()
+            // Simple non-streaming path (no tools)
             match provider.chat(messages, options).await {
                 Ok(r) => {
                     debug!(
                         node = %node_id,
-                        provider = %provider_id,
-                        model = %model_id,
                         input_tokens = r.usage.input_tokens,
                         output_tokens = r.usage.output_tokens,
-                        response_len = r.content.len(),
-                        "LLM call completed successfully"
+                        "LLM call completed"
                     );
                     (r.content, r.thinking, Some(r.usage), None)
                 }
                 Err(e) => {
-                    error!(
-                        node = %node_id,
-                        provider = %provider_id,
-                        model = %model_id,
-                        template = template_name.as_deref().unwrap_or("(none)"),
-                        error = %e,
-                        "LLM API call failed"
-                    );
+                    error!(node = %node_id, error = %e, "LLM call failed");
                     return Err(EngineError::ProviderError(e));
                 }
             }
