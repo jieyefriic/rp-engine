@@ -11,6 +11,7 @@ mod search;
 mod connectors;
 mod workflow_node;
 mod iterator;
+pub mod subgraph_runner;
 
 use std::collections::HashMap;
 use std::sync::Arc;

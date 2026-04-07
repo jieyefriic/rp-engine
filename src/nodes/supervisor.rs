@@ -668,7 +668,6 @@ async fn execute_subgraph(
     subgraph_ref: &str,
     config: &ExecutionConfig,
 ) -> Result<SubgraphResult, EngineError> {
-    // Get the subgraph definition
     let subgraph = config.subgraphs.get(subgraph_ref)
         .ok_or_else(|| EngineError::SupervisorToolNotFound(
             format!("Subgraph '{}' not found for tool '{}'", subgraph_ref, todo.action_called)
@@ -682,7 +681,6 @@ async fn execute_subgraph(
     );
 
     // Build input from action_detail
-    // action_detail contains the parameters that the subgraph needs
     let mut input: HashMap<String, Value> = HashMap::new();
     if let Value::Object(obj) = &todo.action_detail {
         for (key, value) in obj {
@@ -690,169 +688,21 @@ async fn execute_subgraph(
         }
     }
 
-    // Create mutable execution state with the input
-    let mut state = crate::state::ExecutionState::new(input.clone());
-
-    // Build node map and edge maps for dependency checking
-    let node_map: HashMap<&str, &crate::schema::YamlNode> = subgraph.nodes.iter()
-        .map(|n| (n.id.as_str(), n))
-        .collect();
-    let incoming_edges: HashMap<&str, Vec<&crate::schema::YamlEdge>> = {
-        let mut map: HashMap<&str, Vec<&crate::schema::YamlEdge>> = HashMap::new();
-        for edge in &subgraph.edges {
-            map.entry(edge.to.as_str()).or_default().push(edge);
-        }
-        map
-    };
-
-    // Helper to check if node inputs are satisfied
-    let inputs_satisfied = |node_id: &str, state: &crate::state::ExecutionState| -> bool {
-        let node = match node_map.get(node_id) {
-            Some(n) => *n,
-            None => return false,
-        };
-
-        // Start node always satisfied
-        if node.node_type == crate::schema::NodeType::Start {
-            return true;
-        }
-
-        // If has variables, check each binding
-        if !node.config.variables.is_empty() {
-            for (_var_name, binding) in &node.config.variables {
-                if binding.is_empty() {
-                    continue;
-                }
-
-                // If binding has a default value, it's optional and doesn't block execution
-                if binding.has_default() {
-                    continue;
-                }
-
-                // For array bindings: ANY source having value is sufficient
-                let has_value = binding.sources().iter().any(|path| {
-                    !path.is_empty() && state.has_output(path)
-                });
-                if !has_value {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        // Fall back to edge-based check
-        let edges = incoming_edges.get(node_id).map(|v| v.as_slice()).unwrap_or(&[]);
-        if edges.is_empty() {
-            return true;
-        }
-        edges.iter().any(|e| state.has_node_output(&e.from))
-    };
-
-    // Initialize: all nodes pending
-    let mut pending: std::collections::HashSet<String> = subgraph.nodes.iter()
-        .map(|n| n.id.clone())
-        .collect();
-    let mut executed: std::collections::HashSet<String> = std::collections::HashSet::new();
-
-    let mut final_outputs: HashMap<String, Value> = HashMap::new();
-    let mut total_usage = SupervisorTokenUsage::default();
-    let mut executions: Vec<SubgraphNodeExecution> = Vec::new();
-
-    // Execute nodes in dependency order
-    while !pending.is_empty() {
-        // Find ready nodes
-        let ready: Vec<String> = pending.iter()
-            .filter(|id| !executed.contains(*id) && inputs_satisfied(id, &state))
-            .cloned()
-            .collect();
-
-        if ready.is_empty() {
-            // No more nodes can execute
-            break;
-        }
-
-        for node_id in ready {
-            let node = node_map.get(node_id.as_str()).unwrap();
-
-            // Get the executor for this node type
-            let executor = crate::nodes::create_executor(&node.node_type);
-
-            // Execute the node with timing
-            let node_start = Instant::now();
-            let outputs = executor.execute(node, &state, config).await?;
-            let node_timing_ms = node_start.elapsed().as_millis() as u64;
-
-            // Extract token usage from _usage field if present
-            let node_usage = if let Some(usage_val) = outputs.get("_usage") {
-                let provider = usage_val.get("provider")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("unknown")
-                    .to_string();
-                let model = usage_val.get("model")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("unknown")
-                    .to_string();
-                let input_tokens = usage_val.get("input_tokens")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                let output_tokens = usage_val.get("output_tokens")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                LLMCallUsage::new(provider, model, input_tokens, output_tokens)
-            } else {
-                LLMCallUsage::default()
-            };
-
-            tracing::debug!(
-                node = %node.id,
-                timing_ms = node_timing_ms,
-                provider = %node_usage.provider,
-                model = %node_usage.model,
-                input_tokens = node_usage.input_tokens,
-                output_tokens = node_usage.output_tokens,
-                "Subgraph node executed"
-            );
-
-            // Accumulate total usage
-            total_usage.add_from_llm_call(&node_usage);
-
-            // Record execution details
-            executions.push(SubgraphNodeExecution {
-                node_id: node.id.clone(),
-                usage: node_usage,
-                timing_ms: node_timing_ms,
-                outputs: json!(outputs.clone()),
-            });
-
-            // Write outputs to state
-            state.write(&node.id, outputs.clone());
-
-            // Track final outputs (response node or last executed)
-            if node.node_type == crate::schema::NodeType::Response {
-                final_outputs = outputs;
-            } else if final_outputs.is_empty() {
-                final_outputs = outputs;
-            }
-
-            // Mark as executed
-            executed.insert(node_id.clone());
-            pending.remove(&node_id);
-        }
-    }
+    // Delegate to shared subgraph runner
+    let result = super::subgraph_runner::execute(subgraph, input, config).await?;
 
     tracing::debug!(
         subgraph = %subgraph_ref,
-        total_input_tokens = total_usage.input_tokens,
-        total_output_tokens = total_usage.output_tokens,
-        execution_count = executions.len(),
+        total_input_tokens = result.usage.input_tokens,
+        total_output_tokens = result.usage.output_tokens,
+        execution_count = result.executions.len(),
         "Subgraph execution completed"
     );
 
-    // Return the result
     Ok(SubgraphResult {
-        outputs: json!(final_outputs),
-        usage: total_usage,
-        executions,
+        outputs: result.outputs,
+        usage: result.usage,
+        executions: result.executions,
     })
 }
 
