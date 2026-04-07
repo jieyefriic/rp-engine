@@ -314,6 +314,26 @@ impl Engine {
         yaml: &str,
         input: Value,
     ) -> Result<ExecutionResult, EngineError> {
+        self.run_yaml_internal(yaml, input, None).await
+    }
+
+    /// Run a workflow with raw YAML string and a stream handler
+    pub async fn run_yaml_with_stream_handler(
+        &self,
+        yaml: &str,
+        input: Value,
+        stream_handler: Arc<dyn super::StreamHandler>,
+    ) -> Result<ExecutionResult, EngineError> {
+        self.run_yaml_internal(yaml, input, Some(stream_handler)).await
+    }
+
+    /// Internal implementation for run_yaml variants
+    async fn run_yaml_internal(
+        &self,
+        yaml: &str,
+        input: Value,
+        stream_handler: Option<Arc<dyn super::StreamHandler>>,
+    ) -> Result<ExecutionResult, EngineError> {
         let workflow = PreparedWorkflow::from_yaml(yaml)
             .map_err(|e| EngineError::InvalidWorkflow(e.to_string()))?;
 
@@ -340,8 +360,15 @@ impl Engine {
             .with_model_registry(self.model_registry.clone())
             .with_timeout(self.timeout)
             .with_max_iterations(self.max_iterations)
+            .with_capture_actual_prompt(self.capture_actual_prompt)
+            .with_capture_raw_response(self.capture_raw_response)
             .with_workflows(self.workflows.clone())
             .with_transforms(self.transforms.clone());
+
+        // Inject stream handler if provided
+        if let Some(handler) = stream_handler {
+            config = config.with_stream_handler(handler);
+        }
 
         // Merge workflow-specific data sources
         for (id, ds) in &workflow.data_sources {
