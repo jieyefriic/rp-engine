@@ -10,6 +10,7 @@ mod transform;
 mod search;
 mod connectors;
 mod workflow_node;
+mod iterator;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -304,6 +305,7 @@ pub fn create_executor(node_type: &NodeType) -> Box<dyn NodeExecutor> {
         NodeType::Supervisor => Box::new(SupervisorExecutor),
         NodeType::Transform => Box::new(TransformExecutor),
         NodeType::Search => Box::new(SearchExecutor),
+        NodeType::Iterator => Box::new(iterator::IteratorExecutor),
         NodeType::Execute => Box::new(NotImplementedExecutor("execute")),
         NodeType::Mcp => Box::new(NotImplementedExecutor("mcp")),
         NodeType::Custom(type_name) => Box::new(CustomNodeNotFoundExecutor(type_name.clone())),

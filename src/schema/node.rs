@@ -321,6 +321,8 @@ pub enum NodeType {
     Transform,
     /// Web search node - queries search APIs (Tavily, Brave, Bocha, Perplexity)
     Search,
+    /// Iterator node - processes an array by running a subgraph for each element
+    Iterator,
     /// User-defined custom node type
     #[serde(untagged)]
     Custom(String),
@@ -467,4 +469,19 @@ pub struct NodeConfig {
     /// References another workflow by name to execute as a sub-workflow
     #[serde(default)]
     pub workflow: Option<String>,
+
+    // Iterator node fields
+    /// Path to array to iterate over (required for iterator nodes)
+    pub items: Option<VariableBinding>,
+    /// Variable name for current item in each iteration (default: "item")
+    pub item_var: Option<String>,
+    /// Variable name for 0-based index (optional)
+    pub index_var: Option<String>,
+    /// Reference to subgraph ID (required for iterator nodes)
+    #[serde(alias = "subgraph_ref")]
+    pub subgraph: Option<String>,
+    /// Error handling: "fail_fast" (default) or "collect"
+    pub on_error: Option<String>,
+    /// Max concurrent iterations when parallel=true (default: 5)
+    pub max_concurrency: Option<u32>,
 }
