@@ -25,8 +25,18 @@ impl NodeExecutor for ResponseExecutor {
 
         // Map output fields from config
         for (field, path) in &node.config.output {
-            let value = state.read(path).unwrap_or(Value::Null);
-            outputs.insert(field.clone(), value);
+            match state.read(path) {
+                Some(value) => { outputs.insert(field.clone(), value); }
+                None => {
+                    tracing::debug!(
+                        node = %node.id,
+                        field = %field,
+                        path = %path,
+                        "Response field resolved to null (path not found in state)"
+                    );
+                    outputs.insert(field.clone(), Value::Null);
+                }
+            }
         }
 
         Ok(outputs)

@@ -338,7 +338,15 @@ impl NodeExecutor for GenerateExecutor {
                                     Value::Object(obj) => obj.iter()
                                         .map(|(k, v)| (k.clone(), v.clone()))
                                         .collect(),
-                                    _ => HashMap::new(),
+                                    other => {
+                                        warn!(
+                                            node = %node_id,
+                                            tool = %tc.name,
+                                            arguments = ?other,
+                                            "Tool call arguments is not an object, using empty input"
+                                        );
+                                        HashMap::new()
+                                    }
                                 };
 
                                 // Execute subgraph
@@ -398,7 +406,18 @@ impl NodeExecutor for GenerateExecutor {
         // Try to parse JSON if we have a schema
         if let Some(schema) = output_schema {
             if !schema.is_empty() {
-                match serde_json::from_str::<Value>(&content) {
+                // Try direct JSON parse first, then try extracting from markdown fences
+                let parsed = serde_json::from_str::<Value>(&content)
+                    .or_else(|_| {
+                        // LLMs often wrap JSON in ```json...``` markdown fences
+                        if let Some(json_str) = extract_json_from_markdown(&content) {
+                            serde_json::from_str::<Value>(&json_str)
+                        } else {
+                            serde_json::from_str::<Value>("")  // force Err
+                        }
+                    });
+
+                match parsed {
                     Ok(parsed) => {
                         // Map schema fields to outputs
                         for field in schema {
@@ -497,6 +516,28 @@ fn render_template(template: &str, variables: &HashMap<String, Value>) -> String
             result
         }
     }
+}
+
+/// Extract JSON content from markdown code fences (```json...``` or ```...```)
+fn extract_json_from_markdown(content: &str) -> Option<String> {
+    // Try ```json block first
+    if let Some(start) = content.find("```json") {
+        let start = start + 7; // len of "```json"
+        if let Some(end) = content[start..].find("```") {
+            return Some(content[start..start + end].trim().to_string());
+        }
+    }
+    // Try plain ``` block
+    if let Some(start) = content.find("```") {
+        let start = start + 3;
+        if let Some(end) = content[start..].find("```") {
+            let json = content[start..start + end].trim();
+            if json.starts_with('{') || json.starts_with('[') {
+                return Some(json.to_string());
+            }
+        }
+    }
+    None
 }
 
 /// Convert a Value to string for template substitution

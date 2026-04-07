@@ -101,6 +101,14 @@ pub async fn execute(
             .collect();
 
         if ready.is_empty() {
+            if !pending.is_empty() {
+                let stuck: Vec<_> = pending.iter().collect();
+                tracing::warn!(
+                    stuck_nodes = ?stuck,
+                    executed_count = executed.len(),
+                    "Subgraph has nodes that never became ready (possible cycle or missing dependency)"
+                );
+            }
             break;
         }
 

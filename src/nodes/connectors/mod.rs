@@ -2,6 +2,8 @@
 
 pub mod s3;
 pub mod postgresql;
+pub mod mysql;
+pub mod mongodb;
 pub mod qdrant;
 pub mod redis;
 
