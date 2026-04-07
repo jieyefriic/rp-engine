@@ -393,13 +393,21 @@ impl NodeExecutor for SupervisorExecutor {
         }));
 
         // Add individual action results for downstream access
+        // Include failed actions with error info so downstream nodes can inspect
         for action in &sup_state.actions {
-            if let Some(ref action_outputs) = action.outputs {
-                outputs.insert(
-                    format!("action_{}", action.short_id),
-                    action_outputs.clone()
-                );
-            }
+            let value = if let Some(ref action_outputs) = action.outputs {
+                action_outputs.clone()
+            } else {
+                json!({
+                    "_error": true,
+                    "_error_message": action.error.clone().unwrap_or_default(),
+                    "_tool": action.tool_name.clone(),
+                })
+            };
+            outputs.insert(
+                format!("action_{}", action.short_id),
+                value,
+            );
         }
 
         Ok(outputs)
@@ -563,7 +571,7 @@ fn extract_json_from_markdown(content: &str) -> Option<String> {
     None
 }
 
-/// Execute ready todos and update state
+/// Execute ready todos with retry logic
 async fn execute_ready_todos<'a>(
     ready_todos: &[(usize, &'a TodoItem)],
     tool_lookup: &HashMap<String, (String, Option<String>)>,
@@ -571,7 +579,7 @@ async fn execute_ready_todos<'a>(
     sup_state: &mut SupervisorState,
     completed_ids: &mut std::collections::HashSet<String>,
     pending_todos: &mut Vec<(usize, &'a TodoItem)>,
-    _max_retry: u32,
+    max_retry: u32,
 ) {
     for (idx, todo) in ready_todos {
         let short_id = generate_action_short_id(sup_state.actions.len());
@@ -580,60 +588,87 @@ async fn execute_ready_todos<'a>(
             .map(|(r, d)| (r.clone(), d.clone()))
             .unwrap_or_default();
 
-        // Execute the tool (real subgraph execution)
-        let start = Instant::now();
-        let result = execute_subgraph(todo, &tool_ref, config).await;
-        let timing_ms = start.elapsed().as_millis() as u64;
+        // Execute with retry
+        let mut last_error = None;
+        let mut retry_count = 0u32;
+        let mut final_result = None;
+        let exec_start = Instant::now();
 
-        let action = match result {
-            Ok(subgraph_result) => {
-                let result_str = serde_json::to_string(&subgraph_result.outputs).unwrap_or_default();
-                sup_state.total_result_length += result_str.len() as u64;
+        for attempt in 0..=max_retry {
+            if attempt > 0 {
+                tracing::info!(
+                    tool = %todo.action_called,
+                    attempt = attempt,
+                    max_retry = max_retry,
+                    "Retrying tool execution"
+                );
+                tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+            }
 
-                // Accumulate token usage
-                sup_state.total_usage.add(&subgraph_result.usage);
-
-                ActionExecution {
-                    short_id: short_id.clone(),
-                    action_id: todo.action_id.clone(),
-                    iteration: sup_state.iteration,
-                    tool_name: todo.action_called.clone(),
-                    tool_ref,
-                    inputs: todo.action_detail.clone(),
-                    outputs: Some(subgraph_result.outputs),
-                    usage: subgraph_result.usage,
-                    subgraph_executions: subgraph_result.executions,
-                    status: ActionStatus::Success,
-                    error: None,
-                    retry_count: 0,
-                    timing_ms,
+            match execute_subgraph(todo, &tool_ref, config).await {
+                Ok(result) => {
+                    final_result = Some(result);
+                    retry_count = attempt;
+                    break;
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        tool = %todo.action_called,
+                        attempt = attempt,
+                        error = %e,
+                        "Tool execution failed"
+                    );
+                    last_error = Some(e);
+                    retry_count = attempt;
                 }
             }
-            Err(e) => {
-                sup_state.tool_failure_count += 1;
+        }
 
-                ActionExecution {
-                    short_id: short_id.clone(),
-                    action_id: todo.action_id.clone(),
-                    iteration: sup_state.iteration,
-                    tool_name: todo.action_called.clone(),
-                    tool_ref,
-                    inputs: todo.action_detail.clone(),
-                    outputs: None,
-                    usage: SupervisorTokenUsage::default(),
-                    subgraph_executions: Vec::new(),
-                    status: ActionStatus::Error,
-                    error: Some(e.to_string()),
-                    retry_count: 0,
-                    timing_ms: 0,
-                }
+        let timing_ms = exec_start.elapsed().as_millis() as u64;
+
+        let action = if let Some(subgraph_result) = final_result {
+            let result_str = serde_json::to_string(&subgraph_result.outputs).unwrap_or_default();
+            sup_state.total_result_length += result_str.len() as u64;
+            sup_state.total_usage.add(&subgraph_result.usage);
+
+            ActionExecution {
+                short_id: short_id.clone(),
+                action_id: todo.action_id.clone(),
+                iteration: sup_state.iteration,
+                tool_name: todo.action_called.clone(),
+                tool_ref,
+                inputs: todo.action_detail.clone(),
+                outputs: Some(subgraph_result.outputs),
+                usage: subgraph_result.usage,
+                subgraph_executions: subgraph_result.executions,
+                status: ActionStatus::Success,
+                error: None,
+                retry_count,
+                timing_ms,
+            }
+        } else {
+            sup_state.tool_failure_count += 1;
+            let error_msg = last_error.map(|e| e.to_string()).unwrap_or_default();
+
+            ActionExecution {
+                short_id: short_id.clone(),
+                action_id: todo.action_id.clone(),
+                iteration: sup_state.iteration,
+                tool_name: todo.action_called.clone(),
+                tool_ref,
+                inputs: todo.action_detail.clone(),
+                outputs: None,
+                usage: SupervisorTokenUsage::default(),
+                subgraph_executions: Vec::new(),
+                status: ActionStatus::Error,
+                error: Some(error_msg),
+                retry_count,
+                timing_ms,
             }
         };
 
         sup_state.actions.push(action);
         completed_ids.insert(todo.action_id.clone());
-
-        // Remove from pending
         pending_todos.retain(|(i, _)| i != idx);
     }
 }

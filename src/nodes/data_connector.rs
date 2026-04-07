@@ -77,6 +77,8 @@ impl NodeExecutor for DataConnectorExecutor {
                 "postgresql" | "postgres" => connectors::postgresql::execute(&data_source.config, &node_config.operation, &ctx).await,
                 "qdrant" => connectors::qdrant::execute(&data_source.config, &node_config.operation, &ctx).await,
                 "redis" => connectors::redis::execute(&data_source.config, &node_config.operation, &ctx).await,
+                "mysql" | "mariadb" => connectors::mysql::execute(&data_source.config, &node_config.operation, &ctx).await,
+                "mongodb" | "mongo" => connectors::mongodb::execute(&data_source.config, &node_config.operation, &ctx).await,
                 _ => {
                     error!(
                         node = %node_id,
@@ -121,7 +123,8 @@ impl NodeExecutor for DataConnectorExecutor {
             "postgresql" | "postgres" => connectors::postgresql::execute(ds_config, &operation, &ctx).await,
             "qdrant" => connectors::qdrant::execute(ds_config, &operation, &ctx).await,
             "redis" => connectors::redis::execute(ds_config, &operation, &ctx).await,
-            "mysql" => Err(EngineError::UnsupportedSource("mysql not implemented yet".to_string())),
+            "mysql" | "mariadb" => connectors::mysql::execute(ds_config, &operation, &ctx).await,
+            "mongodb" | "mongo" => connectors::mongodb::execute(ds_config, &operation, &ctx).await,
             _ => Err(EngineError::UnsupportedSource(source.clone())),
         }
     }

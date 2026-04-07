@@ -32,6 +32,12 @@ aws-credential-types = "1.2"
 tokio-postgres = { version = "0.7", features = ["with-serde_json-1", "with-uuid-1", "with-chrono-0_4"] }
 deadpool-postgres = "0.14"
 
+# MySQL
+mysql_async = "0.34"
+
+# MongoDB
+mongodb = "3"
+
 # Vector Database
 qdrant-client = "1.13"
 
