@@ -62,6 +62,10 @@ impl OpenAICompatibleProvider {
             "max_tokens": max_tokens,
         });
 
+        if let Some(top_p) = options.top_p {
+            body["top_p"] = json!(top_p);
+        }
+
         if stream {
             body["stream"] = json!(true);
             body["stream_options"] = json!({"include_usage": true});

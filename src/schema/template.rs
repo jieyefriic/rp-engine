@@ -40,6 +40,9 @@ pub struct TemplateConfig {
     /// Thinking budget for extended thinking models
     pub thinking_budget: Option<u32>,
 
+    /// Reasoning effort for OpenAI o-series models: "low", "medium", "high"
+    pub reasoning_effort: Option<String>,
+
     /// Enable web search for supported providers (e.g., DashScope/Qwen)
     #[serde(default)]
     pub enable_search: bool,
@@ -53,6 +56,7 @@ impl Default for TemplateConfig {
             top_p: None,
             top_k: None,
             thinking_budget: None,
+            reasoning_effort: None,
             enable_search: false,
         }
     }
@@ -81,6 +85,10 @@ pub struct OutputField {
 
     /// Optional example value
     pub example: Option<String>,
+
+    /// Nested fields for object/object[] types
+    #[serde(default)]
+    pub children: Vec<OutputField>,
 }
 
 impl Template {
@@ -107,6 +115,7 @@ impl Template {
             field_type: field_type.into(),
             description: None,
             example: None,
+            children: Vec::new(),
         });
         self
     }

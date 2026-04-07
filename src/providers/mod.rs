@@ -271,6 +271,10 @@ pub struct ChatOptions {
     pub temperature: Option<f32>,
     /// Maximum tokens to generate (default 1024)
     pub max_tokens: Option<u32>,
+    /// Top-p (nucleus) sampling
+    pub top_p: Option<f32>,
+    /// Top-k sampling
+    pub top_k: Option<u32>,
     /// System prompt (separate from messages)
     pub system_prompt: Option<String>,
     /// Enable JSON output mode
@@ -304,6 +308,16 @@ impl ChatOptions {
 
     pub fn with_max_tokens(mut self, max: u32) -> Self {
         self.max_tokens = Some(max);
+        self
+    }
+
+    pub fn with_top_p(mut self, top_p: f32) -> Self {
+        self.top_p = Some(top_p);
+        self
+    }
+
+    pub fn with_top_k(mut self, top_k: u32) -> Self {
+        self.top_k = Some(top_k);
         self
     }
 
@@ -609,6 +623,8 @@ impl ChatRequest {
             model: Some(self.model.clone()),
             temperature: self.temperature,
             max_tokens: self.max_tokens,
+            top_p: None,
+            top_k: None,
             system_prompt: None,
             json_output: self.json_mode,
             reasoning_effort: None,

@@ -81,9 +81,12 @@ impl OpenAIProvider {
             "messages": formatted_messages,
         });
 
-        // Reasoning models don't support temperature
+        // Reasoning models don't support temperature/top_p
         if !is_reasoning {
             body["temperature"] = json!(options.temperature.unwrap_or(0.7));
+            if let Some(top_p) = options.top_p {
+                body["top_p"] = json!(top_p);
+            }
         }
 
         // Reasoning models use max_completion_tokens, others use max_tokens

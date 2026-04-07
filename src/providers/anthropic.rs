@@ -116,6 +116,13 @@ impl AnthropicProvider {
             "temperature": temperature,
         });
 
+        if let Some(top_p) = options.top_p {
+            body["top_p"] = json!(top_p);
+        }
+        if let Some(top_k) = options.top_k {
+            body["top_k"] = json!(top_k);
+        }
+
         // System prompt (from options or extracted from messages)
         let system_prompt = options.system_prompt.clone()
             .or_else(|| extract_system_prompt(messages));
