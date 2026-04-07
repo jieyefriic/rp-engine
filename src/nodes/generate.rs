@@ -194,6 +194,8 @@ impl NodeExecutor for GenerateExecutor {
             Message {
                 role: crate::providers::MessageRole::User,
                 content: MessageContent::Parts(content_parts),
+                tool_call_id: None,
+                tool_calls: None,
             }
         };
 

@@ -150,10 +150,11 @@ impl OpenAIProvider {
 
         Ok(ChatResponse {
             content,
-            thinking: None, // OpenAI doesn't return thinking content separately
+            thinking: None,
             usage,
             model,
             raw: data,
+            tool_calls: None,
         })
     }
 

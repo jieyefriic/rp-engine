@@ -68,6 +68,7 @@ pub enum MessageRole {
     System,
     User,
     Assistant,
+    Tool,
 }
 
 /// Content part for multimodal messages
@@ -186,19 +187,35 @@ impl From<&str> for MessageContent {
 pub struct Message {
     pub role: MessageRole,
     pub content: MessageContent,
+    /// Tool call ID (for Tool role messages — identifies which tool call this responds to)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
+    /// Tool calls requested by assistant (for Assistant role messages with function calling)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<ToolCall>>,
 }
 
 impl Message {
     pub fn system(content: impl Into<MessageContent>) -> Self {
-        Self { role: MessageRole::System, content: content.into() }
+        Self { role: MessageRole::System, content: content.into(), tool_call_id: None, tool_calls: None }
     }
 
     pub fn user(content: impl Into<MessageContent>) -> Self {
-        Self { role: MessageRole::User, content: content.into() }
+        Self { role: MessageRole::User, content: content.into(), tool_call_id: None, tool_calls: None }
     }
 
     pub fn assistant(content: impl Into<MessageContent>) -> Self {
-        Self { role: MessageRole::Assistant, content: content.into() }
+        Self { role: MessageRole::Assistant, content: content.into(), tool_call_id: None, tool_calls: None }
+    }
+
+    /// Create a tool result message
+    pub fn tool_result(tool_call_id: impl Into<String>, content: impl Into<String>) -> Self {
+        Self {
+            role: MessageRole::Tool,
+            content: MessageContent::Text(content.into()),
+            tool_call_id: Some(tool_call_id.into()),
+            tool_calls: None,
+        }
     }
 
     /// Create a user message with a base64 image
@@ -212,6 +229,8 @@ impl Message {
                     data: data.to_string(),
                 },
             ]),
+            tool_call_id: None,
+            tool_calls: None,
         }
     }
 
@@ -223,6 +242,8 @@ impl Message {
                 ContentPart::Text { text: text.to_string() },
                 ContentPart::ImageUrl { url: url.to_string() },
             ]),
+            tool_call_id: None,
+            tool_calls: None,
         }
     }
 
@@ -233,6 +254,8 @@ impl Message {
         Self {
             role: MessageRole::User,
             content: MessageContent::Parts(parts),
+            tool_call_id: None,
+            tool_calls: None,
         }
     }
 
@@ -245,6 +268,8 @@ impl Message {
         Self {
             role: MessageRole::User,
             content: MessageContent::Parts(parts),
+            tool_call_id: None,
+            tool_calls: None,
         }
     }
 }
@@ -260,6 +285,32 @@ pub enum ReasoningEffort {
     Low,
     Medium,
     High,
+}
+
+// ============================================================================
+// Tool Calling Types
+// ============================================================================
+
+/// Tool definition for native LLM function calling
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolDefinition {
+    /// Tool name (must match exactly when LLM calls it)
+    pub name: String,
+    /// Human-readable description
+    pub description: String,
+    /// JSON Schema for tool parameters
+    pub parameters: serde_json::Value,
+}
+
+/// A tool call requested by the LLM
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolCall {
+    /// Unique ID for this tool call (provider-assigned)
+    pub id: String,
+    /// Tool name to invoke
+    pub name: String,
+    /// Arguments as JSON
+    pub arguments: serde_json::Value,
 }
 
 /// Chat request options
@@ -289,6 +340,8 @@ pub struct ChatOptions {
     pub output_schema: Option<serde_json::Value>,
     /// DashScope/Qwen: enable web search before responding
     pub enable_search: bool,
+    /// Tool definitions for native function calling
+    pub tools: Option<Vec<ToolDefinition>>,
 }
 
 impl ChatOptions {
@@ -375,6 +428,9 @@ pub struct ChatResponse {
     pub usage: TokenUsage,
     pub model: String,
     pub raw: serde_json::Value,
+    /// Tool calls requested by the LLM (present when LLM wants to use tools)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<ToolCall>>,
 }
 
 /// Stream response (returned after streaming completes)
@@ -631,6 +687,7 @@ impl ChatRequest {
             thinking_budget: self.thinking_budget,
             output_schema: None,
             enable_search: false,
+            tools: None,
         };
         (self.messages.clone(), options)
     }

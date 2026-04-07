@@ -119,6 +119,7 @@ impl OpenAICompatibleProvider {
             usage,
             model,
             raw: data,
+            tool_calls: None,
         })
     }
 

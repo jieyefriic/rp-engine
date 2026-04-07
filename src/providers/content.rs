@@ -126,11 +126,28 @@ pub fn build_openai_messages(messages: &[Message], system_prompt: Option<&str>) 
             MessageRole::System => "system",
             MessageRole::User => "user",
             MessageRole::Assistant => "assistant",
+            MessageRole::Tool => "tool",
         };
-        result.push(json!({
+        let mut msg_json = json!({
             "role": role,
             "content": format_openai_content(&msg.content)
-        }));
+        });
+        // Tool result messages need tool_call_id
+        if let Some(ref id) = msg.tool_call_id {
+            msg_json["tool_call_id"] = json!(id);
+        }
+        // Assistant messages with tool_calls
+        if let Some(ref calls) = msg.tool_calls {
+            msg_json["tool_calls"] = json!(calls.iter().map(|tc| json!({
+                "id": tc.id,
+                "type": "function",
+                "function": {
+                    "name": tc.name,
+                    "arguments": tc.arguments.to_string(),
+                }
+            })).collect::<Vec<_>>());
+        }
+        result.push(msg_json);
     }
 
     result
@@ -144,6 +161,7 @@ pub fn build_anthropic_messages(messages: &[Message]) -> Vec<Value> {
             let role = match msg.role {
                 MessageRole::User => "user",
                 MessageRole::Assistant => "assistant",
+                MessageRole::Tool => "user", // Anthropic tool results sent as user role with tool_result blocks
                 MessageRole::System => unreachable!(), // filtered out
             };
             json!({
@@ -163,6 +181,7 @@ pub fn build_gemini_contents(messages: &[Message]) -> Vec<Value> {
             let role = match msg.role {
                 MessageRole::User => "user",
                 MessageRole::Assistant => "model", // Gemini uses "model"
+                MessageRole::Tool => "user", // Gemini tool results sent as user role
                 MessageRole::System => unreachable!(),
             };
             json!({
