@@ -81,6 +81,19 @@ pub enum EngineError {
     #[error("Supervisor tool failures exceeded: {count} failures")]
     SupervisorToolFailures { count: u32 },
 
+    // Iterator errors
+    #[error("Iterator input is not an array: {0}")]
+    IteratorInvalidInput(String),
+
+    #[error("Iterator subgraph not found: {0}")]
+    IteratorSubgraphNotFound(String),
+
+    #[error("Iterator exceeded max iterations limit: {0}")]
+    IteratorMaxIterations(u32),
+
+    #[error("Iterator failed at index {index}: {message}")]
+    IteratorItemFailed { index: usize, message: String },
+
     // Data connector errors
     #[error("Data source not found: {0}")]
     DataSourceNotFound(String),
