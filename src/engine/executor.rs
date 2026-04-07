@@ -823,25 +823,120 @@ async fn execute_single_node(
         "Starting node execution"
     );
 
-    // Get read-only snapshot of state for execution
-    let state_snapshot = {
-        let guard = state.read().await;
-        guard.clone()
-    };
+    // Get error handling config
+    let error_handling = node.config.error_handling.clone();
+    let max_retries = error_handling.as_ref().map(|e| e.retry).unwrap_or(0);
+    let retry_delay = error_handling.as_ref().map(|e| e.retry_delay_ms).unwrap_or(1000);
+    let timeout_ms = error_handling.as_ref().and_then(|e| e.timeout_ms);
+    let on_exhausted = error_handling.as_ref()
+        .map(|e| e.on_exhausted.as_str())
+        .unwrap_or("fail");
 
-    // Execute based on node type
-    let outputs = match &node.node_type {
+    let mut last_error: Option<EngineError> = None;
+
+    for attempt in 0..=max_retries {
+        if attempt > 0 {
+            info!(
+                workflow = %workflow_name,
+                node = %node_id,
+                attempt = attempt,
+                max_retries = max_retries,
+                "Retrying node execution"
+            );
+            tokio::time::sleep(tokio::time::Duration::from_millis(retry_delay)).await;
+        }
+
+        // Get read-only snapshot of state for execution
+        let state_snapshot = {
+            let guard = state.read().await;
+            guard.clone()
+        };
+
+        // Execute the node (with optional timeout)
+        let exec_result = execute_node_once(&node, &state_snapshot, &config, workflow_name).await;
+
+        // Apply timeout if configured
+        let exec_result = if let Some(ms) = timeout_ms {
+            match tokio::time::timeout(
+                tokio::time::Duration::from_millis(ms),
+                async { exec_result },
+            ).await {
+                Ok(r) => r,
+                Err(_) => Err(EngineError::NodeExecutionFailed(
+                    format!("Node '{}': execution timed out after {}ms", node_id, ms)
+                )),
+            }
+        } else {
+            exec_result
+        };
+
+        match exec_result {
+            Ok(outputs) => {
+                let timing_ms = node_start.elapsed().as_millis() as u64;
+                debug!(
+                    workflow = %workflow_name,
+                    node = %node_id,
+                    timing_ms = timing_ms,
+                    output_keys = ?outputs.keys().collect::<Vec<_>>(),
+                    "Node execution completed"
+                );
+                return Ok(NodeResult { node_id, outputs, timing_ms });
+            }
+            Err(e) => {
+                warn!(
+                    workflow = %workflow_name,
+                    node = %node_id,
+                    attempt = attempt,
+                    max_retries = max_retries,
+                    error = %e,
+                    "Node execution failed"
+                );
+                last_error = Some(e);
+            }
+        }
+    }
+
+    // All retries exhausted
+    let err = last_error.unwrap();
+    let timing_ms = node_start.elapsed().as_millis() as u64;
+
+    if on_exhausted == "continue" {
+        // Return success with error markers — enables on_error edge routing
+        let mut outputs = HashMap::new();
+        outputs.insert("_error".to_string(), serde_json::Value::Bool(true));
+        outputs.insert("_error_message".to_string(), serde_json::Value::String(err.to_string()));
+        info!(
+            workflow = %workflow_name,
+            node = %node_id,
+            "Node failed after retries, continuing with error outputs (on_exhausted=continue)"
+        );
+        Ok(NodeResult { node_id, outputs, timing_ms })
+    } else {
+        error!(
+            workflow = %workflow_name,
+            node = %node_id,
+            error = %err,
+            "Node failed after all retries (on_exhausted=fail)"
+        );
+        Err(err)
+    }
+}
+
+/// Execute a node once (no retry/timeout logic)
+async fn execute_node_once(
+    node: &YamlNode,
+    state_snapshot: &ExecutionState,
+    config: &Arc<ExecutionConfig>,
+    workflow_name: &str,
+) -> Result<HashMap<String, serde_json::Value>, EngineError> {
+    let node_id = &node.id;
+    let node_type = format!("{:?}", node.node_type);
+
+    match &node.node_type {
         NodeType::Custom(type_name) => {
-            // Look up custom node in registry
             match config.node_registry.get(type_name) {
                 Some(custom_node) => {
-                    debug!(
-                        node = %node_id,
-                        custom_type = %type_name,
-                        "Executing custom node"
-                    );
-                    // Execute custom node directly with NodeConfig
-                    custom_node.execute(&node.config, &state_snapshot, &config).await
+                    custom_node.execute(&node.config, state_snapshot, config).await
                         .map_err(|e| {
                             error!(
                                 workflow = %workflow_name,
@@ -851,25 +946,18 @@ async fn execute_single_node(
                                 "Custom node execution failed"
                             );
                             e
-                        })?
+                        })
                 }
                 None => {
-                    error!(
-                        workflow = %workflow_name,
-                        node = %node_id,
-                        custom_type = %type_name,
-                        "Custom node type not found in registry"
-                    );
-                    return Err(EngineError::NodeExecutionFailed(
+                    Err(EngineError::NodeExecutionFailed(
                         format!("Node '{}': Custom node type '{}' not found in registry", node_id, type_name)
-                    ));
+                    ))
                 }
             }
         }
         _ => {
-            // Use built-in executor for standard node types
             let executor = create_executor(&node.node_type);
-            executor.execute(&node, &state_snapshot, &config).await
+            executor.execute(node, state_snapshot, config).await
                 .map_err(|e| {
                     error!(
                         workflow = %workflow_name,
@@ -879,25 +967,9 @@ async fn execute_single_node(
                         "Built-in node execution failed"
                     );
                     e
-                })?
+                })
         }
-    };
-
-    let timing_ms = node_start.elapsed().as_millis() as u64;
-
-    debug!(
-        workflow = %workflow_name,
-        node = %node_id,
-        timing_ms = timing_ms,
-        output_keys = ?outputs.keys().collect::<Vec<_>>(),
-        "Node execution completed"
-    );
-
-    Ok(NodeResult {
-        node_id,
-        outputs,
-        timing_ms,
-    })
+    }
 }
 
 /// Evaluate outgoing edges and return next nodes to execute
@@ -971,13 +1043,40 @@ fn evaluate_edges(
     // Regular edge evaluation (for non-Supervisor nodes or when no exit edges matched)
     //
     // Edge types and behavior:
-    // 1. is_default: true  → ALWAYS execute (unconditionally)
-    // 2. condition: expr   → Execute if expr evaluates to true
-    // 3. No condition, not default → Execute unconditionally
+    // 1. on_error: true    → Only taken when source node has _error output
+    // 2. is_default: true  → ALWAYS execute (unconditionally), suppressed if on_error active
+    // 3. condition: expr   → Execute if expr evaluates to true
+    // 4. No condition, not default → Execute unconditionally
+
+    // Check if the source node failed (has _error in outputs)
+    let node_has_error = state.get_output(&format!("{}._error", from_node))
+        .map(|v| v == serde_json::Value::Bool(true))
+        .unwrap_or(false);
+
+    // If node has error, check if there are on_error edges
+    let has_on_error_edges = edges.iter().any(|e| e.on_error);
 
     for edge in &edges {
         // Skip exit edges in regular evaluation
         if edge.exit_reason.is_some() {
+            continue;
+        }
+
+        // on_error edge routing
+        if edge.on_error {
+            // Only activate on_error edges when node actually failed
+            if !node_has_error {
+                continue;
+            }
+            // on_error edge is active — take it
+            next.push(edge.to.clone());
+            state.increment_edge_count(&edge.from, &edge.to);
+            continue;
+        }
+
+        // Normal edges: suppress if node failed AND on_error edges exist
+        if node_has_error && has_on_error_edges {
+            state.mark_edge_dead(&edge.from, &edge.to);
             continue;
         }
 
