@@ -484,4 +484,47 @@ pub struct NodeConfig {
     pub on_error: Option<String>,
     /// Max concurrent iterations when parallel=true (default: 5)
     pub max_concurrency: Option<u32>,
+
+    // Error handling (generic, applies to any node)
+    /// Per-node error handling configuration (retry, timeout, fallback)
+    pub error_handling: Option<ErrorHandling>,
+
+    // Tool calling (for generate nodes)
+    /// Maximum rounds of tool calling (default: 10)
+    pub max_tool_rounds: Option<u32>,
 }
+
+/// Per-node error handling configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ErrorHandling {
+    /// Number of retry attempts (0 = no retry)
+    #[serde(default)]
+    pub retry: u32,
+
+    /// Delay between retries in milliseconds (default: 1000)
+    #[serde(default = "default_retry_delay")]
+    pub retry_delay_ms: u64,
+
+    /// Per-node timeout in milliseconds (None = no timeout)
+    pub timeout_ms: Option<u64>,
+
+    /// Behavior when all retries exhausted:
+    /// - "fail" (default): propagate error, terminate workflow
+    /// - "continue": store error in outputs, continue workflow via on_error edges
+    #[serde(default = "default_on_exhausted")]
+    pub on_exhausted: String,
+}
+
+impl Default for ErrorHandling {
+    fn default() -> Self {
+        Self {
+            retry: 0,
+            retry_delay_ms: default_retry_delay(),
+            timeout_ms: None,
+            on_exhausted: default_on_exhausted(),
+        }
+    }
+}
+
+fn default_retry_delay() -> u64 { 1000 }
+fn default_on_exhausted() -> String { "fail".to_string() }

@@ -52,6 +52,12 @@ pub struct YamlEdge {
     /// When set, this edge is taken when Supervisor exits with matching reason
     #[serde(default)]
     pub exit_reason: Option<ExitReason>,
+
+    /// When true, this edge activates only when the source node FAILED
+    /// (after retries exhausted with on_exhausted="continue").
+    /// Normal edges are suppressed when on_error edges are active.
+    #[serde(default)]
+    pub on_error: bool,
 }
 
 impl YamlEdge {
@@ -64,6 +70,7 @@ impl YamlEdge {
             max_iterations: None,
             is_default: false,
             exit_reason: None,
+            on_error: false,
         }
     }
 

@@ -133,6 +133,13 @@ impl<'a> ExecutionGraph<'a> {
                     return false;
                 }
 
+                // on_error edges: only active when source has _error output
+                if edge.on_error {
+                    return state.get_output(&format!("{}._error", edge.from))
+                        .map(|v| v == serde_json::Value::Bool(true))
+                        .unwrap_or(false);
+                }
+
                 // Check edge condition if present
                 if let Some(condition) = &edge.condition {
                     match crate::expression::evaluate_expression(condition, state) {
