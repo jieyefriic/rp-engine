@@ -187,6 +187,9 @@ impl ExecutionState {
     }
 
     /// Write node execution results (append-only, returns short_id)
+    /// Maximum execution records per node (prevents OOM in long loops)
+    const MAX_RECORDS_PER_NODE: usize = 500;
+
     pub fn write(&mut self, node_id: &str, outputs: HashMap<String, Value>) -> String {
         let short_id = self.generate_short_id();
         let execution_index = self.node_executions
@@ -201,10 +204,16 @@ impl ExecutionState {
             timestamp: current_timestamp(),
         };
 
-        self.node_executions
+        let records = self.node_executions
             .entry(node_id.to_string())
-            .or_default()
-            .push(record);
+            .or_default();
+        records.push(record);
+
+        // Prevent unbounded growth: drop oldest records when limit exceeded
+        if records.len() > Self::MAX_RECORDS_PER_NODE {
+            let excess = records.len() - Self::MAX_RECORDS_PER_NODE;
+            records.drain(..excess);
+        }
 
         self.latest_execution.insert(node_id.to_string(), short_id.clone());
         short_id

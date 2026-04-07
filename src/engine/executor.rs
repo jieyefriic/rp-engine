@@ -760,17 +760,20 @@ async fn execute_nodes_parallel(
     use futures::future::join_all;
 
     // Prepare node data for parallel execution
-    let tasks: Vec<_> = node_ids.iter().map(|node_id| {
-        let node_id = node_id.clone();
-        let node = graph.get_node(&node_id).unwrap().clone();
+    let mut tasks = Vec::new();
+    for node_id in node_ids {
+        let node = match graph.get_node(node_id) {
+            Ok(n) => n.clone(),
+            Err(e) => return Err(e),
+        };
         let state = state.clone();
         let config = config.clone();
         let wf_name = workflow_name.to_string();
 
-        async move {
+        tasks.push(async move {
             execute_single_node(node, state, config, &wf_name).await
-        }
-    }).collect();
+        });
+    }
 
     // Execute all in parallel
     let results = join_all(tasks).await;

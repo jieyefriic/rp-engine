@@ -405,6 +405,21 @@ async fn execute_query(
 
     let json_rows = rows_to_json(&rows);
 
+    // Safety limit: prevent OOM from huge result sets
+    const MAX_ROWS: usize = 10_000;
+    if json_rows.len() > MAX_ROWS {
+        tracing::warn!(
+            actual = json_rows.len(),
+            limit = MAX_ROWS,
+            "PostgreSQL query returned too many rows, truncating"
+        );
+    }
+    let json_rows = if json_rows.len() > MAX_ROWS {
+        json_rows[..MAX_ROWS].to_vec()
+    } else {
+        json_rows
+    };
+
     debug!(row_count = json_rows.len(), "PostgreSQL query completed successfully");
 
     let mut outputs = HashMap::new();
