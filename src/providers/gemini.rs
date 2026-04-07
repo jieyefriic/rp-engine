@@ -65,6 +65,13 @@ impl GeminiProvider {
             "maxOutputTokens": max_tokens,
         });
 
+        if let Some(top_p) = options.top_p {
+            generation_config["topP"] = json!(top_p);
+        }
+        if let Some(top_k) = options.top_k {
+            generation_config["topK"] = json!(top_k);
+        }
+
         // Thinking budget support
         // thinkingBudget: 0 = disable thinking, >0 = set budget, null = use model default
         if let Some(budget) = options.thinking_budget {

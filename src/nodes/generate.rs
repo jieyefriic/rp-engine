@@ -209,6 +209,23 @@ impl NodeExecutor for GenerateExecutor {
                 .with_temperature(tpl.config.temperature)
                 .with_max_tokens(tpl.config.max_tokens);
 
+            if let Some(top_p) = tpl.config.top_p {
+                options = options.with_top_p(top_p);
+            }
+            if let Some(top_k) = tpl.config.top_k {
+                options = options.with_top_k(top_k);
+            }
+            if let Some(budget) = tpl.config.thinking_budget {
+                options = options.with_thinking_budget(budget);
+            }
+            if let Some(ref effort) = tpl.config.reasoning_effort {
+                let parsed = match effort.as_str() {
+                    "low" => crate::providers::ReasoningEffort::Low,
+                    "high" => crate::providers::ReasoningEffort::High,
+                    _ => crate::providers::ReasoningEffort::Medium,
+                };
+                options = options.with_reasoning_effort(parsed);
+            }
             if tpl.config.enable_search {
                 options = options.with_enable_search(true);
             }
@@ -428,8 +445,14 @@ fn value_to_string(value: &Value) -> String {
     }
 }
 
-/// Generate example JSON from output schema
+/// Generate example JSON from output schema (supports nested children)
 fn generate_example_json(schema: &[crate::schema::OutputField]) -> String {
+    let obj = build_example_object(schema);
+    serde_json::to_string_pretty(&obj).unwrap_or_default()
+}
+
+/// Recursively build example JSON object from schema fields
+fn build_example_object(schema: &[crate::schema::OutputField]) -> Value {
     let mut obj = serde_json::Map::new();
 
     for field in schema {
@@ -438,8 +461,15 @@ fn generate_example_json(schema: &[crate::schema::OutputField]) -> String {
         }
 
         let example = if let Some(ex) = &field.example {
-            // Try to parse example as JSON, fall back to string
             serde_json::from_str(ex).unwrap_or(Value::String(ex.clone()))
+        } else if !field.children.is_empty() {
+            // Has nested children — build recursively
+            let child_obj = build_example_object(&field.children);
+            if field.field_type.ends_with("[]") {
+                json!([child_obj])
+            } else {
+                child_obj
+            }
         } else {
             get_example_for_type(&field.field_type)
         };
@@ -447,7 +477,7 @@ fn generate_example_json(schema: &[crate::schema::OutputField]) -> String {
         obj.insert(field.name.clone(), example);
     }
 
-    serde_json::to_string_pretty(&obj).unwrap_or_default()
+    Value::Object(obj)
 }
 
 /// Get example value for a field type
