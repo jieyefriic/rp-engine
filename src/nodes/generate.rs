@@ -205,21 +205,54 @@ impl NodeExecutor for GenerateExecutor {
         let mut options = ChatOptions::new()
             .with_model(model_id);
 
-        // Apply template config
-        if let Some(tpl) = template {
-            options = options
-                .with_temperature(tpl.config.temperature)
-                .with_max_tokens(tpl.config.max_tokens);
+        // Apply template config with capability-aware masking
+        let model_caps = config.model_registry.get_capabilities(provider_id, model_id);
+        let sampling_config = config.model_registry.get_sampling(provider_id);
 
+        if let Some(tpl) = template {
+            // Temperature: clamp to model/provider max
+            let max_temp = config.model_registry.max_temperature(provider_id, model_id);
+            let temp = tpl.config.temperature.min(max_temp);
+            options = options.with_temperature(temp);
+            options = options.with_max_tokens(tpl.config.max_tokens);
+
+            // Top P: only if provider supports it
             if let Some(top_p) = tpl.config.top_p {
-                options = options.with_top_p(top_p);
+                let supports = sampling_config.map(|s| s.supports_top_p).unwrap_or(true);
+                if supports {
+                    // Check if both temp and top_p can coexist
+                    let allow_both = sampling_config.map(|s| s.allow_both_temp_and_top_p).unwrap_or(true);
+                    if allow_both || tpl.config.temperature == 0.0 {
+                        options = options.with_top_p(top_p);
+                    } else {
+                        debug!(node = %node_id, "Skipping top_p: provider doesn't allow both temperature and top_p");
+                    }
+                } else {
+                    debug!(node = %node_id, "Skipping top_p: provider doesn't support it");
+                }
             }
+
+            // Top K: only if provider supports it
             if let Some(top_k) = tpl.config.top_k {
-                options = options.with_top_k(top_k);
+                let supports = sampling_config.map(|s| s.supports_top_k).unwrap_or(false);
+                if supports {
+                    options = options.with_top_k(top_k);
+                } else {
+                    debug!(node = %node_id, "Skipping top_k: provider doesn't support it");
+                }
             }
+
+            // Thinking budget: only if model supports thinking
             if let Some(budget) = tpl.config.thinking_budget {
-                options = options.with_thinking_budget(budget);
+                let supports = model_caps.map(|c| c.thinking != "none").unwrap_or(true);
+                if supports {
+                    options = options.with_thinking_budget(budget);
+                } else {
+                    debug!(node = %node_id, "Skipping thinking_budget: model doesn't support thinking");
+                }
             }
+
+            // Reasoning effort
             if let Some(ref effort) = tpl.config.reasoning_effort {
                 let parsed = match effort.as_str() {
                     "low" => crate::providers::ReasoningEffort::Low,
@@ -228,29 +261,72 @@ impl NodeExecutor for GenerateExecutor {
                 };
                 options = options.with_reasoning_effort(parsed);
             }
+
             if tpl.config.enable_search {
                 options = options.with_enable_search(true);
             }
         }
 
-        // Enable JSON mode if we have output schema
-        if output_schema.map(|s| !s.is_empty()).unwrap_or(false) {
-            options = options.with_json_output();
+        // JSON output: only if model supports it, otherwise rely on prompt + robust extraction
+        let has_schema = output_schema.map(|s| !s.is_empty()).unwrap_or(false);
+        if has_schema {
+            let supports_json = model_caps.map(|c| c.json).unwrap_or(true);
+            if supports_json {
+                // Check thinking + JSON compatibility
+                let has_thinking = options.thinking_budget.is_some();
+                if has_thinking {
+                    let compat = model_caps
+                        .map(|c| &c.thinking_json_compat)
+                        .unwrap_or(&crate::providers::model_registry::ThinkingJsonCompat::Full);
+                    match compat {
+                        crate::providers::model_registry::ThinkingJsonCompat::None => {
+                            // Incompatible: prefer JSON, drop thinking
+                            debug!(node = %node_id, "Thinking+JSON incompatible: disabling thinking, keeping JSON");
+                            options.thinking_budget = None;
+                            options = options.with_json_output();
+                        }
+                        _ => {
+                            // Full or Partial: enable both
+                            options = options.with_json_output();
+                        }
+                    }
+                } else {
+                    options = options.with_json_output();
+                }
+            } else {
+                debug!(
+                    node = %node_id,
+                    provider = %provider_id,
+                    model = %model_id,
+                    "Model doesn't support JSON output mode, relying on prompt injection + robust extraction"
+                );
+                // Don't set json_output — prompt already has "Respond in JSON format: {...}"
+            }
         }
 
-        // Build tool definitions for native function calling
+        // Tool definitions: only if model supports function calling
         if !node_config.tools.is_empty() {
-            let tool_defs: Vec<crate::providers::ToolDefinition> = node_config.tools.iter()
-                .map(|t| crate::providers::ToolDefinition {
-                    name: t.name.clone(),
-                    description: t.description.clone().unwrap_or_default(),
-                    parameters: t.parameters.clone().unwrap_or(serde_json::json!({
-                        "type": "object",
-                        "properties": {},
-                    })),
-                })
-                .collect();
-            options = options.with_tools(tool_defs);
+            let supports_fc = model_caps.map(|c| c.function_calling).unwrap_or(true);
+            if supports_fc {
+                let tool_defs: Vec<crate::providers::ToolDefinition> = node_config.tools.iter()
+                    .map(|t| crate::providers::ToolDefinition {
+                        name: t.name.clone(),
+                        description: t.description.clone().unwrap_or_default(),
+                        parameters: t.parameters.clone().unwrap_or(serde_json::json!({
+                            "type": "object",
+                            "properties": {},
+                        })),
+                    })
+                    .collect();
+                options = options.with_tools(tool_defs);
+            } else {
+                warn!(
+                    node = %node_id,
+                    provider = %provider_id,
+                    model = %model_id,
+                    "Model doesn't support function calling, tools will not be available"
+                );
+            }
         }
 
         debug!(
