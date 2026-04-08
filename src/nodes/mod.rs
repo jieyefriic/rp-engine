@@ -85,6 +85,108 @@ fn parse_literal(s: &str) -> Value {
 }
 
 // ============================================================================
+// JSON Extraction Utilities
+// ============================================================================
+
+/// Robust JSON extraction from LLM response text.
+///
+/// Tries multiple strategies in order:
+/// 1. Markdown ` ```json...``` ` fence
+/// 2. Markdown ` ```...``` ` fence (if content looks like JSON)
+/// 3. Brace matching: first `{` to matching `}` (handles nested objects)
+/// 4. Bracket matching: first `[` to matching `]` (handles arrays)
+///
+/// Each extracted candidate is validated with serde_json before returning.
+pub fn extract_json_from_content(content: &str) -> Option<String> {
+    // Strategy 1: ```json...``` fence
+    if let Some(start) = content.find("```json") {
+        let start = start + 7;
+        if let Some(end) = content[start..].find("```") {
+            let extracted = content[start..start + end].trim();
+            if serde_json::from_str::<serde_json::Value>(extracted).is_ok() {
+                return Some(extracted.to_string());
+            }
+        }
+    }
+
+    // Strategy 2: Plain ```...``` fence
+    if let Some(start) = content.find("```") {
+        let start = start + 3;
+        if let Some(end) = content[start..].find("```") {
+            let extracted = content[start..start + end].trim();
+            if extracted.starts_with('{') || extracted.starts_with('[') {
+                if serde_json::from_str::<serde_json::Value>(extracted).is_ok() {
+                    return Some(extracted.to_string());
+                }
+            }
+        }
+    }
+
+    // Strategy 3: Find outermost { ... } with brace matching
+    if let Some(obj_start) = content.find('{') {
+        if let Some(json_str) = extract_balanced(content, obj_start, '{', '}') {
+            if serde_json::from_str::<serde_json::Value>(&json_str).is_ok() {
+                return Some(json_str);
+            }
+        }
+    }
+
+    // Strategy 4: Find outermost [ ... ] for arrays
+    if let Some(arr_start) = content.find('[') {
+        if let Some(json_str) = extract_balanced(content, arr_start, '[', ']') {
+            if serde_json::from_str::<serde_json::Value>(&json_str).is_ok() {
+                return Some(json_str);
+            }
+        }
+    }
+
+    None
+}
+
+/// Extract balanced substring from open_char to matching close_char.
+/// Handles nesting and skips characters inside quoted strings.
+fn extract_balanced(content: &str, start: usize, open: char, close: char) -> Option<String> {
+    let bytes = content.as_bytes();
+    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut escape_next = false;
+    let mut i = start;
+
+    while i < bytes.len() {
+        let ch = bytes[i] as char;
+
+        if escape_next {
+            escape_next = false;
+            i += 1;
+            continue;
+        }
+
+        if ch == '\\' && in_string {
+            escape_next = true;
+            i += 1;
+            continue;
+        }
+
+        if ch == '"' {
+            in_string = !in_string;
+        } else if !in_string {
+            if ch == open {
+                depth += 1;
+            } else if ch == close {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(content[start..=i].to_string());
+                }
+            }
+        }
+
+        i += 1;
+    }
+
+    None
+}
+
+// ============================================================================
 // Image Processing Utilities
 // ============================================================================
 
