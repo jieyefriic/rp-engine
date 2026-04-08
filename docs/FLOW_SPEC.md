@@ -17,10 +17,17 @@ input:                                   # Optional. Input schema
       required: true                     # Default: false
       default: "value"                   # Optional. Used when required=false and not provided
 
+providers:                               # Optional. YAML-level provider API keys
+  provider_id:                           # Overrides Engine-level providers
+    api_key: "${OPENAI_API_KEY}"         # Supports ${ENV_VAR} expansion
+    base_url: "https://custom.endpoint"  # Optional. For proxies or custom endpoints
+    kind: openai_compatible              # Optional. Defaults to provider_id name
+    default_model: "my-model"            # Optional. For openai_compatible
+
 data_sources:                            # Optional. Workflow-level data source definitions
   source_id:                             # These override Engine-level sources with the same ID
     name: "Human Name"
-    kind: postgresql                     # postgresql | redis | qdrant | s3 | rest_api | graphql
+    kind: postgresql                     # postgresql | mysql | mongodb | redis | qdrant | s3 | minio | rest_api | graphql
     description: "Optional"
     config:
       url: "${DATABASE_URL}"             # Kind-specific connection config
@@ -41,7 +48,7 @@ templates:                               # Optional. Inline prompt templates
     config: { ... }
     output_schema: [...]
 
-subgraphs:                               # Optional. For supervisor nodes
+subgraphs:                               # Optional. For supervisor, iterator, and generate tool calling
   subgraph_id:
     nodes: [...]
     edges: [...]
@@ -230,6 +237,75 @@ Each entry is a variable binding that resolves to a string in one of three forma
 The engine validates at build time that the selected provider/model supports vision.
 Gemini does not support HTTP image URLs (only GCS URIs); URL images will be skipped with a warning.
 
+**Native Tool Calling**: Generate nodes can use LLM function calling to invoke tools backed by subgraphs.
+The LLM decides when to call tools; results are fed back in a multi-round loop.
+
+```yaml
+- id: agent
+  type: generate
+  config:
+    provider: openai
+    model: gpt-4o
+    template: agent_prompt
+    variables:
+      user_input: start.query
+    tools:                               # Optional. Native function calling
+      - name: search_web
+        description: "Search the web for information"
+        ref: sg_search                   # Subgraph reference (see Subgraphs section)
+        parameters:                      # JSON Schema for tool arguments
+          type: object
+          properties:
+            query: { type: string, description: "Search query" }
+          required: ["query"]
+      - name: calculate
+        description: "Evaluate a math expression"
+        ref: sg_calc
+    max_tool_rounds: 5                   # Safety limit (default: 10)
+```
+
+**Execution flow**: LLM call → if LLM returns tool_calls → execute each tool's subgraph →
+send results back to LLM → repeat until LLM gives final text response or max_tool_rounds reached.
+
+Streaming is automatically disabled when tools are configured (multi-round requires complete responses).
+
+If a model doesn't support native function calling (`functionCalling: false` in model registry),
+the `tools` field is silently ignored.
+
+**Error Handling**: Any node can configure retry, timeout, and failure behavior.
+
+```yaml
+- id: risky_call
+  type: generate
+  config:
+    provider: openai
+    model: gpt-4o
+    template: my_prompt
+    error_handling:                       # Optional. Applies to ANY node type
+      retry: 3                           # Number of retry attempts (default: 0)
+      retry_delay_ms: 2000               # Delay between retries in ms (default: 1000)
+      timeout_ms: 30000                  # Per-node execution timeout in ms
+      on_exhausted: continue             # "fail" (default) | "continue"
+```
+
+When `on_exhausted: continue`, the node's outputs contain `_error: true` and `_error_message: "..."`.
+Use `on_error: true` edges (see Edges section) to route to fallback nodes.
+
+**Capability Masking**: The engine automatically masks ChatOptions parameters based on model capabilities
+from `providers.json`:
+
+| Parameter | Masked when |
+|---|---|
+| `json_output` | model.json = false → removed, relies on prompt injection + robust extraction |
+| `top_p` | provider.sampling.supportsTopP = false → removed |
+| `top_k` | provider.sampling.supportsTopK = false → removed |
+| `temperature` | Clamped to model/provider maxTemperature |
+| `thinking_budget` | model.thinking = "none" → removed |
+| `thinking + json` | model.thinkingJsonCompat = None → thinking removed, JSON kept |
+| `tools` | model.functionCalling = false → removed |
+
+This ensures workflows are portable across providers without manual parameter tuning.
+
 ---
 
 ### `data_connector` — Data Source Operations
@@ -294,6 +370,117 @@ operation:
 ```
 
 **Output**: `{node_id}.rows` (array), `{node_id}.count` (number), plus first row fields flattened to top level.
+
+**Note**: PostgreSQL DECIMAL/NUMERIC columns require explicit casting in parameterized queries:
+`price::float8 >= {min_price}` (because the engine binds params as INT8 or FLOAT8, not NUMERIC natively).
+
+#### MySQL / MariaDB Operations
+
+**kind**: `mysql` or `mariadb`
+
+```yaml
+data_sources:
+  my_mysql:
+    name: "My MySQL"
+    kind: mysql
+    config:
+      host: "localhost"
+      port: 3306
+      username: "user"
+      password: "${MYSQL_PASSWORD}"
+      database: "mydb"
+```
+
+Supports the same operations as PostgreSQL: `query`, `select`, `insert`, `update`, `delete`.
+
+MySQL differences from PostgreSQL:
+- **No RETURNING clause**: `insert` returns `last_insert_id` and `count` instead. If `returning` is specified, a follow-up SELECT is executed automatically.
+- **Backtick quoting**: Column and table names use `` ` `` instead of `"`.
+- **Same {paramName} binding** syntax for parameterized queries.
+
+#### MongoDB Operations
+
+**kind**: `mongodb` or `mongo`
+
+```yaml
+data_sources:
+  my_mongo:
+    name: "Analytics DB"
+    kind: mongodb
+    config:
+      url: "mongodb://host:27017"
+      database: "mydb"
+```
+
+**Operations:**
+
+```yaml
+# find — query multiple documents
+operation:
+  operation: find
+  collection: "users"
+  filter: { status: "active", age: { "$gte": 18 } }  # MongoDB query syntax
+  sort: { created_at: -1 }
+  limit: 100
+  skip: 0
+  projection: { name: 1, email: 1 }
+
+# find_one — single document
+operation:
+  operation: find_one
+  collection: "users"
+  filter: { _id: "{user_id}" }
+
+# insert_one
+operation:
+  operation: insert_one
+  collection: "logs"
+  data: { message: "{log_msg}", level: "info", timestamp: "{ts}" }
+
+# insert_many
+operation:
+  operation: insert_many
+  collection: "events"
+  data:
+    - { type: "click", target: "button_a" }
+    - { type: "view", target: "page_b" }
+
+# update_one
+operation:
+  operation: update_one
+  collection: "users"
+  filter: { _id: "{user_id}" }
+  update: { status: "premium", tier: 2 }        # Auto-wrapped in $set if no $ operators
+
+# update_many — same as update_one but affects all matching docs
+
+# delete_one / delete_many
+operation:
+  operation: delete_one
+  collection: "logs"
+  filter: { source: "rp-engine-test" }
+
+# aggregate — pipeline
+operation:
+  operation: aggregate
+  collection: "orders"
+  pipeline:
+    - { "$match": { status: "completed" } }
+    - { "$group": { _id: "$category", total: { "$sum": "$amount" } } }
+    - { "$sort": { total: -1 } }
+
+# count
+operation:
+  operation: count
+  collection: "users"
+  filter: { status: "active" }
+```
+
+**Output**: `find`/`aggregate` return `{node_id}.rows` (array) and `{node_id}.count`.
+`find_one` returns `{node_id}.document` and `{node_id}.exists` (boolean).
+`insert_one` returns `{node_id}.inserted_id`. `update_one` returns `{node_id}.matched_count` and `{node_id}.modified_count`.
+
+**Variable resolution**: All string values in `filter`, `data`, `update`, and `pipeline` support `{paramName}` references that resolve from the node's `variables` map.
 
 #### Redis Operations
 
@@ -895,6 +1082,70 @@ edges:
 
 ---
 
+### `iterator` — Batch Array Processing
+
+Processes an array by running a subgraph for each element. Supports parallel execution with concurrency control.
+
+```yaml
+- id: batch_summarize
+  type: iterator
+  config:
+    items: "upstream.documents"          # Required. Variable binding → must resolve to array
+    item_var: "item"                     # Variable name injected per iteration (default: "item")
+    index_var: "index"                   # Optional. 0-based index variable
+    subgraph: process_one                # Required. Subgraph ID from subgraphs section
+    parallel: true                       # Execute iterations concurrently (default: false)
+    max_concurrency: 5                   # Max parallel iterations (default: 5)
+    max_iterations: 1000                 # Safety limit on array length (default: 1000)
+    on_error: collect                    # "fail_fast" (default) | "collect"
+    variables:                           # Optional. Shared variables available to all iterations
+      context: "start.context"
+```
+
+**Subgraph input**: Each iteration creates an isolated `ExecutionState` with:
+- `input.{item_var}` → current array element
+- `input.{index_var}` → current 0-based index (if configured)
+- `input.{shared_var}` → all shared variables
+
+**Output fields:**
+- `{node_id}.results` — Array of subgraph outputs (same order as input)
+- `{node_id}.count` — Total items processed
+- `{node_id}.success_count` — Successful iterations
+- `{node_id}.error_count` — Failed iterations
+- `{node_id}.errors` — Array of `{index, error}` (only in collect mode)
+- `{node_id}._usage` — Aggregated token usage across all iterations
+
+**Error modes:**
+- `fail_fast`: Stop on first iteration error, return `IteratorItemFailed` error
+- `collect`: Continue all iterations, collect errors in `errors` array. Failed items appear as `{"_error": "..."}` in results.
+
+**Example subgraph:**
+
+```yaml
+subgraphs:
+  process_one:
+    nodes:
+      - id: gen
+        type: generate
+        config:
+          provider: qwen
+          model: qwen-plus
+          template: summarize_tpl
+          variables:
+            doc: "input.item"
+            idx: "input.index"
+      - id: result
+        type: response
+        config:
+          output:
+            summary: "gen.summary"
+    edges:
+      - from: gen
+        to: result
+```
+
+---
+
 ### Custom Nodes
 
 Any `type` not matching the built-in types is treated as a custom node.
@@ -941,6 +1192,48 @@ edges:
   - from: agent
     to: handler
     exit_reason: todo_empty
+
+  # Error edge (taken when source node fails with on_exhausted: continue)
+  - from: risky_api
+    to: fallback_handler
+    on_error: true                       # Only activates when source has _error output
+```
+
+**Error routing**: When a node has `error_handling.on_exhausted: continue` and all retries fail,
+the node produces `_error: true` and `_error_message: "..."` in its outputs.
+- `on_error: true` edges activate only when the source node failed
+- Normal edges from the same source are **suppressed** when `on_error` edges are active
+- This enables fallback patterns without workflow termination
+
+```yaml
+# Example: risky call with fallback
+nodes:
+  - id: primary
+    type: generate
+    config:
+      provider: openai
+      model: gpt-4o
+      template: my_prompt
+      error_handling:
+        retry: 2
+        timeout_ms: 15000
+        on_exhausted: continue
+
+  - id: fallback
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-plus
+      template: fallback_prompt
+      variables:
+        error_info: "primary._error_message"
+
+edges:
+  - from: primary
+    to: success_path          # taken when primary succeeds
+  - from: primary
+    to: fallback              # taken when primary fails after retries
+    on_error: true
 ```
 
 ### Condition Expression Language
@@ -1003,16 +1296,49 @@ templates:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `temperature` | float | 0.7 | Sampling temperature (0.0 - 2.0) |
+| `temperature` | float | 0.7 | Sampling temperature (clamped to provider/model max) |
 | `max_tokens` | int | 2048 | Maximum tokens to generate |
-| `top_p` | float | null | Top-p nucleus sampling |
-| `top_k` | int | null | Top-k sampling |
-| `thinking_budget` | int | null | Extended thinking token budget |
-| `enable_search` | bool | false | Enable web search (provider-dependent) |
+| `top_p` | float | null | Top-p nucleus sampling (masked if provider doesn't support) |
+| `top_k` | int | null | Top-k sampling (masked if provider doesn't support) |
+| `thinking_budget` | int | null | Extended thinking token budget (masked if model.thinking = "none") |
+| `reasoning_effort` | string | null | OpenAI o-series reasoning: "low", "medium", "high" |
+| `enable_search` | bool | false | Enable web search (Qwen/DashScope only) |
+
+All sampling parameters are subject to **capability masking** — the engine automatically removes
+parameters that the selected provider/model doesn't support. See the Capability Masking table
+in the `generate` node section.
 
 ### Output Schema Types
 
 `string`, `number`, `boolean`, `string[]`, `number[]`, `object`, `object[]`
+
+**Nested schemas** using `children`:
+
+```yaml
+output_schema:
+  - name: analysis
+    type: object
+    children:
+      - name: summary
+        type: string
+      - name: keywords
+        type: string[]
+      - name: metrics
+        type: object
+        children:
+          - name: score
+            type: number
+          - name: confidence
+            type: number
+```
+
+The engine generates example JSON recursively from nested schemas and appends it to the prompt.
+
+**JSON extraction**: When `output_schema` is present, the engine:
+1. Sends `response_format: json_object` to the provider (if model supports it)
+2. Appends "Respond in JSON format: {example}" to the user prompt
+3. Parses the response with robust extraction (handles markdown fences, prose wrapping, brace matching)
+4. Maps schema fields to node outputs with type-appropriate defaults for missing fields
 
 Templates can also be loaded from external files via `Engine::builder().prompts_dir("./prompts")`.
 File-based templates are referenced by filename (without extension).
@@ -1021,7 +1347,7 @@ File-based templates are referenced by filename (without extension).
 
 ## Subgraphs
 
-Subgraphs are mini-workflows used as tools by supervisor nodes.
+Subgraphs are mini-workflows used as tools by supervisor, iterator, and generate (tool calling) nodes.
 
 ```yaml
 subgraphs:
