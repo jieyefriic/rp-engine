@@ -106,17 +106,19 @@ impl ToSql for SqlParam {
         match self {
             SqlParam::String(s) => s.to_sql(ty, out),
             SqlParam::Int(i) => {
-                // Auto-downcast to narrower integer types based on target column
                 match *ty {
                     PgType::INT2 => (*i as i16).to_sql(ty, out),
                     PgType::INT4 => (*i as i32).to_sql(ty, out),
+                    PgType::FLOAT4 => (*i as f32).to_sql(ty, out),
+                    PgType::FLOAT8 => (*i as f64).to_sql(ty, out),
                     _ => i.to_sql(ty, out),
                 }
             }
             SqlParam::Float(f) => {
-                // Auto-downcast to FLOAT4 if target column is REAL
                 match *ty {
                     PgType::FLOAT4 => (*f as f32).to_sql(ty, out),
+                    PgType::INT4 => (*f as i32).to_sql(ty, out),
+                    PgType::INT8 => (*f as i64).to_sql(ty, out),
                     _ => f.to_sql(ty, out),
                 }
             }
@@ -786,6 +788,27 @@ fn row_value_to_json(row: &Row, idx: usize, pg_type: &tokio_postgres::types::Typ
             .and_then(|v| serde_json::Number::from_f64(v))
             .map(Value::Number)
             .unwrap_or(Value::Null),
+        Type::NUMERIC => {
+            // NUMERIC/DECIMAL → read raw bytes and convert to string, then parse
+            // tokio-postgres doesn't support NUMERIC→f64 natively without rust_decimal
+            // Fallback: read the raw text representation via the text output format
+            match row.try_get::<_, Option<f64>>(idx) {
+                Ok(Some(f)) => serde_json::Number::from_f64(f)
+                    .map(Value::Number)
+                    .unwrap_or(Value::Null),
+                Ok(None) => Value::Null,
+                Err(_) => {
+                    // If f64 fails, try string representation
+                    row.try_get::<_, Option<String>>(idx)
+                        .ok()
+                        .flatten()
+                        .and_then(|s| s.parse::<f64>().ok())
+                        .and_then(|f| serde_json::Number::from_f64(f))
+                        .map(Value::Number)
+                        .unwrap_or(Value::Null)
+                }
+            }
+        }
         Type::JSON | Type::JSONB => row.get::<_, Option<Value>>(idx)
             .unwrap_or(Value::Null),
         Type::UUID => row.get::<_, Option<uuid::Uuid>>(idx)
