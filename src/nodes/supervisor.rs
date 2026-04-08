@@ -520,8 +520,8 @@ fn parse_planner_response(content: &str) -> Result<Vec<TodoItem>, EngineError> {
     // Try to parse as JSON
     let parsed: Value = serde_json::from_str(content)
         .or_else(|_| {
-            // Try to extract JSON from markdown code block
-            extract_json_from_markdown(content)
+            // Try robust JSON extraction (markdown, prose wrapping, brace matching)
+            crate::nodes::extract_json_from_content(content)
                 .and_then(|json| serde_json::from_str(&json).ok())
                 .ok_or(EngineError::SupervisorPlannerFailed)
         })?;
@@ -549,27 +549,7 @@ fn parse_planner_response(content: &str) -> Result<Vec<TodoItem>, EngineError> {
     Ok(result)
 }
 
-/// Extract JSON from markdown code block
-fn extract_json_from_markdown(content: &str) -> Option<String> {
-    // Try to find ```json ... ``` block
-    if let Some(start) = content.find("```json") {
-        let start = start + 7;
-        if let Some(end) = content[start..].find("```") {
-            return Some(content[start..start + end].trim().to_string());
-        }
-    }
-    // Try plain ``` block
-    if let Some(start) = content.find("```") {
-        let start = start + 3;
-        if let Some(end) = content[start..].find("```") {
-            let json = content[start..start + end].trim();
-            if json.starts_with('{') || json.starts_with('[') {
-                return Some(json.to_string());
-            }
-        }
-    }
-    None
-}
+
 
 /// Execute ready todos with retry logic
 async fn execute_ready_todos<'a>(
@@ -781,14 +761,20 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_json_from_markdown() {
+    fn test_extract_json_from_content() {
+        // Markdown fence
         let content = r#"Here is the plan:
 ```json
 {"todos": []}
 ```
 "#;
-        let json = extract_json_from_markdown(content).unwrap();
+        let json = crate::nodes::extract_json_from_content(content).unwrap();
         assert!(json.contains("todos"));
+
+        // Prose wrapping
+        let content2 = r#"Sure! Here's the result: {"answer": 42} Hope this helps!"#;
+        let json2 = crate::nodes::extract_json_from_content(content2).unwrap();
+        assert!(json2.contains("answer"));
     }
 
     #[test]
@@ -798,6 +784,7 @@ mod tests {
                 name: "search".to_string(),
                 description: Some("Search the web".to_string()),
                 subgraph_ref: "sg1".to_string(),
+                parameters: None,
             },
         ];
         let desc = build_tools_description(&tools);

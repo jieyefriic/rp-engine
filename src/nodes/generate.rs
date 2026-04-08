@@ -406,11 +406,11 @@ impl NodeExecutor for GenerateExecutor {
         // Try to parse JSON if we have a schema
         if let Some(schema) = output_schema {
             if !schema.is_empty() {
-                // Try direct JSON parse first, then try extracting from markdown fences
+                // Try direct JSON parse first, then robust extraction
                 let parsed = serde_json::from_str::<Value>(&content)
                     .or_else(|_| {
-                        // LLMs often wrap JSON in ```json...``` markdown fences
-                        if let Some(json_str) = extract_json_from_markdown(&content) {
+                        // LLM may wrap JSON in markdown, prose, or trailing text
+                        if let Some(json_str) = super::extract_json_from_content(&content) {
                             serde_json::from_str::<Value>(&json_str)
                         } else {
                             serde_json::from_str::<Value>("")  // force Err
@@ -518,28 +518,6 @@ fn render_template(template: &str, variables: &HashMap<String, Value>) -> String
     }
 }
 
-/// Extract JSON content from markdown code fences (```json...``` or ```...```)
-fn extract_json_from_markdown(content: &str) -> Option<String> {
-    // Try ```json block first
-    if let Some(start) = content.find("```json") {
-        let start = start + 7; // len of "```json"
-        if let Some(end) = content[start..].find("```") {
-            return Some(content[start..start + end].trim().to_string());
-        }
-    }
-    // Try plain ``` block
-    if let Some(start) = content.find("```") {
-        let start = start + 3;
-        if let Some(end) = content[start..].find("```") {
-            let json = content[start..start + end].trim();
-            if json.starts_with('{') || json.starts_with('[') {
-                return Some(json.to_string());
-            }
-        }
-    }
-    None
-}
-
 /// Convert a Value to string for template substitution
 fn value_to_string(value: &Value) -> String {
     match value {
@@ -637,12 +615,14 @@ mod tests {
                 field_type: "string".to_string(),
                 description: None,
                 example: None,
+                children: Vec::new(),
             },
             OutputField {
                 name: "confidence".to_string(),
                 field_type: "number".to_string(),
                 description: None,
                 example: Some("0.95".to_string()),
+                children: Vec::new(),
             },
         ];
 
