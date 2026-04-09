@@ -52,7 +52,46 @@ subgraphs:                               # Optional. For supervisor, iterator, a
   subgraph_id:
     nodes: [...]
     edges: [...]
+
+harness:                                 # Optional. Workflow-level instructions for all generate nodes
+  instructions: "..."                    # Inline instruction text
+  files: ["rules/project.md"]           # External .md file paths
+  memory_file: "harness_memory.json"    # Optional. Persistent memory (read at start, updated after execution)
 ```
+
+### Harness Instructions
+
+Harness provides workflow-level instructions that are injected into **every generate node's system_prompt**, before the template's own system_prompt. This is similar to Claude Code's `CLAUDE.md` — always-present project rules.
+
+```yaml
+harness:
+  instructions: |
+    You are a professional data analysis assistant.
+    Rules:
+    1. Always respond in Chinese
+    2. Use precise technical terminology
+    3. Include data sources in your analysis
+  files:
+    - "rules/output_format.md"
+    - "rules/company_style.md"
+  memory_file: "harness_memory.json"
+```
+
+**Behavior:**
+- `instructions`: Inline text, injected as-is
+- `files`: External file paths, contents read and concatenated (separated by `---`)
+- `memory_file`: JSON file read at workflow start, appended to instructions as `## Memory` section. Updated after execution with result summary.
+
+**System prompt composition order (highest priority first):**
+```
+harness instructions
+---
+skill metadata (future)
+---
+template system_prompt
+```
+
+If no template has a system_prompt, harness instructions become the sole system_prompt. If no harness is defined, behavior is identical to before (backward compatible).
 
 ---
 

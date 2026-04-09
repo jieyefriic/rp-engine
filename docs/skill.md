@@ -15,6 +15,7 @@ rp-engine is a YAML-native agent workflow engine written in Rust. You define wor
 | **Subgraph** | A mini-workflow (nodes + edges) used as a tool by `supervisor` and `iterator` nodes |
 | **Data source** | A connection config for external data (PostgreSQL, Redis, S3, REST API, etc.) |
 | **Provider** | An LLM provider (qwen, openai, anthropic, gemini, deepseek, xai, zhipu, moonshot, minimax, huoshan, openai_compatible) |
+| **Harness** | Workflow-level instructions injected into every generate node's system_prompt (like CLAUDE.md). Supports inline text, external files, and persistent memory. |
 
 ### State Model
 
@@ -2964,6 +2965,55 @@ providers:
 **Priority:** Workflow-level providers override Engine-level providers with the same ID.
 
 **BYOK vs hosted mode:** When the Engine is built without any providers and the workflow declares its own, the workflow is fully self-contained (BYOK -- Bring Your Own Key). When both Engine-level and workflow-level providers exist, workflow providers take precedence.
+
+---
+
+## Harness Instructions
+
+Harness provides **workflow-level instructions** that are injected into every `generate` node's `system_prompt`, before the template's own system prompt. Think of it as the project's "CLAUDE.md" — always-present rules that every LLM call must follow.
+
+```yaml
+harness:
+  instructions: |
+    你是专业的数据分析助手。
+    规则：
+    1. 始终用中文回复
+    2. 翻译要自然流畅
+  files:
+    - "rules/output_format.md"
+    - "rules/safety_rules.md"
+  memory_file: "harness_memory.json"
+```
+
+**Fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `instructions` | No | Inline instruction text |
+| `files` | No | List of external file paths to read and inject |
+| `memory_file` | No | Path to a persistent JSON memory file. Read at start, updated after execution. |
+
+**How it works:**
+1. At workflow start, the engine reads `instructions` + all `files` + `memory_file` content
+2. Concatenates them with `---` separators
+3. For every `generate` node, prepends this text before the template's `system_prompt`
+
+**System prompt composition order:**
+```
+[harness instructions]    ← highest priority, always first
+---
+[skill metadata]          ← future: available skills list
+---
+[template system_prompt]  ← from the template
+```
+
+**Use cases:**
+- Project-wide coding standards
+- Output format requirements
+- Safety rules and guardrails
+- Persistent agent memory (via `memory_file`)
+
+**Backward compatibility:** Workflows without `harness:` work identically to before.
 
 ---
 
