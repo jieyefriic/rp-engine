@@ -226,6 +226,15 @@ pub struct ExecutionConfig {
 
     /// Optional stream handler for generate nodes with stream: true
     pub stream_handler: Option<Arc<dyn super::StreamHandler>>,
+
+    // ── Harness (workflow-level) ──────────────────────────────────────
+
+    /// Resolved harness instructions text (concatenated from inline + files + memory).
+    /// Pre-resolved during execute_workflow setup, so generate nodes just read it.
+    pub harness_instructions: Option<String>,
+
+    /// Harness memory file path (for post-execution update)
+    pub harness_memory_file: Option<String>,
 }
 
 impl Default for ExecutionConfig {
@@ -247,6 +256,8 @@ impl Default for ExecutionConfig {
             model_registry: Arc::new(ModelRegistry::from_embedded()),
             transforms: HashMap::new(),
             stream_handler: None,
+            harness_instructions: None,
+            harness_memory_file: None,
         }
     }
 }
@@ -344,6 +355,18 @@ impl ExecutionConfig {
     /// Set model capability registry
     pub fn with_model_registry(mut self, registry: Arc<ModelRegistry>) -> Self {
         self.model_registry = registry;
+        self
+    }
+
+    /// Set harness instructions (pre-resolved text)
+    pub fn with_harness_instructions(mut self, instructions: String) -> Self {
+        self.harness_instructions = Some(instructions);
+        self
+    }
+
+    /// Set harness memory file path
+    pub fn with_harness_memory_file(mut self, path: String) -> Self {
+        self.harness_memory_file = Some(path);
         self
     }
 }
@@ -458,6 +481,38 @@ pub async fn execute_workflow(
     // Merge workflow data sources into config
     for (id, data_source) in &workflow.data_sources {
         config.data_sources.insert(id.clone(), data_source.clone());
+    }
+
+    // Resolve harness instructions (inline text + external files + memory)
+    if let Some(ref harness) = workflow.harness {
+        let mut parts: Vec<String> = Vec::new();
+
+        // 1. Inline instructions
+        if let Some(ref text) = harness.instructions {
+            parts.push(text.clone());
+        }
+
+        // 2. External files
+        for file_path in &harness.files {
+            match std::fs::read_to_string(file_path) {
+                Ok(content) => parts.push(content),
+                Err(e) => tracing::warn!(file = %file_path, error = %e, "Failed to read harness instruction file"),
+            }
+        }
+
+        // 3. Memory file content (if exists)
+        if let Some(ref memory_path) = harness.memory_file {
+            if let Ok(content) = std::fs::read_to_string(memory_path) {
+                if !content.trim().is_empty() {
+                    parts.push(format!("## Memory\n{}", content));
+                }
+            }
+            config.harness_memory_file = Some(memory_path.clone());
+        }
+
+        if !parts.is_empty() {
+            config.harness_instructions = Some(parts.join("\n\n---\n\n"));
+        }
     }
 
     // Wrap config in Arc for sharing across tasks

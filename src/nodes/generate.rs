@@ -139,8 +139,16 @@ impl NodeExecutor for GenerateExecutor {
         // Build prompt
         let (user_prompt, system_prompt, output_schema) = if let Some(tpl) = template {
             let user = render_template(&tpl.user_prompt, &variables);
-            let system = tpl.system_prompt.as_ref()
+            let template_system = tpl.system_prompt.as_ref()
                 .map(|s| render_template(s, &variables));
+
+            // Compose system_prompt: harness instructions + template system_prompt
+            let system = compose_system_prompt(
+                config.harness_instructions.as_deref(),
+                None, // Reserved for skill metadata (Phase 2)
+                template_system.as_deref(),
+            );
+
             (user, system, Some(&tpl.output_schema))
         } else {
             // No template - use variables as prompt
@@ -148,7 +156,13 @@ impl NodeExecutor for GenerateExecutor {
                 .map(|(k, v)| format!("{}: {}", k, value_to_string(v)))
                 .collect::<Vec<_>>()
                 .join("\n");
-            (if prompt.is_empty() { "Hello".into() } else { prompt }, None, None)
+            // Still inject harness even without template
+            let system = compose_system_prompt(
+                config.harness_instructions.as_deref(),
+                None,
+                None,
+            );
+            (if prompt.is_empty() { "Hello".into() } else { prompt }, system, None)
         };
 
         // Build final prompt (append JSON schema if defined)
@@ -569,6 +583,24 @@ impl NodeExecutor for GenerateExecutor {
 }
 
 /// Render a template using Handlebars (supports {{#if}}, {{#each}}, etc.)
+/// Compose the final system_prompt from multiple layers:
+/// harness instructions (highest priority) → skill metadata → template system_prompt
+fn compose_system_prompt(
+    harness: Option<&str>,
+    skills: Option<&str>,
+    template: Option<&str>,
+) -> Option<String> {
+    let parts: Vec<&str> = [harness, skills, template]
+        .iter()
+        .filter_map(|p| *p)
+        .collect();
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join("\n\n---\n\n"))
+    }
+}
+
 fn render_template(template: &str, variables: &HashMap<String, Value>) -> String {
     let reg = Handlebars::new();
 

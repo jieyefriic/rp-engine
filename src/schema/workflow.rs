@@ -214,6 +214,27 @@ pub struct PreparedWorkflow {
     /// Maps subgraph_id -> Subgraph definition
     #[serde(default)]
     pub subgraphs: HashMap<String, Subgraph>,
+
+    /// Harness configuration (workflow-level instructions for all generate nodes)
+    #[serde(default)]
+    pub harness: Option<HarnessConfig>,
+}
+
+/// Harness configuration — workflow-level instructions injected into every generate node's system_prompt.
+/// Similar to Claude Code's CLAUDE.md: always-present project rules + optional persistent memory.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct HarnessConfig {
+    /// Inline instruction text (injected before template system_prompt)
+    #[serde(default)]
+    pub instructions: Option<String>,
+
+    /// External instruction file paths (contents read and concatenated)
+    #[serde(default)]
+    pub files: Vec<String>,
+
+    /// Path to persistent memory file (JSON). Read at start, updated after execution.
+    #[serde(default)]
+    pub memory_file: Option<String>,
 }
 
 fn default_version() -> String {
