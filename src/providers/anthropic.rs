@@ -154,6 +154,20 @@ impl AnthropicProvider {
             });
         }
 
+        // Tool definitions (function calling)
+        if let Some(ref tools) = options.tools {
+            if !tools.is_empty() {
+                let tool_defs: Vec<Value> = tools.iter().map(|t| {
+                    json!({
+                        "name": t.name,
+                        "description": &t.description,
+                        "input_schema": t.parameters.clone(),
+                    })
+                }).collect();
+                body["tools"] = json!(tool_defs);
+            }
+        }
+
         if stream {
             body["stream"] = json!(true);
         }
@@ -200,13 +214,28 @@ impl AnthropicProvider {
             TokenUsage::default()
         };
 
+        // Parse tool_use blocks from content
+        let tool_calls = content_blocks
+            .map(|blocks| {
+                blocks.iter()
+                    .filter(|block| block["type"] == "tool_use")
+                    .filter_map(|block| {
+                        let id = block["id"].as_str()?.to_string();
+                        let name = block["name"].as_str()?.to_string();
+                        let arguments = block["input"].clone();
+                        Some(crate::providers::ToolCall { id, name, arguments })
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .filter(|v: &Vec<crate::providers::ToolCall>| !v.is_empty());
+
         Ok(ChatResponse {
             content,
             thinking: None,
             usage,
             model,
             raw: data,
-            tool_calls: None,
+            tool_calls,
         })
     }
 

@@ -135,7 +135,18 @@ impl OpenAICompatibleProvider {
                     let id = tc["id"].as_str()?.to_string();
                     let name = tc["function"]["name"].as_str()?.to_string();
                     let args_str = tc["function"]["arguments"].as_str().unwrap_or("{}");
-                    let arguments = serde_json::from_str(args_str).unwrap_or(json!({}));
+                    let arguments = match serde_json::from_str(args_str) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            tracing::warn!(
+                                tool = %name,
+                                error = %e,
+                                raw_args = %args_str,
+                                "Failed to parse tool call arguments, using empty object"
+                            );
+                            json!({})
+                        }
+                    };
                     Some(ToolCall { id, name, arguments })
                 }).collect::<Vec<_>>()
             })
