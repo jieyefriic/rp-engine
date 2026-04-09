@@ -158,16 +158,61 @@ pub fn build_anthropic_messages(messages: &[Message]) -> Vec<Value> {
     messages.iter()
         .filter(|msg| msg.role != MessageRole::System)
         .map(|msg| {
-            let role = match msg.role {
-                MessageRole::User => "user",
-                MessageRole::Assistant => "assistant",
-                MessageRole::Tool => "user", // Anthropic tool results sent as user role with tool_result blocks
-                MessageRole::System => unreachable!(), // filtered out
-            };
-            json!({
-                "role": role,
-                "content": format_anthropic_content(&msg.content)
-            })
+            match msg.role {
+                MessageRole::Tool => {
+                    // Anthropic tool results: role=user, content=[{type: tool_result, ...}]
+                    json!({
+                        "role": "user",
+                        "content": [{
+                            "type": "tool_result",
+                            "tool_use_id": msg.tool_call_id.as_deref().unwrap_or(""),
+                            "content": match &msg.content {
+                                MessageContent::Text(text) => text.clone(),
+                                MessageContent::Parts(_) => "".to_string(),
+                            }
+                        }]
+                    })
+                }
+                MessageRole::Assistant if msg.tool_calls.is_some() => {
+                    // Assistant message with tool_use blocks
+                    let mut content_blocks: Vec<Value> = Vec::new();
+                    // Add text block if there's content
+                    let text = match &msg.content {
+                        MessageContent::Text(t) => t.clone(),
+                        _ => String::new(),
+                    };
+                    if !text.is_empty() {
+                        content_blocks.push(json!({"type": "text", "text": text}));
+                    }
+                    // Add tool_use blocks
+                    if let Some(ref calls) = msg.tool_calls {
+                        for tc in calls {
+                            content_blocks.push(json!({
+                                "type": "tool_use",
+                                "id": tc.id,
+                                "name": tc.name,
+                                "input": tc.arguments,
+                            }));
+                        }
+                    }
+                    json!({
+                        "role": "assistant",
+                        "content": content_blocks
+                    })
+                }
+                _ => {
+                    let role = match msg.role {
+                        MessageRole::User => "user",
+                        MessageRole::Assistant => "assistant",
+                        MessageRole::System => unreachable!(),
+                        MessageRole::Tool => unreachable!(), // handled above
+                    };
+                    json!({
+                        "role": role,
+                        "content": format_anthropic_content(&msg.content)
+                    })
+                }
+            }
         })
         .collect()
 }
@@ -178,16 +223,67 @@ pub fn build_gemini_contents(messages: &[Message]) -> Vec<Value> {
     messages.iter()
         .filter(|msg| msg.role != MessageRole::System) // system handled separately
         .map(|msg| {
-            let role = match msg.role {
-                MessageRole::User => "user",
-                MessageRole::Assistant => "model", // Gemini uses "model"
-                MessageRole::Tool => "user", // Gemini tool results sent as user role
-                MessageRole::System => unreachable!(),
-            };
-            json!({
-                "role": role,
-                "parts": format_gemini_parts(&msg.content)
-            })
+            match msg.role {
+                MessageRole::Tool => {
+                    // Gemini tool results: role=function, functionResponse format
+                    let content_text = match &msg.content {
+                        MessageContent::Text(t) => t.clone(),
+                        _ => String::new(),
+                    };
+                    let response_value = serde_json::from_str::<Value>(&content_text)
+                        .unwrap_or_else(|_| json!({"result": content_text}));
+                    // Use tool_name (preferred) or fallback to tool_call_id
+                    let fn_name = msg.tool_name.as_deref()
+                        .or(msg.tool_call_id.as_deref())
+                        .unwrap_or("tool");
+                    json!({
+                        "role": "function",
+                        "parts": [{
+                            "functionResponse": {
+                                "name": fn_name,
+                                "response": response_value
+                            }
+                        }]
+                    })
+                }
+                MessageRole::Assistant if msg.tool_calls.is_some() => {
+                    // Assistant message with functionCall parts
+                    let mut parts: Vec<Value> = Vec::new();
+                    let text = match &msg.content {
+                        MessageContent::Text(t) => t.clone(),
+                        _ => String::new(),
+                    };
+                    if !text.is_empty() {
+                        parts.push(json!({"text": text}));
+                    }
+                    if let Some(ref calls) = msg.tool_calls {
+                        for tc in calls {
+                            parts.push(json!({
+                                "functionCall": {
+                                    "name": tc.name,
+                                    "args": tc.arguments,
+                                }
+                            }));
+                        }
+                    }
+                    json!({
+                        "role": "model",
+                        "parts": parts
+                    })
+                }
+                _ => {
+                    let role = match msg.role {
+                        MessageRole::User => "user",
+                        MessageRole::Assistant => "model",
+                        MessageRole::System => unreachable!(),
+                        MessageRole::Tool => unreachable!(),
+                    };
+                    json!({
+                        "role": role,
+                        "parts": format_gemini_parts(&msg.content)
+                    })
+                }
+            }
         })
         .collect()
 }

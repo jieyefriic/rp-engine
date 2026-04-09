@@ -190,6 +190,9 @@ pub struct Message {
     /// Tool call ID (for Tool role messages — identifies which tool call this responds to)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
+    /// Tool name (for Tool role messages — needed by Gemini's functionResponse format)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_name: Option<String>,
     /// Tool calls requested by assistant (for Assistant role messages with function calling)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
@@ -197,15 +200,15 @@ pub struct Message {
 
 impl Message {
     pub fn system(content: impl Into<MessageContent>) -> Self {
-        Self { role: MessageRole::System, content: content.into(), tool_call_id: None, tool_calls: None }
+        Self { role: MessageRole::System, content: content.into(), tool_call_id: None, tool_name: None, tool_calls: None }
     }
 
     pub fn user(content: impl Into<MessageContent>) -> Self {
-        Self { role: MessageRole::User, content: content.into(), tool_call_id: None, tool_calls: None }
+        Self { role: MessageRole::User, content: content.into(), tool_call_id: None, tool_name: None, tool_calls: None }
     }
 
     pub fn assistant(content: impl Into<MessageContent>) -> Self {
-        Self { role: MessageRole::Assistant, content: content.into(), tool_call_id: None, tool_calls: None }
+        Self { role: MessageRole::Assistant, content: content.into(), tool_call_id: None, tool_name: None, tool_calls: None }
     }
 
     /// Create a tool result message
@@ -214,6 +217,18 @@ impl Message {
             role: MessageRole::Tool,
             content: MessageContent::Text(content.into()),
             tool_call_id: Some(tool_call_id.into()),
+            tool_name: None,
+            tool_calls: None,
+        }
+    }
+
+    /// Create a tool result message with tool name (needed for Gemini functionResponse)
+    pub fn tool_result_with_name(tool_call_id: impl Into<String>, tool_name: impl Into<String>, content: impl Into<String>) -> Self {
+        Self {
+            role: MessageRole::Tool,
+            content: MessageContent::Text(content.into()),
+            tool_call_id: Some(tool_call_id.into()),
+            tool_name: Some(tool_name.into()),
             tool_calls: None,
         }
     }
@@ -230,6 +245,7 @@ impl Message {
                 },
             ]),
             tool_call_id: None,
+            tool_name: None,
             tool_calls: None,
         }
     }
@@ -243,6 +259,7 @@ impl Message {
                 ContentPart::ImageUrl { url: url.to_string() },
             ]),
             tool_call_id: None,
+            tool_name: None,
             tool_calls: None,
         }
     }
@@ -255,6 +272,7 @@ impl Message {
             role: MessageRole::User,
             content: MessageContent::Parts(parts),
             tool_call_id: None,
+            tool_name: None,
             tool_calls: None,
         }
     }
@@ -269,6 +287,7 @@ impl Message {
             role: MessageRole::User,
             content: MessageContent::Parts(parts),
             tool_call_id: None,
+            tool_name: None,
             tool_calls: None,
         }
     }

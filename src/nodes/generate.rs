@@ -195,6 +195,7 @@ impl NodeExecutor for GenerateExecutor {
                 role: crate::providers::MessageRole::User,
                 content: MessageContent::Parts(content_parts),
                 tool_call_id: None,
+                tool_name: None,
                 tool_calls: None,
             }
         };
@@ -400,6 +401,7 @@ impl NodeExecutor for GenerateExecutor {
                             role: crate::providers::MessageRole::Assistant,
                             content: crate::providers::MessageContent::Text(response.content.clone()),
                             tool_call_id: None,
+                            tool_name: None,
                             tool_calls: Some(tool_calls.clone()),
                         });
 
@@ -442,8 +444,8 @@ impl NodeExecutor for GenerateExecutor {
                                 format!("Unknown tool: {}", tc.name)
                             };
 
-                            // Add tool result to conversation
-                            conversation.push(Message::tool_result(&tc.id, result_content));
+                            // Add tool result to conversation (with name for Gemini compatibility)
+                            conversation.push(Message::tool_result_with_name(&tc.id, &tc.name, result_content));
                         }
 
                         continue; // Next round — send tool results back to LLM

@@ -99,6 +99,25 @@ impl GeminiProvider {
             });
         }
 
+        // Tool definitions (function calling)
+        if let Some(ref tools) = options.tools {
+            if !tools.is_empty() {
+                let function_declarations: Vec<Value> = tools.iter().map(|t| {
+                    let mut decl = json!({
+                        "name": t.name,
+                        "description": &t.description,
+                    });
+                    if !t.parameters.is_null() {
+                        decl["parameters"] = t.parameters.clone();
+                    }
+                    decl
+                }).collect();
+                body["tools"] = json!([{
+                    "functionDeclarations": function_declarations
+                }]);
+            }
+        }
+
         body
     }
 
@@ -145,13 +164,25 @@ impl GeminiProvider {
             TokenUsage::default()
         };
 
+        // Parse functionCall parts as tool_calls
+        let tool_calls: Vec<crate::providers::ToolCall> = parts.iter()
+            .filter_map(|part| {
+                let fc = part.get("functionCall")?;
+                let name = fc["name"].as_str()?.to_string();
+                let args = fc["args"].clone();
+                // Gemini doesn't provide a call ID, generate one
+                let id = format!("gemini_call_{}", name);
+                Some(crate::providers::ToolCall { id, name, arguments: args })
+            })
+            .collect();
+
         Ok(ChatResponse {
             content,
             thinking,
             usage,
             model: DEFAULT_MODEL.to_string(),
             raw: data,
-            tool_calls: None,
+            tool_calls: if tool_calls.is_empty() { None } else { Some(tool_calls) },
         })
     }
 

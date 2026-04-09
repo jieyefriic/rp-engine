@@ -81,7 +81,22 @@ where
                 }
 
                 if let Some(usage) = result.usage {
-                    last_usage = Some(usage);
+                    // Accumulate token usage (Anthropic sends input/output in separate events)
+                    last_usage = Some(match last_usage {
+                        Some(mut prev) => {
+                            prev.input_tokens += usage.input_tokens;
+                            prev.output_tokens += usage.output_tokens;
+                            prev.total_tokens = prev.input_tokens + prev.output_tokens;
+                            if usage.thinking_tokens.is_some() {
+                                prev.thinking_tokens = usage.thinking_tokens;
+                            }
+                            if usage.search_count.is_some() {
+                                prev.search_count = usage.search_count;
+                            }
+                            prev
+                        }
+                        None => usage,
+                    });
                 }
             }
         }
