@@ -86,7 +86,7 @@ harness:
 ```
 harness instructions
 ---
-skill metadata (future)
+skill metadata (from skill_set nodes)
 ---
 template system_prompt
 ```
@@ -275,6 +275,28 @@ Each entry is a variable binding that resolves to a string in one of three forma
 
 The engine validates at build time that the selected provider/model supports vision.
 Gemini does not support HTTP image URLs (only GCS URIs); URL images will be skipped with a warning.
+
+**Skill Sets**: Generate nodes can reference `skill_set` nodes for progressive disclosure of knowledge.
+
+```yaml
+- id: helper
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: helper_tpl
+    skill_sets: ["coding_skills"]        # References skill_set node IDs
+    variables:
+      question: "start.question"
+```
+
+When `skill_sets` is configured:
+1. The engine reads resolved skill metadata from each referenced `skill_set` node's state
+2. Injects an `## Available Skills` section into the system_prompt middle layer (between harness and template)
+3. Registers two built-in tools: `load_skill` (loads full skill content) and `load_skill_reference` (loads L3 reference files)
+4. The LLM sees skill metadata (name + description), calls `load_skill` to get full content, and optionally calls `load_skill_reference` for referenced resources
+
+User-defined tools **cannot** be named `load_skill` or `load_skill_reference` — the engine rejects these at build time.
 
 **Native Tool Calling**: Generate nodes can use LLM function calling to invoke tools backed by subgraphs.
 The LLM decides when to call tools; results are fed back in a multi-round loop.
@@ -1181,6 +1203,70 @@ subgraphs:
     edges:
       - from: gen
         to: result
+```
+
+---
+
+### `skill_set` — Skill Definitions for Progressive Disclosure
+
+Holds a collection of skill definitions that `generate` nodes can reference for progressive disclosure via tool calling.
+
+```yaml
+- id: coding_skills
+  type: skill_set
+  config:
+    skills:
+      - name: rust_conventions
+        description: "Rust coding conventions and best practices"
+        content: |
+          ## Rust Conventions
+          1. Use snake_case for variables and functions
+          2. Use CamelCase for types and traits
+          3. Prefer Result<T, E> over panicking
+      - name: api_design
+        description: "REST API design guidelines"
+        content_file: "skills/api_design.md"
+        references:
+          - "docs/openapi_spec.md"
+```
+
+**Config fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `skills` | Yes | Array of skill definitions |
+| `skills[].name` | Yes | Unique skill name (used in `load_skill` calls) |
+| `skills[].description` | Yes | Short description shown in L1 metadata |
+| `skills[].content` | No* | Inline skill content (L2 full text) |
+| `skills[].content_file` | No* | External file path, resolved to content at execution |
+| `skills[].references` | No | Array of file paths for L3 reference loading |
+
+*One of `content` or `content_file` is required per skill.
+
+**Output fields:**
+- `{node_id}.skills` — Array of resolved skill objects (with `content_file` resolved to `content`)
+- `{node_id}._skill_count` — Number of skills defined
+
+**Progressive disclosure levels:**
+1. **L1 — Metadata** (always in system_prompt): skill name + description list
+2. **L2 — Full content** (on demand): LLM calls `load_skill("skill_name")` → gets full content
+3. **L3 — References** (on demand): LLM calls `load_skill_reference("skill_name", "path")` → gets referenced file
+
+**Connection to generate nodes:** A `skill_set` node must be connected via edges to any `generate` node that references it. The generate node also declares the reference in its `skill_sets` config field:
+
+```yaml
+edges:
+  - from: start
+    to: coding_skills
+  - from: coding_skills
+    to: helper
+
+nodes:
+  - id: helper
+    type: generate
+    config:
+      skill_sets: ["coding_skills"]      # Must match skill_set node IDs
+      # ... other config
 ```
 
 ---

@@ -11,6 +11,7 @@ mod search;
 mod connectors;
 mod workflow_node;
 mod iterator;
+mod skill_set;
 pub mod subgraph_runner;
 
 use std::collections::HashMap;
@@ -409,6 +410,7 @@ pub fn create_executor(node_type: &NodeType) -> Box<dyn NodeExecutor> {
         NodeType::Transform => Box::new(TransformExecutor),
         NodeType::Search => Box::new(SearchExecutor),
         NodeType::Iterator => Box::new(iterator::IteratorExecutor),
+        NodeType::SkillSet => Box::new(skill_set::SkillSetExecutor),
         NodeType::Execute => Box::new(NotImplementedExecutor("execute")),
         NodeType::Mcp => Box::new(NotImplementedExecutor("mcp")),
         NodeType::Custom(type_name) => Box::new(CustomNodeNotFoundExecutor(type_name.clone())),

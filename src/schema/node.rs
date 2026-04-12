@@ -297,6 +297,24 @@ impl<'de> Deserialize<'de> for VariableBinding {
     }
 }
 
+/// A single skill definition within a skill_set node
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillDef {
+    /// Skill name (used as enum value in load_skill tool)
+    pub name: String,
+    /// Short description (injected into system_prompt for progressive disclosure)
+    pub description: String,
+    /// Inline content (the full skill text loaded on demand via load_skill tool)
+    #[serde(default)]
+    pub content: Option<String>,
+    /// External file path for content (resolved at execution time; content takes precedence)
+    #[serde(default)]
+    pub content_file: Option<String>,
+    /// L3 reference file paths (loadable via load_skill_reference tool)
+    #[serde(default)]
+    pub references: Vec<String>,
+}
+
 /// Node types supported by the engine
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -323,6 +341,8 @@ pub enum NodeType {
     Search,
     /// Iterator node - processes an array by running a subgraph for each element
     Iterator,
+    /// Skill set node - provides skills for progressive disclosure in generate nodes
+    SkillSet,
     /// User-defined custom node type
     #[serde(untagged)]
     Custom(String),
@@ -492,6 +512,16 @@ pub struct NodeConfig {
     // Tool calling (for generate nodes)
     /// Maximum rounds of tool calling (default: 10)
     pub max_tool_rounds: Option<u32>,
+
+    // Skill set node fields
+    /// Skill definitions (for skill_set nodes)
+    #[serde(default)]
+    pub skills: Vec<SkillDef>,
+
+    // Generate node skill reference
+    /// References to upstream skill_set node IDs (for generate nodes)
+    #[serde(default)]
+    pub skill_sets: Vec<String>,
 }
 
 /// Per-node error handling configuration
