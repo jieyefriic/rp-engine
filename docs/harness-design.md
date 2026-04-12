@@ -28,8 +28,12 @@ generate 节点内部 pipeline:
 │  parse → outputs                                           │
 └────────────────────────────────────────────────────────────┘
                         ↓
-┌─ Post-Execution ──────────────────────────────────────────┐
-│  harness update (记忆/规则自更新)                          │
+┌─ Post-Execution — ✅ Writeback COMPLETE ──────────────────┐
+│  if harness.writeback configured:                         │
+│    LLM call (provider/model) ← current memory + output    │
+│    → updated memory → write to memory_file                │
+│    → truncate to memory_char_limit (default 2200 chars)   │
+│  best-effort: failure ≠ workflow failure (warning only)    │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -72,14 +76,30 @@ system_prompt = [
 ].join("\n\n---\n\n")
 ```
 
-**Post-Execution 自更新**：
+**Post-Execution Writeback — ✅ COMPLETE**：
+
+当配置了 `harness.writeback` 时，workflow 执行完成后引擎发起一次专用 LLM 调用，审查执行结果并更新记忆文件。
+
 ```
 执行完成后:
-  if harness.memory_file:
-    读取当前 memory
-    根据本次执行结果追加/更新
-    写回 memory_file
-    下次执行时 memory 内容也注入 harness instructions
+  if harness.writeback configured:
+    1. 读取当前 memory_file 内容（frozen snapshot）
+    2. 调用 writeback LLM (provider/model)，输入 = 当前 memory + workflow 最终输出
+    3. LLM 产出更新后的 memory
+    4. 截断到 memory_char_limit（默认 2200 字符，~800 tokens）
+    5. 写回 memory_file
+    6. 下次执行时更新后的 memory 注入 harness instructions
+  best-effort: writeback 失败不影响 workflow 成功（仅 warning 日志）
+```
+
+**WritebackConfig**：
+```rust
+pub struct WritebackConfig {
+    pub provider: String,                  // LLM provider for writeback
+    pub model: String,                     // Model (can be cheap/fast)
+    pub prompt: Option<String>,            // Custom prompt (sensible default if omitted)
+    pub memory_char_limit: Option<usize>,  // Max chars, default 2200
+}
 ```
 
 **实现影响**：
@@ -99,7 +119,7 @@ system_prompt = [
 - **通过 tool calling 实现渐进加载，不是文件系统读取** — rp-engine 作为 library 在容器中运行，无本地文件系统
 - **Generate 节点显式引用 skill_sets，不自动继承** — 明确数据流，避免隐式依赖
 - **规则触发（trigger_keywords）推迟** — LLM 自触发已足够，规则触发增加复杂度
-- **Harness memory writeback 推迟** — 需 LLM 驱动的记忆更新，业界共识尚未成熟
+- **Harness memory writeback — ✅ COMPLETE** — WritebackConfig: LLM 驱动记忆更新 + char limit 截断，best-effort
 
 **实现流程**：
 
@@ -257,10 +277,11 @@ Phase 1: 修复现有 bug (前置条件) — ✅ COMPLETE (2026-04-09)
   - tool_result 消息格式 (Anthropic/Gemini)
   - tool call 参数解析静默吞错
 
-Phase 2: Harness Instructions — ✅ COMPLETE (2026-04-09)
+Phase 2: Harness Instructions — ✅ COMPLETE (2026-04-09, writeback 2026-04-12)
   - workflow YAML 新增 harness section
   - prompt render 注入 harness 内容
-  - post-execution harness memory 更新 (读取已实现，写回推迟)
+  - memory_file 读取 + frozen snapshot 注入
+  - post-execution writeback: WritebackConfig, LLM 驱动记忆更新, char limit 截断
 
 Phase 3: Skill System — ✅ COMPLETE (2026-04-12)
   - skill_set 节点类型 (SkillDef + SkillSetExecutor)

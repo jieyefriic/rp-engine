@@ -3084,9 +3084,46 @@ harness:
 - Project-wide coding standards
 - Output format requirements
 - Safety rules and guardrails
-- Persistent agent memory (via `memory_file`)
+- Persistent agent memory (via `memory_file` + `writeback`)
 
 **Backward compatibility:** Workflows without `harness:` work identically to before.
+
+### Post-Execution Writeback
+
+When `harness.writeback` is configured, the engine performs a dedicated LLM call after workflow execution to review results and update the memory file. This enables the harness to **learn user habits** across runs.
+
+```yaml
+harness:
+  instructions: |
+    You are a helpful assistant. Always be concise.
+  memory_file: "harness_memory.txt"
+  writeback:
+    provider: deepseek
+    model: deepseek-chat
+    memory_char_limit: 2200
+    prompt: |
+      Review the execution results and update memory with
+      key user preferences and important context.
+```
+
+**WritebackConfig fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `provider` | Yes | LLM provider for the writeback call |
+| `model` | Yes | Model to use (cheap/fast model recommended) |
+| `memory_char_limit` | No | Max chars for memory file. Default: 2200 (~800 tokens) |
+| `prompt` | No | Custom writeback prompt. Default focuses on user preferences, habits, key decisions |
+
+**Behavior:**
+- Fires after successful workflow execution
+- **Best-effort**: failure does NOT fail the workflow (logged as warning)
+- Current run uses a **frozen snapshot** — writeback changes take effect on the next run
+- Memory is truncated to `memory_char_limit` to prevent unbounded growth
+- The writeback LLM receives: current memory content + workflow final output
+- Requires `memory_file` to be set
+
+**Design philosophy:** Harness has two roles — constraining LLM behavior (`instructions`) and learning user habits (`writeback`). Skills, tools, and context expand what the LLM *can* do; harness is the only layer that restricts and remembers.
 
 ---
 

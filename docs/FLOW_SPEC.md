@@ -57,6 +57,11 @@ harness:                                 # Optional. Workflow-level instructions
   instructions: "..."                    # Inline instruction text
   files: ["rules/project.md"]           # External .md file paths
   memory_file: "harness_memory.json"    # Optional. Persistent memory (read at start, updated after execution)
+  writeback:                             # Optional. Post-execution memory writeback via LLM
+    provider: deepseek                   # LLM provider for writeback call
+    model: deepseek-chat                 # Model (can be cheap/fast)
+    prompt: "..."                        # Optional. Custom writeback prompt
+    memory_char_limit: 2200             # Optional. Max chars for memory file (default: 2200)
 ```
 
 ### Harness Instructions
@@ -74,13 +79,21 @@ harness:
   files:
     - "rules/output_format.md"
     - "rules/company_style.md"
-  memory_file: "harness_memory.json"
+  memory_file: "harness_memory.txt"
+  writeback:
+    provider: deepseek
+    model: deepseek-chat
+    memory_char_limit: 2200
+    prompt: |
+      Review the execution results and update memory with
+      key user preferences and important context.
 ```
 
 **Behavior:**
 - `instructions`: Inline text, injected as-is
 - `files`: External file paths, contents read and concatenated (separated by `---`)
-- `memory_file`: JSON file read at workflow start, appended to instructions as `## Memory` section. Updated after execution with result summary.
+- `memory_file`: Read at workflow start, appended to instructions as `## Memory` section. Content is a frozen snapshot for the current run.
+- `writeback`: Post-execution LLM call that reviews workflow output + current memory and writes updated memory back to `memory_file`. See **Writeback** below.
 
 **System prompt composition order (highest priority first):**
 ```
@@ -92,6 +105,40 @@ template system_prompt
 ```
 
 If no template has a system_prompt, harness instructions become the sole system_prompt. If no harness is defined, behavior is identical to before (backward compatible).
+
+### Writeback
+
+When `harness.writeback` is configured, the engine performs a dedicated LLM call **after** workflow execution completes. This call reviews the workflow's final output together with the current memory content and produces updated memory, which is written back to `memory_file`.
+
+```yaml
+harness:
+  memory_file: "harness_memory.txt"
+  writeback:
+    provider: deepseek        # Required. LLM provider for the writeback call
+    model: deepseek-chat      # Required. Model (a cheap/fast model is recommended)
+    memory_char_limit: 2200   # Optional. Max chars for memory file (default: 2200)
+    prompt: |                 # Optional. Custom prompt (sensible default if omitted)
+      Review the execution results and update memory with
+      key user preferences and important context.
+```
+
+**Writeback fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `provider` | Yes | LLM provider for the writeback call |
+| `model` | Yes | Model to use (cheap/fast model recommended) |
+| `memory_char_limit` | No | Maximum characters for the memory file. Default: 2200 (~800 tokens, following Hermes Agent convention) |
+| `prompt` | No | Custom writeback prompt. Default focuses on: user preferences, habits, key decisions, important context |
+
+**Writeback behavior:**
+- Fires only after successful workflow execution
+- **Best-effort**: writeback failure does NOT fail the workflow (logged as warning)
+- Current run uses a **frozen snapshot** of memory — writeback changes take effect on the next run
+- Memory file is truncated to `memory_char_limit` to prevent unbounded growth
+- Requires `memory_file` to be set (writeback without memory_file is a no-op)
+
+**Design intent:** Harness constrains LLM behavior (`instructions` = "you must/cannot do X") and learns user habits (`writeback` = preferences/patterns accumulated over runs). Everything else (skills, tools, context) is about expanding capabilities.
 
 ---
 
