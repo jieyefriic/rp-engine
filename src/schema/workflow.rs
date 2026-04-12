@@ -232,9 +232,35 @@ pub struct HarnessConfig {
     #[serde(default)]
     pub files: Vec<String>,
 
-    /// Path to persistent memory file (JSON). Read at start, updated after execution.
+    /// Path to persistent memory file. Read at start, updated after execution via writeback.
     #[serde(default)]
     pub memory_file: Option<String>,
+
+    /// Post-execution writeback configuration.
+    /// When set, a dedicated LLM call reviews the workflow output + current memory
+    /// and produces updated memory content, written back to memory_file.
+    #[serde(default)]
+    pub writeback: Option<WritebackConfig>,
+}
+
+/// Configuration for harness post-execution memory writeback.
+/// A dedicated LLM call reviews execution results and updates the memory file.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WritebackConfig {
+    /// LLM provider ID for the writeback call
+    pub provider: String,
+
+    /// Model ID for the writeback call (can be a cheap model)
+    pub model: String,
+
+    /// Custom prompt for the writeback LLM. If omitted, a sensible default is used.
+    #[serde(default)]
+    pub prompt: Option<String>,
+
+    /// Maximum character limit for the memory file. Prevents unbounded growth.
+    /// Default: 2200 (following Hermes Agent convention, ~800 tokens)
+    #[serde(default)]
+    pub memory_char_limit: Option<usize>,
 }
 
 fn default_version() -> String {

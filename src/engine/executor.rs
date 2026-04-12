@@ -515,6 +515,11 @@ pub async fn execute_workflow(
         }
     }
 
+    // Extract writeback config before Arc wrapping (needed for post-execution)
+    let writeback_config = workflow.harness.as_ref()
+        .and_then(|h| h.writeback.clone());
+    let writeback_memory_path = config.harness_memory_file.clone();
+
     // Wrap config in Arc for sharing across tasks
     let config = Arc::new(config);
 
@@ -774,6 +779,31 @@ pub async fn execute_workflow(
         "Workflow execution completed successfully"
     );
 
+    // Harness writeback: post-execution memory update via dedicated LLM call
+    if let (Some(wb), Some(mem_path)) = (&writeback_config, &writeback_memory_path) {
+        info!(
+            workflow = %workflow.name,
+            provider = %wb.provider,
+            model = %wb.model,
+            memory_file = %mem_path,
+            "Starting harness writeback"
+        );
+
+        match harness_writeback(wb, mem_path, &final_output, &config).await {
+            Ok(()) => {
+                info!(workflow = %workflow.name, "Harness writeback completed");
+            }
+            Err(e) => {
+                // Writeback is best-effort — don't fail the workflow
+                warn!(
+                    workflow = %workflow.name,
+                    error = %e,
+                    "Harness writeback failed (non-fatal)"
+                );
+            }
+        }
+    }
+
     let state_guard = state.read().await;
     Ok(ExecutionResult {
         status: ExecutionStatus::Success,
@@ -785,6 +815,98 @@ pub async fn execute_workflow(
         exit_reason: None,
         checkpoint_state: None,
     })
+}
+
+/// Execute harness post-execution writeback: a dedicated LLM call reviews the workflow output
+/// and current memory, then produces updated memory content written to memory_file.
+async fn harness_writeback(
+    wb: &crate::schema::WritebackConfig,
+    memory_path: &str,
+    workflow_output: &HashMap<String, Value>,
+    config: &ExecutionConfig,
+) -> Result<(), EngineError> {
+    use crate::providers::{ChatOptions, Message};
+
+    // Get the writeback provider
+    let provider = config.providers.get(&wb.provider)
+        .ok_or_else(|| {
+            error!(provider = %wb.provider, "Writeback provider not found");
+            EngineError::ProviderNotFound(wb.provider.clone())
+        })?;
+
+    // Read current memory (may not exist yet)
+    let current_memory = std::fs::read_to_string(memory_path).unwrap_or_default();
+
+    // Build the writeback prompt
+    let system_prompt = wb.prompt.clone().unwrap_or_else(|| {
+        "You are a memory manager for an AI workflow harness. \
+         Your job is to review the workflow execution results and update the persistent memory. \
+         Focus on: user preferences, habits, key decisions, and important context for future runs. \
+         Be concise. Remove outdated information. \
+         Output ONLY the updated memory content — no explanation, no markdown fences.".to_string()
+    });
+
+    let char_limit = wb.memory_char_limit.unwrap_or(2200);
+
+    let output_json = serde_json::to_string_pretty(workflow_output)
+        .unwrap_or_else(|_| format!("{:?}", workflow_output));
+
+    let user_prompt = format!(
+        "## Current Memory ({}/{} chars)\n{}\n\n## Workflow Output\n{}\n\n\
+         Based on the above, produce the updated memory content. \
+         Stay within {} characters.",
+        current_memory.len(), char_limit,
+        if current_memory.is_empty() { "(empty)" } else { &current_memory },
+        output_json,
+        char_limit,
+    );
+
+    // Make the writeback LLM call
+    let options = ChatOptions::new()
+        .with_model(&wb.model)
+        .with_temperature(0.3)
+        .with_max_tokens(1024);
+
+    let messages = vec![
+        Message::system(system_prompt),
+        Message::user(user_prompt),
+    ];
+
+    let response = provider.chat(messages, options).await
+        .map_err(|e| {
+            error!(error = %e, "Harness writeback LLM call failed");
+            EngineError::ProviderError(e)
+        })?;
+
+    // Truncate to char limit
+    let mut new_memory = response.content;
+    if new_memory.len() > char_limit {
+        warn!(
+            len = new_memory.len(),
+            limit = char_limit,
+            "Writeback content exceeds char limit, truncating"
+        );
+        new_memory.truncate(char_limit);
+    }
+
+    // Write back to memory file
+    std::fs::write(memory_path, &new_memory)
+        .map_err(|e| {
+            error!(path = %memory_path, error = %e, "Failed to write memory file");
+            EngineError::NodeExecutionFailed(
+                format!("Failed to write harness memory file '{}': {}", memory_path, e)
+            )
+        })?;
+
+    info!(
+        memory_path = %memory_path,
+        old_len = current_memory.len(),
+        new_len = new_memory.len(),
+        char_limit = char_limit,
+        "Harness memory updated"
+    );
+
+    Ok(())
 }
 
 /// Compute all nodes reachable by walking forward from a given node via outgoing edges
