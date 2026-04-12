@@ -15,7 +15,7 @@ generate 节点内部 pipeline:
 
 ┌─ Prompt Render Pipeline (可扩展) ──────────────────────────┐
 │  ① harness instructions  — 固定注入 (.md 项目规则)         │
-│  ② skill metadata        — 固定注入 (name+desc 列表)       │
+│  ② skill metadata        — 从 skill_set 节点注入 (name+desc)│
 │  ③ context retrieval     — 规则检索注入 (向量/关键词)       │
 │  ④ template + variables  — 现有 Handlebars 渲染            │
 │  ⑤ output_schema         — JSON 格式指令追加               │
@@ -24,7 +24,7 @@ generate 节点内部 pipeline:
                         ↓ messages[]
 ┌─ Payload Render + Request (现有) ─────────────────────────┐
 │  capability masking → provider payload → HTTP              │
-│  tool calling loop (含 skill 加载 tool、MCP tool、原生 FC) │
+│  tool calling loop (load_skill/load_skill_reference + MCP + FC) │
 │  parse → outputs                                           │
 └────────────────────────────────────────────────────────────┘
                         ↓
@@ -90,73 +90,86 @@ system_prompt = [
 
 ---
 
-### 2. Skill
+### 2. Skill — ✅ COMPLETE (Phase 2)
 
 **定位**：可复用的能力片段，按需加载。LLM 自行决定是否使用。
+
+**架构决策（2026-04-12 确定）**：
+- **Skills 是图节点（`skill_set` 类型），不是 workflow 级数据** — 在 IDE 中可见、可拖拽、可组合
+- **通过 tool calling 实现渐进加载，不是文件系统读取** — rp-engine 作为 library 在容器中运行，无本地文件系统
+- **Generate 节点显式引用 skill_sets，不自动继承** — 明确数据流，避免隐式依赖
+- **规则触发（trigger_keywords）推迟** — LLM 自触发已足够，规则触发增加复杂度
+- **Harness memory writeback 推迟** — 需 LLM 驱动的记忆更新，业界共识尚未成熟
+
+**实现流程**：
+
+```
+skill_set 节点 → 解析 skills → 解析 content_file → 写入 state
+                                                        ↓
+generate 节点 ← 读取 skill_sets 引用 ← 从 state 读取 skill index
+  ↓
+  ① 构建 metadata section (name + description)
+  ② 注入 system_prompt 中间层
+  ③ 注册 load_skill + load_skill_reference 内置 tool
+  ↓
+tool calling loop:
+  LLM 看到 metadata → 调用 load_skill → 获取完整内容 → 使用知识回答
+                     → 调用 load_skill_reference → 获取 L3 引用资源
+```
 
 **加载机制 — 三级渐进式**：
 
 ```
 Level 1: 元数据常驻 (始终在 system_prompt 中)
   ┌──────────────────────────────────────┐
-  │ Available Skills:                     │
-  │ - data_analysis: 数据分析和可视化建议 │
-  │ - code_review: 代码审查和优化建议     │
-  │ - sql_expert: SQL 查询生成和优化      │
+  │ ## Available Skills                   │
+  │ - rust_conventions: Rust coding ...   │
+  │ - api_design: REST API design ...     │
   │ (每个 ~50-100 tokens, 列表常驻)       │
   └──────────────────────────────────────┘
 
 Level 2: LLM 通过 tool call 加载完整 skill
-  LLM 推理: "用户要做数据分析，我需要加载 data_analysis skill"
-  → tool_call: load_skill("data_analysis")
+  LLM 推理: "用户要审查 Rust 代码，我需要加载 rust_conventions"
+  → tool_call: load_skill(name: "rust_conventions")
   → 返回 skill 完整内容作为 tool result
   → LLM 继续推理，已获得 skill 知识
 
 Level 3: Skill 内部引用的资源按需加载
-  Skill 内容可能引用: schema.json, examples.md
-  → LLM 再次通过 tool call 加载
+  Skill 声明 references: ["docs/openapi_spec.md"]
+  → tool_call: load_skill_reference(skill_name: "api_design", path: "docs/openapi_spec.md")
+  → 验证 path 在 skill 声明的 references 中
+  → 返回引用文件内容
 ```
 
-**Skill 定义格式**：
+**Skill 定义格式（作为 skill_set 节点配置）**：
 ```yaml
-# skills/data_analysis.yaml
-name: data_analysis
-description: "数据分析和可视化建议，包含 pandas/matplotlib 最佳实践"
-trigger_keywords: ["分析", "数据", "图表", "可视化"]   # 可选：规则触发
-content: |
-  ## Data Analysis Skill
-  当进行数据分析时，遵循以下原则：
-  1. 先理解数据结构和类型
-  2. 检查缺失值和异常值
-  3. 选择合适的可视化方式
-  ...
-references:                    # Level 3 按需加载
-  - "schemas/data_types.json"
-  - "examples/chart_patterns.md"
+nodes:
+  - id: coding_skills
+    type: skill_set
+    config:
+      skills:
+        - name: rust_conventions
+          description: "Rust coding conventions and best practices"
+          content: |
+            ## Rust Conventions
+            1. Use snake_case for variables and functions
+            2. Use CamelCase for types and traits
+            ...
+        - name: api_design
+          description: "REST API design guidelines"
+          content_file: "skills/api_design.md"
+          references:
+            - "docs/openapi_spec.md"
 ```
 
-**两条触发路径**：
+**命名冲突检查**：用户定义的 tools 不能使用 `load_skill` 或 `load_skill_reference` 作为名称，引擎在构建时拒绝。
 
-| 路径 | 机制 | 何时用 |
-|------|------|--------|
-| 规则触发 | `trigger_keywords` 匹配 input | 简单场景，零延迟 |
-| LLM 自触发 | `load_skill` tool call | 复杂场景，LLM 自行判断 |
-
-**不需要 checkpoint 的情况**（大多数）：
-- Skill 内容作为 tool result 进入对话
-- 在当前 tool calling loop 内完成
-- 适合一次性任务
-
-**需要 checkpoint 的情况**（少数）：
-- Skill 需要注入到 system prompt 级别（改变 LLM 的"底层人格"）
-- 需要跨多轮对话持久保持 skill
-- 实现：checkpoint → 重新 prompt render（含 skill）→ resume
-
-**实现影响**：
-- workflow YAML 新增 `skills` section 定义 skill 列表
-- prompt render 阶段注入 skill 元数据到 system_prompt
-- 新增内置 tool `load_skill` 供 LLM 在 tool calling loop 中调用
-- 可选：规则触发引擎（关键词匹配 → 自动预加载）
+**已实现的文件**：
+- `src/schema/node.rs` — `SkillDef` 结构体，`skill_sets` 配置字段
+- `src/nodes/skill_set.rs` — `SkillSetExecutor`，content_file 解析，state 写入
+- `src/nodes/generate.rs` — skill index 构建，metadata 注入，`dispatch_tool_call` 提取，load_skill/load_skill_reference 内置 tool 处理
+- `src/nodes/mod.rs` — executor 注册
+- `src/schema/mod.rs` — 导出
 
 ---
 
@@ -239,23 +252,25 @@ context:
 ## 实施优先级
 
 ```
-Phase 1: 修复现有 bug (前置条件)
+Phase 1: 修复现有 bug (前置条件) — ✅ COMPLETE (2026-04-09)
   - Anthropic streaming token 计数丢失
   - tool_result 消息格式 (Anthropic/Gemini)
   - tool call 参数解析静默吞错
 
-Phase 2: Harness Instructions (最简单，价值高)
+Phase 2: Harness Instructions — ✅ COMPLETE (2026-04-09)
   - workflow YAML 新增 harness section
   - prompt render 注入 harness 内容
-  - post-execution harness memory 更新
+  - post-execution harness memory 更新 (读取已实现，写回推迟)
 
-Phase 3: Skill System
-  - skill 定义格式 + 存储
-  - skill 元数据注入 system_prompt
-  - load_skill 内置 tool
-  - 可选：规则触发引擎
+Phase 3: Skill System — ✅ COMPLETE (2026-04-12)
+  - skill_set 节点类型 (SkillDef + SkillSetExecutor)
+  - skill 元数据注入 system_prompt 中间层
+  - load_skill + load_skill_reference 内置 tool
+  - generate 节点 skill_sets 配置字段
+  - 命名冲突检查
+  - 规则触发（trigger_keywords）推迟 — LLM 自触发已足够
 
-Phase 4: Context Management
+Phase 4: Context Management — PLANNED
   - 规则检索 (复用现有 data_connector/search 能力)
   - context window token 计数
   - compaction 策略
@@ -268,7 +283,7 @@ Phase 4: Context Management
 | 概念 | 前端 IDE 需要的 UI | 优先级 |
 |------|---------------------|--------|
 | Harness | generate 节点新增 "Harness" tab：.md 内容编辑器 | Phase 2 |
-| Skill | workflow 级别 skill 管理面板 + generate 节点 skill 选择 | Phase 3 |
+| Skill | skill_set 节点配置面板 + generate 节点 skill_sets 引用选择 | Phase 3 ✅ (engine done, IDE TBD) |
 | Context | generate 节点新增 "Context" tab：检索源配置 + 压缩策略 | Phase 4 |
 | Tool Calling | 修复现有 bug 后，generate 节点 tools section 正常工作 | Phase 1 |
 | MCP | MCP server 连接管理 + tool 暴露给 generate 节点 | Phase 3+ |

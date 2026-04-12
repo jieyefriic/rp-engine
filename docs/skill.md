@@ -8,7 +8,7 @@ rp-engine is a YAML-native agent workflow engine written in Rust. You define wor
 
 | Concept | What it is |
 |---|---|
-| **Node** | A unit of work: `start`, `generate`, `response`, `checkpoint`, `transform`, `search`, `iterator`, `supervisor`, `workflow`, `data_connector` |
+| **Node** | A unit of work: `start`, `generate`, `response`, `checkpoint`, `transform`, `search`, `iterator`, `supervisor`, `workflow`, `data_connector`, `skill_set` |
 | **Edge** | A connection from one node to another, optionally with a `condition`, `max_iterations` (loop cap), `exit_reason` (supervisor routing), or `on_error` flag |
 | **Template** | A prompt definition with `user_prompt`, optional `system_prompt`, LLM config (`temperature`, `max_tokens`, etc.), and optional `output_schema` for structured JSON output |
 | **Variable binding** | Maps a variable name to a state path (`node_id.field`), a literal, or multiple fallback sources |
@@ -16,6 +16,7 @@ rp-engine is a YAML-native agent workflow engine written in Rust. You define wor
 | **Data source** | A connection config for external data (PostgreSQL, Redis, S3, REST API, etc.) |
 | **Provider** | An LLM provider (qwen, openai, anthropic, gemini, deepseek, xai, zhipu, moonshot, minimax, huoshan, openai_compatible) |
 | **Harness** | Workflow-level instructions injected into every generate node's system_prompt (like CLAUDE.md). Supports inline text, external files, and persistent memory. |
+| **Skill** | Progressive disclosure knowledge bundles defined in `skill_set` nodes. LLM loads on demand via `load_skill` tool call. Three levels: L1 metadata, L2 full content, L3 references. |
 
 ### State Model
 
@@ -1376,6 +1377,78 @@ templates:
 ```
 
 The `enrich_profile` workflow is a separate YAML file with its own `start`, processing nodes, and `response` node. It receives `user_id` as input and returns `profile_data` and `risk_score` in its response.
+
+---
+
+### skill_set -- Skill Definitions
+
+Holds a collection of skill definitions for progressive disclosure. Generate nodes reference skill_set nodes to give the LLM on-demand access to knowledge bundles.
+
+See the [Skill System](#skill-system) section for full details on progressive loading levels, system prompt composition, and edge cases.
+
+#### Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| `skills` | Yes | Array of skill definitions |
+| `skills[].name` | Yes | Unique skill name |
+| `skills[].description` | Yes | Short description for L1 metadata |
+| `skills[].content` | No* | Inline skill content |
+| `skills[].content_file` | No* | External file path, resolved at execution |
+| `skills[].references` | No | File paths for L3 reference loading |
+
+*One of `content` or `content_file` is required per skill.
+
+#### Output fields
+
+| Field | Type | Description |
+|---|---|---|
+| `skills` | array | Resolved skill objects (content_file replaced with content) |
+| `_skill_count` | number | Number of skills defined |
+
+#### Example
+
+```yaml
+- id: coding_skills
+  type: skill_set
+  config:
+    skills:
+      - name: rust_conventions
+        description: "Rust coding conventions and best practices"
+        content: |
+          ## Rust Conventions
+          1. Use snake_case for variables and functions
+          2. Use CamelCase for types and traits
+      - name: api_design
+        description: "REST API design guidelines"
+        content_file: "skills/api_design.md"
+        references:
+          - "docs/openapi_spec.md"
+```
+
+Connect to a generate node that uses it:
+
+```yaml
+edges:
+  - from: start
+    to: coding_skills
+  - from: coding_skills
+    to: helper
+
+nodes:
+  - id: helper
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: helper_tpl
+      skill_sets: ["coding_skills"]
+      variables:
+        question: "start.question"
+```
+
+---
+
 ## Data Connectors
 
 Data connector nodes (`type: data_connector`) connect to external databases, caches, object storage, and APIs. Every connector uses the V2 pattern: a `data_source_id` referencing a connection definition, an `operation` block, and a `variables` map for parameterized binding.
@@ -3002,7 +3075,7 @@ harness:
 ```
 [harness instructions]    ← highest priority, always first
 ---
-[skill metadata]          ← future: available skills list
+[skill metadata]          ← from skill_set nodes (see Skill System section)
 ---
 [template system_prompt]  ← from the template
 ```
@@ -3014,6 +3087,181 @@ harness:
 - Persistent agent memory (via `memory_file`)
 
 **Backward compatibility:** Workflows without `harness:` work identically to before.
+
+---
+
+## Skill System
+
+Skills are **progressive disclosure knowledge bundles** — reusable expertise that an LLM loads on demand rather than receiving all at once. This keeps system prompts lean while making deep knowledge available when the LLM needs it.
+
+Skills are defined as `skill_set` graph nodes (visible in the IDE, composable) rather than workflow-level data.
+
+### Three Loading Levels
+
+```
+Level 1: Metadata (always in system_prompt)
+  ┌──────────────────────────────────────────┐
+  │ ## Available Skills                       │
+  │ - rust_conventions: Rust coding standards │
+  │ - api_design: REST API design guidelines  │
+  │ (name + description, ~50-100 tokens each) │
+  └──────────────────────────────────────────┘
+
+Level 2: Full content (LLM calls load_skill)
+  LLM: "I need Rust conventions for this review"
+  → tool_call: load_skill(name: "rust_conventions")
+  → returns full skill content as tool result
+  → LLM uses knowledge in response
+
+Level 3: References (LLM calls load_skill_reference)
+  Skill content references: "docs/openapi_spec.md"
+  → tool_call: load_skill_reference(skill_name: "api_design", path: "docs/openapi_spec.md")
+  → returns referenced file content
+  → only allowed for paths declared in skill's references array
+```
+
+### skill_set Node Configuration
+
+Define skills in a `skill_set` node:
+
+```yaml
+nodes:
+  - id: coding_skills
+    type: skill_set
+    config:
+      skills:
+        - name: rust_conventions
+          description: "Rust coding conventions and best practices"
+          content: |
+            ## Rust Conventions
+            1. Use snake_case for variables and functions
+            2. Use CamelCase for types and traits
+            3. Prefer Result<T, E> over panicking
+        - name: api_design
+          description: "REST API design guidelines"
+          content_file: "skills/api_design.md"
+          references:
+            - "docs/openapi_spec.md"
+```
+
+**Skill fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Unique identifier used in `load_skill` calls |
+| `description` | Yes | Short text shown in L1 metadata |
+| `content` | No* | Inline skill content (the L2 full text) |
+| `content_file` | No* | External file path, resolved to `content` at execution |
+| `references` | No | File paths available for L3 loading |
+
+*One of `content` or `content_file` is required.
+
+At execution, the `skill_set` node resolves any `content_file` into `content` and writes the resolved skills array to state. Outputs: `skills` (array), `_skill_count` (number).
+
+### Generate Node Integration
+
+A `generate` node references skill sets via the `skill_sets` config field:
+
+```yaml
+- id: helper
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: helper_tpl
+    skill_sets: ["coding_skills"]
+    variables:
+      question: "start.question"
+```
+
+The `skill_set` node must be connected via edges to the `generate` node that references it.
+
+When `skill_sets` is configured, the engine:
+1. Reads resolved skills from each referenced skill_set node's state
+2. Builds an `## Available Skills` metadata section listing name + description
+3. Injects this metadata into system_prompt (middle layer between harness and template)
+4. Registers `load_skill` and `load_skill_reference` as built-in tools alongside any user-defined tools
+5. During the tool calling loop, dispatches calls to these built-in tools directly (no subgraph execution)
+
+### System Prompt Composition
+
+With skills, the full system prompt composition is:
+
+```
+[harness instructions]           ← workflow-level rules (highest priority)
+---
+[## Available Skills             ← skill metadata from skill_set nodes
+ - skill_name: description
+ ...]
+---
+[template system_prompt]         ← from the template
+```
+
+### Complete Example
+
+```yaml
+version: "1.0"
+name: "skill_assisted_helper"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: coding_skills
+    type: skill_set
+    config:
+      skills:
+        - name: rust_conventions
+          description: "Rust coding conventions and best practices"
+          content: |
+            ## Rust Conventions
+            1. Use snake_case for variables and functions
+            2. Use CamelCase for types and traits
+            3. Prefer Result<T, E> over panicking
+        - name: api_design
+          description: "REST API design guidelines"
+          content_file: "skills/api_design.md"
+          references:
+            - "docs/openapi_spec.md"
+
+  - id: helper
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: helper_tpl
+      skill_sets: ["coding_skills"]
+      variables:
+        question: "start.question"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "helper.output"
+
+edges:
+  - from: start
+    to: coding_skills
+  - from: coding_skills
+    to: helper
+  - from: helper
+    to: response
+
+templates:
+  helper_tpl:
+    user_prompt: "{{question}}"
+    system_prompt: "You are a helpful coding assistant."
+    config:
+      temperature: 0.7
+      max_tokens: 2048
+```
+
+### Edge Cases
+
+- **Naming conflicts:** User-defined tools cannot be named `load_skill` or `load_skill_reference`. The engine rejects these at build time.
+- **Model without function calling:** If the model does not support function calling (`functionCalling: false`), skill metadata is still injected into the system prompt (L1 works), but `load_skill` / `load_skill_reference` tools are not registered (L2/L3 unavailable). The LLM must work with metadata alone.
+- **Duplicate skill names:** Within a single `skill_set` node, skill names must be unique. Across multiple `skill_set` nodes referenced by the same generate node, names must also be unique — the engine merges all referenced skill sets into a single index.
 
 ---
 

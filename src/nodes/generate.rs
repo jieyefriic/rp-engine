@@ -11,8 +11,126 @@ use crate::state::ExecutionState;
 use crate::engine::ExecutionConfig;
 use crate::error::EngineError;
 use crate::expression::evaluate_expression;
-use crate::providers::{ChatOptions, Message, MessageContent, ContentPart, StreamCallback};
+use crate::providers::{ChatOptions, Message, MessageContent, ContentPart, StreamCallback, ToolCall};
+use crate::schema::NodeConfig;
 use super::NodeExecutor;
+
+/// Resolved skill from an upstream skill_set node (internal to generate)
+struct ResolvedSkill {
+    description: String,
+    content: String,
+    references: Vec<String>,
+}
+
+/// Context for dispatching tool calls (built-in + subgraph)
+struct ToolDispatchContext<'a> {
+    node_config: &'a NodeConfig,
+    config: &'a ExecutionConfig,
+    skill_index: &'a HashMap<String, ResolvedSkill>,
+    node_id: &'a str,
+}
+
+/// Dispatch a single tool call to the appropriate handler.
+/// Returns (result_content, optional_token_usage).
+async fn dispatch_tool_call(
+    tc: &ToolCall,
+    ctx: &ToolDispatchContext<'_>,
+) -> (String, Option<crate::providers::TokenUsage>) {
+    match tc.name.as_str() {
+        "load_skill" => {
+            let name = tc.arguments.get("skill_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            match ctx.skill_index.get(name) {
+                Some(skill) => {
+                    debug!(
+                        node = %ctx.node_id,
+                        skill = %name,
+                        content_len = skill.content.len(),
+                        "load_skill: returning skill content"
+                    );
+                    (skill.content.clone(), None)
+                }
+                None => {
+                    warn!(node = %ctx.node_id, skill = %name, "load_skill: unknown skill");
+                    (format!("Unknown skill: {}", name), None)
+                }
+            }
+        }
+        "load_skill_reference" => {
+            let path = tc.arguments.get("reference_path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let valid = ctx.skill_index.values()
+                .any(|s| s.references.contains(&path.to_string()));
+            if valid {
+                match std::fs::read_to_string(path) {
+                    Ok(content) => {
+                        debug!(
+                            node = %ctx.node_id,
+                            path = %path,
+                            content_len = content.len(),
+                            "load_skill_reference: returning file content"
+                        );
+                        (content, None)
+                    }
+                    Err(e) => {
+                        warn!(node = %ctx.node_id, path = %path, error = %e, "load_skill_reference: read failed");
+                        (format!("Failed to read reference '{}': {}", path, e), None)
+                    }
+                }
+            } else {
+                warn!(node = %ctx.node_id, path = %path, "load_skill_reference: path not declared");
+                (format!("Reference path not declared in any skill: {}", path), None)
+            }
+        }
+        _ => {
+            // Subgraph tool dispatch (existing logic)
+            let tool_ref = ctx.node_config.tools.iter()
+                .find(|t| t.name == tc.name);
+
+            if let Some(tool) = tool_ref {
+                // Parse arguments as input HashMap
+                let input: HashMap<String, Value> = match &tc.arguments {
+                    Value::Object(obj) => obj.iter()
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect(),
+                    other => {
+                        warn!(
+                            node = %ctx.node_id,
+                            tool = %tc.name,
+                            arguments = ?other,
+                            "Tool call arguments is not an object, using empty input"
+                        );
+                        HashMap::new()
+                    }
+                };
+
+                // Execute subgraph
+                if let Some(subgraph) = ctx.config.subgraphs.get(&tool.subgraph_ref) {
+                    match super::subgraph_runner::execute(subgraph, input, ctx.config).await {
+                        Ok(result) => {
+                            let usage = crate::providers::TokenUsage {
+                                input_tokens: result.usage.input_tokens,
+                                output_tokens: result.usage.output_tokens,
+                                total_tokens: result.usage.input_tokens + result.usage.output_tokens,
+                                thinking_tokens: None,
+                                search_count: None,
+                            };
+                            let content = serde_json::to_string(&result.outputs).unwrap_or_default();
+                            (content, Some(usage))
+                        }
+                        Err(e) => (format!("Tool execution error: {}", e), None),
+                    }
+                } else {
+                    (format!("Subgraph '{}' not found", tool.subgraph_ref), None)
+                }
+            } else {
+                (format!("Unknown tool: {}", tc.name), None)
+            }
+        }
+    }
+}
 
 /// Executor for generate nodes
 pub struct GenerateExecutor;
@@ -136,16 +254,32 @@ impl NodeExecutor for GenerateExecutor {
         // Resolve variables from state (shared logic handles literals + state paths)
         let variables = super::resolve_variables(&node_config.variables, state);
 
+        // Build skill index from upstream skill_set nodes
+        let skill_index = build_skill_index(&node_config.skill_sets, state, node_id)?;
+
+        // Build skill metadata for system_prompt injection
+        let skill_metadata = if !skill_index.is_empty() {
+            let lines: Vec<String> = skill_index.iter()
+                .map(|(name, skill)| format!("- **{}**: {}", name, skill.description))
+                .collect();
+            Some(format!(
+                "## Available Skills\nUse the `load_skill` tool to load full instructions for any skill.\n{}",
+                lines.join("\n")
+            ))
+        } else {
+            None
+        };
+
         // Build prompt
         let (user_prompt, system_prompt, output_schema) = if let Some(tpl) = template {
             let user = render_template(&tpl.user_prompt, &variables);
             let template_system = tpl.system_prompt.as_ref()
                 .map(|s| render_template(s, &variables));
 
-            // Compose system_prompt: harness instructions + template system_prompt
+            // Compose system_prompt: harness instructions + skill metadata + template system_prompt
             let system = compose_system_prompt(
                 config.harness_instructions.as_deref(),
-                None, // Reserved for skill metadata (Phase 2)
+                skill_metadata.as_deref(),
                 template_system.as_deref(),
             );
 
@@ -156,10 +290,10 @@ impl NodeExecutor for GenerateExecutor {
                 .map(|(k, v)| format!("{}: {}", k, value_to_string(v)))
                 .collect::<Vec<_>>()
                 .join("\n");
-            // Still inject harness even without template
+            // Still inject harness + skills even without template
             let system = compose_system_prompt(
                 config.harness_instructions.as_deref(),
-                None,
+                skill_metadata.as_deref(),
                 None,
             );
             (if prompt.is_empty() { "Hello".into() } else { prompt }, system, None)
@@ -319,27 +453,78 @@ impl NodeExecutor for GenerateExecutor {
             }
         }
 
-        // Tool definitions: only if model supports function calling
-        if !node_config.tools.is_empty() {
+        // Tool definitions: user-defined subgraph tools + built-in skill tools
+        let mut all_tool_defs: Vec<crate::providers::ToolDefinition> = Vec::new();
+
+        // 1. User-defined subgraph tools
+        all_tool_defs.extend(node_config.tools.iter().map(|t| crate::providers::ToolDefinition {
+            name: t.name.clone(),
+            description: t.description.clone().unwrap_or_default(),
+            parameters: t.parameters.clone().unwrap_or(json!({
+                "type": "object",
+                "properties": {},
+            })),
+        }));
+
+        // 2. Built-in skill tools (if skill_sets present and resolved)
+        if !skill_index.is_empty() {
+            // Naming conflict check
+            let reserved = ["load_skill", "load_skill_reference"];
+            for t in &node_config.tools {
+                if reserved.contains(&t.name.as_str()) {
+                    return Err(EngineError::NodeExecutionFailed(
+                        format!("Node '{}': tool name '{}' conflicts with built-in skill tool", node_id, t.name)
+                    ));
+                }
+            }
+
+            // load_skill: enum of skill names
+            let names: Vec<String> = skill_index.keys().cloned().collect();
+            all_tool_defs.push(crate::providers::ToolDefinition {
+                name: "load_skill".into(),
+                description: format!("Load detailed instructions for a skill. Available: {}", names.join(", ")),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "skill_name": { "type": "string", "enum": names }
+                    },
+                    "required": ["skill_name"]
+                }),
+            });
+
+            // load_skill_reference: only if any skills have references
+            let all_refs: Vec<&String> = skill_index.values()
+                .flat_map(|s| &s.references)
+                .collect();
+            if !all_refs.is_empty() {
+                all_tool_defs.push(crate::providers::ToolDefinition {
+                    name: "load_skill_reference".into(),
+                    description: format!(
+                        "Load a reference file from a skill. Available: {}",
+                        all_refs.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
+                    ),
+                    parameters: json!({
+                        "type": "object",
+                        "properties": {
+                            "reference_path": { "type": "string" }
+                        },
+                        "required": ["reference_path"]
+                    }),
+                });
+            }
+        }
+
+        // Register all tools if model supports function calling
+        if !all_tool_defs.is_empty() {
             let supports_fc = model_caps.map(|c| c.function_calling).unwrap_or(true);
             if supports_fc {
-                let tool_defs: Vec<crate::providers::ToolDefinition> = node_config.tools.iter()
-                    .map(|t| crate::providers::ToolDefinition {
-                        name: t.name.clone(),
-                        description: t.description.clone().unwrap_or_default(),
-                        parameters: t.parameters.clone().unwrap_or(serde_json::json!({
-                            "type": "object",
-                            "properties": {},
-                        })),
-                    })
-                    .collect();
-                options = options.with_tools(tool_defs);
+                options = options.with_tools(all_tool_defs);
             } else {
                 warn!(
                     node = %node_id,
                     provider = %provider_id,
                     model = %model_id,
-                    "Model doesn't support function calling, tools will not be available"
+                    "Model doesn't support function calling, skill and user tools unavailable"
                 );
             }
         }
@@ -388,6 +573,13 @@ impl NodeExecutor for GenerateExecutor {
             let mut final_content = String::new();
             let mut final_thinking = None;
 
+            let dispatch_ctx = ToolDispatchContext {
+                node_config,
+                config,
+                skill_index: &skill_index,
+                node_id,
+            };
+
             for round in 0..max_rounds {
                 let response = provider.chat(conversation.clone(), options.clone()).await
                     .map_err(|e| {
@@ -419,46 +611,14 @@ impl NodeExecutor for GenerateExecutor {
                             tool_calls: Some(tool_calls.clone()),
                         });
 
-                        // Execute each tool call via subgraph
+                        // Dispatch each tool call (built-in skills or subgraph)
                         for tc in tool_calls {
-                            let tool_ref = node_config.tools.iter()
-                                .find(|t| t.name == tc.name);
-
-                            let result_content = if let Some(tool) = tool_ref {
-                                // Parse arguments as input HashMap
-                                let input: HashMap<String, Value> = match &tc.arguments {
-                                    Value::Object(obj) => obj.iter()
-                                        .map(|(k, v)| (k.clone(), v.clone()))
-                                        .collect(),
-                                    other => {
-                                        warn!(
-                                            node = %node_id,
-                                            tool = %tc.name,
-                                            arguments = ?other,
-                                            "Tool call arguments is not an object, using empty input"
-                                        );
-                                        HashMap::new()
-                                    }
-                                };
-
-                                // Execute subgraph
-                                if let Some(subgraph) = config.subgraphs.get(&tool.subgraph_ref) {
-                                    match super::subgraph_runner::execute(subgraph, input, config).await {
-                                        Ok(result) => {
-                                            total_usage.input_tokens += result.usage.input_tokens;
-                                            total_usage.output_tokens += result.usage.output_tokens;
-                                            serde_json::to_string(&result.outputs).unwrap_or_default()
-                                        }
-                                        Err(e) => format!("Tool execution error: {}", e),
-                                    }
-                                } else {
-                                    format!("Subgraph '{}' not found", tool.subgraph_ref)
-                                }
-                            } else {
-                                format!("Unknown tool: {}", tc.name)
-                            };
-
-                            // Add tool result to conversation (with name for Gemini compatibility)
+                            let (result_content, sub_usage) = dispatch_tool_call(tc, &dispatch_ctx).await;
+                            if let Some(usage) = sub_usage {
+                                total_usage.input_tokens += usage.input_tokens;
+                                total_usage.output_tokens += usage.output_tokens;
+                                total_usage.total_tokens += usage.total_tokens;
+                            }
                             conversation.push(Message::tool_result_with_name(&tc.id, &tc.name, result_content));
                         }
 
@@ -599,6 +759,72 @@ fn compose_system_prompt(
     } else {
         Some(parts.join("\n\n---\n\n"))
     }
+}
+
+/// Build a skill index from upstream skill_set node outputs in state.
+/// Returns a HashMap keyed by skill name, containing resolved content and references.
+fn build_skill_index(
+    skill_set_ids: &[String],
+    state: &ExecutionState,
+    node_id: &str,
+) -> Result<HashMap<String, ResolvedSkill>, EngineError> {
+    let mut index = HashMap::new();
+
+    for ss_id in skill_set_ids {
+        let skills_path = format!("{}.skills", ss_id);
+        let skills_value = state.read(&skills_path)
+            .ok_or_else(|| {
+                error!(
+                    node = %node_id,
+                    skill_set = %ss_id,
+                    "Skill set node output not found in state — ensure edge from skill_set to generate"
+                );
+                EngineError::NodeExecutionFailed(
+                    format!("Node '{}': skill set '{}' not found in state", node_id, ss_id)
+                )
+            })?;
+
+        let skills_array = skills_value.as_array()
+            .ok_or_else(|| EngineError::NodeExecutionFailed(
+                format!("Node '{}': skill set '{}' output is not an array", node_id, ss_id)
+            ))?;
+
+        for skill_val in skills_array {
+            let name = skill_val.get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if name.is_empty() { continue; }
+
+            if index.contains_key(&name) {
+                warn!(
+                    node = %node_id,
+                    skill = %name,
+                    skill_set = %ss_id,
+                    "Duplicate skill name, overwriting previous"
+                );
+            }
+
+            let description = skill_val.get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let content = skill_val.get("content")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let references = skill_val.get("references")
+                .and_then(|v| v.as_array())
+                .map(|arr| arr.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect())
+                .unwrap_or_default();
+
+            index.insert(name, ResolvedSkill { description, content, references });
+        }
+    }
+
+    Ok(index)
 }
 
 fn render_template(template: &str, variables: &HashMap<String, Value>) -> String {
