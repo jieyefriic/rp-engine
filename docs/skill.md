@@ -2,13 +2,13 @@
 
 ## Overview
 
-rp-engine is a YAML-native agent workflow engine written in Rust. You define workflows as YAML files containing nodes, edges, templates, and configuration. The engine parses these definitions, resolves dependencies, and executes nodes in the correct order -- making LLM calls, running scripts, searching the web, iterating over data, and orchestrating multi-agent plans.
+rp-engine is a YAML-native agent workflow engine written in Rust. You define workflows as YAML files containing nodes, edges, templates, and configuration. The engine parses these definitions, resolves dependencies, and executes nodes in the correct order -- making LLM calls, running scripts, calling MCP tools, iterating over data, and orchestrating multi-agent plans.
 
 ### Core Concepts
 
 | Concept | What it is |
 |---|---|
-| **Node** | A unit of work: `start`, `generate`, `response`, `checkpoint`, `transform`, `search`, `iterator`, `supervisor`, `workflow`, `data_connector`, `skill_set` |
+| **Node** | A unit of work: `start`, `generate`, `response`, `checkpoint`, `transform`, `iterator`, `supervisor`, `workflow`, `data_connector`, `skill_set`, `mcp`, `mcp_tools` |
 | **Edge** | A connection from one node to another, optionally with a `condition`, `max_iterations` (loop cap), `exit_reason` (supervisor routing), or `on_error` flag |
 | **Template** | A prompt definition with `user_prompt`, optional `system_prompt`, LLM config (`temperature`, `max_tokens`, etc.), and optional `output_schema` for structured JSON output |
 | **Variable binding** | Maps a variable name to a state path (`node_id.field`), a literal, or multiple fallback sources |
@@ -17,6 +17,7 @@ rp-engine is a YAML-native agent workflow engine written in Rust. You define wor
 | **Provider** | An LLM provider (qwen, openai, anthropic, gemini, deepseek, xai, zhipu, moonshot, minimax, huoshan, openai_compatible) |
 | **Harness** | Workflow-level instructions injected into every generate node's system_prompt (like CLAUDE.md). Supports inline text, external files, and persistent memory. |
 | **Skill** | Progressive disclosure knowledge bundles defined in `skill_set` nodes. LLM loads on demand via `load_skill` tool call. Three levels: L1 metadata, L2 full content, L3 references. |
+| **MCP** | Model Context Protocol integration. `mcp` nodes call a specific tool on an MCP server. `mcp_tools` nodes discover server tools for LLM-driven tool calling via `mcp_tool_sets` on generate nodes. |
 
 ### State Model
 
@@ -785,110 +786,135 @@ templates:
 
 ---
 
-### search -- Web Search
+### search -- _(Removed)_
 
-Queries web search APIs and returns structured results.
+Search node type has been removed. Search capability will be available as a built-in tool for generate nodes in a future release. YAML files using `type: search` will fail with `CustomNodeNotFound`.
 
-**Providers:** Tavily, Brave, Bocha, Perplexity (Sonar)
+---
 
-#### All options
+### mcp -- Explicit MCP Tool Call
 
-```yaml
-- id: web_search
-  type: search
-  config:
-    provider: tavily
-    variables:
-      query: "start.search_query"
-    operation:
-      max_results: 10
-      freshness: week            # day, week, month, year
-      search_depth: advanced     # basic (default), advanced (Tavily)
-      include_answer: true       # AI-generated answer summary
-      include_raw_content: false # full page content
-      country: US                # geo-bias
-      language: en               # result language
-      search_type: web           # web (default), news (Tavily/Brave), ai (Bocha)
-      include_domains:           # only include these domains
-        - wikipedia.org
-        - docs.python.org
-      exclude_domains:           # exclude these domains
-        - pinterest.com
-      model: sonar-pro           # Perplexity model override
-```
+Calls a specific tool on an MCP server using Streamable HTTP transport (JSON-RPC 2.0).
 
-Not all options apply to every provider. Unsupported options are silently ignored.
+#### Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| `server` | Yes | MCP server ID from `mcp_servers` top-level section |
+| `tool` | Yes | Tool name to invoke |
+| `variables` | No | Tool arguments (variable bindings) |
 
 #### Output fields
 
 | Field | Type | Description |
 |---|---|---|
-| `results` | array | Array of result objects: `[{title, url, content, score, raw_content, published_date, site_name, favicon}]` |
-| `answer` | string or null | AI-generated summary (when `include_answer: true` and the provider supports it) |
-| `query` | string | The actual query that was executed |
+| `result` | any | Tool call result from MCP server |
+| `_timing_ms` | number | Execution time in milliseconds |
+| `_error` | bool | Present and `true` on failure |
+| `_error_message` | string | Error description (on failure) |
 
-#### Complete working example
+#### Example
 
 ```yaml
-version: "1.0"
-name: "research_assistant"
+mcp_servers:
+  deepwiki:
+    url: "https://mcp.deepwiki.com/mcp"
 
 nodes:
   - id: start
     type: start
 
-  - id: search
-    type: search
+  - id: wiki
+    type: mcp
     config:
-      provider: tavily
+      server: deepwiki
+      tool: read_wiki_structure
       variables:
-        query: "start.question"
-      operation:
-        max_results: 5
-        include_answer: true
-        freshness: month
-
-  - id: synthesize
-    type: generate
-    config:
-      provider: qwen
-      model: qwen-plus
-      template: tpl_synthesize
-      variables:
-        question: "start.question"
-        search_results: "search.results"
-        search_answer: "search.answer"
+        repoName: "start.repo"
 
   - id: response
     type: response
     config:
       output:
-        answer: "synthesize.output"
-        sources: "search.results"
+        structure: "wiki.result"
 
 edges:
   - from: start
-    to: search
-  - from: search
-    to: synthesize
-  - from: synthesize
+    to: wiki
+  - from: wiki
+    to: response
+```
+
+---
+
+### mcp_tools -- MCP Tool Discovery for LLM
+
+Connects to an MCP server, discovers available tools via `tools/list`, and outputs tool definitions to state. Generate nodes consume these tools via `mcp_tool_sets`.
+
+#### Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| `server` | Yes | MCP server ID from `mcp_servers` top-level section |
+
+#### Output fields
+
+| Field | Type | Description |
+|---|---|---|
+| `tools` | array | Array of MCP tool definitions (name, description, inputSchema) |
+| `server` | string | Server ID (for routing tool calls) |
+| `_tool_count` | number | Number of tools discovered |
+
+#### mcp_tools + generate integration
+
+```yaml
+mcp_servers:
+  deepwiki:
+    url: "https://mcp.deepwiki.com/mcp"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: wiki_tools
+    type: mcp_tools
+    config:
+      server: deepwiki
+
+  - id: agent
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: agent_tpl
+      mcp_tool_sets: ["wiki_tools"]
+      variables:
+        question: "start.question"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "agent.output"
+
+edges:
+  - from: start
+    to: wiki_tools
+  - from: wiki_tools
+    to: agent
+  - from: agent
     to: response
 
 templates:
-  tpl_synthesize:
-    user_prompt: |
-      Question: {{question}}
-
-      Search results: {{search_results}}
-
-      Search summary: {{search_answer}}
-
-      Based on the search results above, provide a comprehensive answer to the question.
-      Cite sources where appropriate.
+  agent_tpl:
+    user_prompt: "{{question}}"
+    system_prompt: "You are a helpful assistant with access to wiki tools."
     config:
-      temperature: 0.5
-      max_tokens: 2048
+      temperature: 0.7
+      max_tokens: 4096
 ```
+
+The LLM sees MCP tools alongside any user-defined subgraph tools and skill tools. During the tool calling loop, MCP tool calls are dispatched to the corresponding MCP server.
 
 ---
 
@@ -3302,6 +3328,119 @@ templates:
 
 ---
 
+## MCP Integration
+
+MCP (Model Context Protocol) enables workflows to call tools hosted on external MCP servers. rp-engine supports two scenarios:
+
+### Scenario A: Explicit MCP Tool Call (`mcp` node)
+
+Use when you know exactly which tool to call and with what arguments. The `mcp` node calls the tool directly and writes the result to state.
+
+```yaml
+mcp_servers:
+  deepwiki:
+    url: "https://mcp.deepwiki.com/mcp"
+
+nodes:
+  - id: wiki
+    type: mcp
+    config:
+      server: deepwiki
+      tool: read_wiki_structure
+      variables:
+        repoName: "anthropics/anthropic-cookbook"
+```
+
+Output: `wiki.result` contains the tool's return value.
+
+### Scenario B: LLM-Driven MCP Tool Calling (`mcp_tools` + generate)
+
+Use when you want the LLM to discover and call MCP tools autonomously. This follows the same pattern as `skill_sets`:
+
+1. An `mcp_tools` node connects to the server and discovers available tools
+2. A `generate` node references it via `mcp_tool_sets`
+3. The LLM sees tool definitions and calls them as needed during the tool calling loop
+
+```yaml
+mcp_servers:
+  deepwiki:
+    url: "https://mcp.deepwiki.com/mcp"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: wiki_tools
+    type: mcp_tools
+    config:
+      server: deepwiki
+
+  - id: agent
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: agent_tpl
+      mcp_tool_sets: ["wiki_tools"]
+      variables:
+        question: "start.question"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "agent.output"
+
+edges:
+  - from: start
+    to: wiki_tools
+  - from: wiki_tools
+    to: agent
+  - from: agent
+    to: response
+
+templates:
+  agent_tpl:
+    user_prompt: "{{question}}"
+    system_prompt: "You are a helpful assistant with wiki access."
+    config:
+      temperature: 0.7
+      max_tokens: 4096
+```
+
+MCP tools are injected into the generate node's tool_defs alongside user subgraph tools and skill tools. The LLM autonomously decides which tools to call.
+
+### MCP Server Authentication
+
+```yaml
+mcp_servers:
+  public_server:
+    url: "https://mcp.example.com/mcp"    # No auth needed
+
+  bearer_auth:
+    url: "https://private.example.com/mcp"
+    auth:
+      type: bearer
+      token: "${MCP_TOKEN}"               # Authorization: Bearer <token>
+
+  api_key_auth:
+    url: "https://api.example.com/mcp"
+    auth:
+      type: api_key
+      token: "${API_KEY}"                 # X-API-Key: <token>
+```
+
+MCP servers can also be registered at Engine build time via `.mcp_server(id, url)` or `.mcp_server_def(id, def)`. YAML-level definitions override Engine-level ones with the same ID.
+
+### Protocol Details
+
+- Transport: Streamable HTTP (POST to server URL)
+- Wire format: JSON-RPC 2.0
+- Response handling: supports both plain JSON and SSE (`text/event-stream`)
+- Session management: `Mcp-Session-Id` header
+
+---
+
 ## Variable Binding
 
 Variables connect nodes by mapping upstream outputs to downstream inputs. There are three forms plus literal values.
@@ -3432,72 +3571,56 @@ subgraphs:
 
 ## Common Patterns
 
-### RAG: Search then Generate with Context
+### MCP Agent: LLM-Driven Tool Calling via MCP
 
 ```yaml
 version: "1.0"
-name: "rag_pipeline"
+name: "mcp_agent"
+
+mcp_servers:
+  deepwiki:
+    url: "https://mcp.deepwiki.com/mcp"
 
 nodes:
   - id: start
     type: start
-    config:
-      output:
-        query: input.user_query
 
-  - id: search
-    type: search
+  - id: wiki_tools
+    type: mcp_tools
     config:
-      provider: tavily
-      variables:
-        query: start.query
-      operation:
-        max_results: 5
-        include_answer: true
+      server: deepwiki
 
-  - id: generate
+  - id: agent
     type: generate
     config:
-      provider: openai
-      model: gpt-4o
-      template: rag_template
+      provider: deepseek
+      model: deepseek-chat
+      template: agent_tpl
+      mcp_tool_sets: ["wiki_tools"]
       variables:
-        query: start.query
-        results: search.results
-        answer: search.answer
+        question: "start.question"
 
   - id: response
     type: response
     config:
       output:
-        answer: generate.text
+        answer: "agent.output"
 
 edges:
   - from: start
-    to: search
-  - from: search
-    to: generate
-  - from: generate
+    to: wiki_tools
+  - from: wiki_tools
+    to: agent
+  - from: agent
     to: response
 
 templates:
-  rag_template:
-    system_prompt: "Answer questions using the provided search results."
-    user_prompt: |
-      Search results:
-      {{#each results}}
-      [{{this.title}}]({{this.url}})
-      {{this.content}}
-      {{/each}}
-
-      {{#if answer}}
-      Search summary: {{answer}}
-      {{/if}}
-
-      Question: {{query}}
+  agent_tpl:
+    user_prompt: "{{question}}"
+    system_prompt: "You are a helpful assistant. Use wiki tools to research answers."
     config:
-      temperature: 0.3
-      max_tokens: 2048
+      temperature: 0.7
+      max_tokens: 4096
 ```
 
 ### Error Fallback: Primary with Backup Provider

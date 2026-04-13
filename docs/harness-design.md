@@ -24,7 +24,7 @@ generate 节点内部 pipeline:
                         ↓ messages[]
 ┌─ Payload Render + Request (现有) ─────────────────────────┐
 │  capability masking → provider payload → HTTP              │
-│  tool calling loop (load_skill/load_skill_reference + MCP + FC) │
+│  tool calling loop (load_skill/load_skill_reference + MCP tools + FC) │
 │  parse → outputs                                           │
 └────────────────────────────────────────────────────────────┘
                         ↓
@@ -215,7 +215,7 @@ nodes:
   LLM 通过 tool call 自行决定搜什么
   ┌─────────────────────────────────────┐
   │ 已有机制:                            │
-  │   - search 节点 (Tavily/Brave/...)  │
+  │   - MCP 节点 (外部 MCP server)      │
   │   - data_connector 节点 (DB/API)    │
   │   - tool calling (子图执行)          │
   │ LLM 自行组合使用                     │
@@ -291,8 +291,16 @@ Phase 3: Skill System — ✅ COMPLETE (2026-04-12)
   - 命名冲突检查
   - 规则触发（trigger_keywords）推迟 — LLM 自触发已足够
 
-Phase 4: Context Management — PLANNED
-  - 规则检索 (复用现有 data_connector/search 能力)
+Phase 4: MCP Integration — ✅ COMPLETE (2026-04-13)
+  - mcp 节点: 显式 MCP tool call (Streamable HTTP, JSON-RPC 2.0)
+  - mcp_tools 节点: 连接 MCP server, tools/list 发现工具
+  - generate 节点 mcp_tool_sets: LLM 驱动 MCP tool calling
+  - McpClient: SSE + plain JSON 响应处理, session 管理
+  - 两种认证: bearer token, api_key
+  - 已通过 DeepWiki 公共 MCP server 验证
+
+Phase 5: Context Management — PLANNED
+  - 规则检索 (复用现有 data_connector 能力)
   - context window token 计数
   - compaction 策略
 ```
@@ -305,6 +313,6 @@ Phase 4: Context Management — PLANNED
 |------|---------------------|--------|
 | Harness | generate 节点新增 "Harness" tab：.md 内容编辑器 | Phase 2 |
 | Skill | skill_set 节点配置面板 + generate 节点 skill_sets 引用选择 | Phase 3 ✅ (engine done, IDE TBD) |
-| Context | generate 节点新增 "Context" tab：检索源配置 + 压缩策略 | Phase 4 |
+| Context | generate 节点新增 "Context" tab：检索源配置 + 压缩策略 | Phase 5 |
 | Tool Calling | 修复现有 bug 后，generate 节点 tools section 正常工作 | Phase 1 |
-| MCP | MCP server 连接管理 + tool 暴露给 generate 节点 | Phase 3+ |
+| MCP | MCP server 连接管理 + mcp/mcp_tools 节点配置面板 + generate 节点 mcp_tool_sets 选择 | Phase 4 ✅ (engine done, IDE TBD) |
