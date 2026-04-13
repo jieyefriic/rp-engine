@@ -235,6 +235,11 @@ pub struct ExecutionConfig {
 
     /// Harness memory file path (for post-execution update)
     pub harness_memory_file: Option<String>,
+
+    // ── MCP (workflow-level) ──────────────────────────────────────
+
+    /// MCP server definitions (server_id -> McpServerDef)
+    pub mcp_servers: HashMap<String, crate::schema::McpServerDef>,
 }
 
 impl Default for ExecutionConfig {
@@ -258,6 +263,7 @@ impl Default for ExecutionConfig {
             stream_handler: None,
             harness_instructions: None,
             harness_memory_file: None,
+            mcp_servers: HashMap::new(),
         }
     }
 }
@@ -367,6 +373,12 @@ impl ExecutionConfig {
     /// Set harness memory file path
     pub fn with_harness_memory_file(mut self, path: String) -> Self {
         self.harness_memory_file = Some(path);
+        self
+    }
+
+    /// Set MCP server definitions
+    pub fn with_mcp_servers(mut self, servers: HashMap<String, crate::schema::McpServerDef>) -> Self {
+        self.mcp_servers = servers;
         self
     }
 }
@@ -481,6 +493,11 @@ pub async fn execute_workflow(
     // Merge workflow data sources into config
     for (id, data_source) in &workflow.data_sources {
         config.data_sources.insert(id.clone(), data_source.clone());
+    }
+
+    // Merge workflow MCP servers into config
+    for (id, server) in &workflow.mcp_servers {
+        config.mcp_servers.insert(id.clone(), server.clone());
     }
 
     // Resolve harness instructions (inline text + external files + memory)

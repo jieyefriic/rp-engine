@@ -339,6 +339,8 @@ pub enum NodeType {
     Transform,
     /// Iterator node - processes an array by running a subgraph for each element
     Iterator,
+    /// MCP tools discovery node - discovers tools from MCP server for generate node injection
+    McpTools,
     /// Skill set node - provides skills for progressive disclosure in generate nodes
     SkillSet,
     /// User-defined custom node type
@@ -520,6 +522,10 @@ pub struct NodeConfig {
     /// References to upstream skill_set node IDs (for generate nodes)
     #[serde(default)]
     pub skill_sets: Vec<String>,
+
+    /// References to upstream mcp_tools node IDs (for generate nodes)
+    #[serde(default)]
+    pub mcp_tool_sets: Vec<String>,
 }
 
 /// Per-node error handling configuration

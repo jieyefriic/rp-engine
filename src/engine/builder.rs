@@ -64,6 +64,9 @@ pub struct EngineBuilder {
     /// Search provider API keys: provider_name -> api_key
     search_providers: HashMap<String, String>,
 
+    /// MCP server definitions: server_id -> McpServerDef
+    mcp_servers: HashMap<String, crate::schema::McpServerDef>,
+
     /// Custom node implementations to register
     custom_nodes: Vec<Arc<dyn CustomNode>>,
 
@@ -105,6 +108,7 @@ impl EngineBuilder {
             providers: HashMap::new(),
             embedding_providers: HashMap::new(),
             search_providers: HashMap::new(),
+            mcp_servers: HashMap::new(),
             custom_nodes: Vec::new(),
             state_saving: None,
             pool_config: PoolConfig::default(),
@@ -165,6 +169,21 @@ impl EngineBuilder {
     /// Supported search providers: tavily, brave, bocha, perplexity
     pub fn search_provider(mut self, name: &str, api_key: impl Into<String>) -> Self {
         self.search_providers.insert(name.to_string(), api_key.into());
+        self
+    }
+
+    /// Register an MCP server
+    pub fn mcp_server(mut self, id: &str, url: &str) -> Self {
+        self.mcp_servers.insert(id.to_string(), crate::schema::McpServerDef {
+            url: url.to_string(),
+            auth: None,
+        });
+        self
+    }
+
+    /// Register an MCP server with full configuration (including auth)
+    pub fn mcp_server_def(mut self, id: &str, def: crate::schema::McpServerDef) -> Self {
+        self.mcp_servers.insert(id.to_string(), def);
         self
     }
 
@@ -385,6 +404,7 @@ impl EngineBuilder {
             provider_registry,
             embedding_registry,
             search_registry,
+            self.mcp_servers,
             Arc::new(node_registry),
             Arc::new(connection_pools),
             model_registry,
