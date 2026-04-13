@@ -7,7 +7,6 @@ mod generate;
 mod data_connector;
 mod supervisor;
 mod transform;
-mod search;
 mod connectors;
 mod workflow_node;
 mod iterator;
@@ -291,7 +290,6 @@ pub use generate::GenerateExecutor;
 pub use data_connector::DataConnectorExecutor;
 pub use supervisor::SupervisorExecutor;
 pub use transform::TransformExecutor;
-pub use search::SearchExecutor;
 pub use workflow_node::WorkflowNode;
 
 // ============================================================================
@@ -408,7 +406,8 @@ pub fn create_executor(node_type: &NodeType) -> Box<dyn NodeExecutor> {
         NodeType::DataConnector => Box::new(DataConnectorExecutor),
         NodeType::Supervisor => Box::new(SupervisorExecutor),
         NodeType::Transform => Box::new(TransformExecutor),
-        NodeType::Search => Box::new(SearchExecutor),
+        // Search node removed — search capability will be re-added as built-in tool
+        // NodeType::Search now falls through to Custom() via serde(untagged)
         NodeType::Iterator => Box::new(iterator::IteratorExecutor),
         NodeType::SkillSet => Box::new(skill_set::SkillSetExecutor),
         NodeType::Execute => Box::new(NotImplementedExecutor("execute")),
