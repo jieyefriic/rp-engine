@@ -142,6 +142,10 @@ pub enum EngineError {
     #[error("Search error: {0}")]
     SearchError(String),
 
+    // MCP errors
+    #[error("MCP error: {0}")]
+    McpError(String),
+
     // State saving errors
     #[error("State error: {0}")]
     StateError(String),

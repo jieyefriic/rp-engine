@@ -169,6 +169,7 @@ async fn execute_child_workflow(
         model_registry: config.model_registry.clone(),
         harness_instructions: config.harness_instructions.clone(),
         harness_memory_file: config.harness_memory_file.clone(),
+        mcp_servers: config.mcp_servers.clone(),
     };
 
     // Execute the child workflow

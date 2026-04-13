@@ -73,6 +73,9 @@ pub struct Engine {
     /// Transform scripts: script_name -> source code
     transforms: HashMap<String, String>,
 
+    /// MCP server definitions
+    mcp_servers: HashMap<String, crate::schema::McpServerDef>,
+
     /// State saving configuration
     state_saving: Option<StateSavingConfig>,
 
@@ -103,6 +106,7 @@ impl Engine {
         providers: ProviderRegistry,
         embedding_providers: EmbeddingRegistry,
         search_providers: SearchProviderRegistry,
+        mcp_servers: HashMap<String, crate::schema::McpServerDef>,
         node_registry: Arc<NodeRegistry>,
         pools: Arc<ConnectionPools>,
         model_registry: Arc<ModelRegistry>,
@@ -116,6 +120,7 @@ impl Engine {
             providers,
             embedding_providers,
             search_providers,
+            mcp_servers,
             node_registry,
             pools,
             model_registry,
@@ -193,6 +198,7 @@ impl Engine {
             .with_providers(self.providers.clone())
             .with_embedding_providers(self.embedding_providers.clone())
             .with_search_providers(self.search_providers.clone())
+            .with_mcp_servers(self.mcp_servers.clone())
             .with_templates(self.templates.clone())
             .with_node_registry(self.node_registry.clone())
             .with_pools(self.pools.clone())
@@ -270,6 +276,7 @@ impl Engine {
             .with_providers(self.providers.clone())
             .with_embedding_providers(self.embedding_providers.clone())
             .with_search_providers(self.search_providers.clone())
+            .with_mcp_servers(self.mcp_servers.clone())
             .with_templates(self.templates.clone())
             .with_node_registry(self.node_registry.clone())
             .with_pools(self.pools.clone())
@@ -354,6 +361,7 @@ impl Engine {
             .with_providers(self.providers.clone())
             .with_embedding_providers(self.embedding_providers.clone())
             .with_search_providers(self.search_providers.clone())
+            .with_mcp_servers(self.mcp_servers.clone())
             .with_templates(self.templates.clone())
             .with_node_registry(self.node_registry.clone())
             .with_pools(self.pools.clone())

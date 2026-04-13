@@ -218,6 +218,10 @@ pub struct PreparedWorkflow {
     /// Harness configuration (workflow-level instructions for all generate nodes)
     #[serde(default)]
     pub harness: Option<HarnessConfig>,
+
+    /// MCP server definitions (server_id -> McpServerDef)
+    #[serde(default)]
+    pub mcp_servers: HashMap<String, McpServerDef>,
 }
 
 /// Harness configuration — workflow-level instructions injected into every generate node's system_prompt.
@@ -261,6 +265,28 @@ pub struct WritebackConfig {
     /// Default: 2200 (following Hermes Agent convention, ~800 tokens)
     #[serde(default)]
     pub memory_char_limit: Option<usize>,
+}
+
+/// MCP Server definition for connecting to MCP tool servers
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpServerDef {
+    /// MCP server URL (Streamable HTTP endpoint, e.g. "https://mcp.example.com/mcp")
+    pub url: String,
+
+    /// Optional authentication
+    #[serde(default)]
+    pub auth: Option<McpAuth>,
+}
+
+/// Authentication configuration for MCP servers
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpAuth {
+    /// Auth type: "bearer" or "api_key"
+    #[serde(rename = "type")]
+    pub auth_type: String,
+
+    /// Token value (supports ${ENV_VAR} expansion in YAML)
+    pub token: String,
 }
 
 fn default_version() -> String {

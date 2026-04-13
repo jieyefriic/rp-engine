@@ -22,11 +22,19 @@ struct ResolvedSkill {
     references: Vec<String>,
 }
 
-/// Context for dispatching tool calls (built-in + subgraph)
+/// Resolved MCP tool from an upstream mcp_tools node (internal to generate)
+struct ResolvedMcpTool {
+    description: String,
+    input_schema: Value,
+    server_id: String,
+}
+
+/// Context for dispatching tool calls (built-in + subgraph + MCP)
 struct ToolDispatchContext<'a> {
     node_config: &'a NodeConfig,
     config: &'a ExecutionConfig,
     skill_index: &'a HashMap<String, ResolvedSkill>,
+    mcp_tool_index: &'a HashMap<String, ResolvedMcpTool>,
     node_id: &'a str,
 }
 
@@ -85,6 +93,35 @@ async fn dispatch_tool_call(
             }
         }
         _ => {
+            // Check if this is an MCP tool
+            if let Some(mcp_tool) = ctx.mcp_tool_index.get(tc.name.as_str()) {
+                if let Some(server_def) = ctx.config.mcp_servers.get(&mcp_tool.server_id) {
+                    debug!(
+                        node = %ctx.node_id,
+                        tool = %tc.name,
+                        server = %mcp_tool.server_id,
+                        "Dispatching MCP tool call"
+                    );
+                    let mut client = super::mcp::McpClient::new_pub(
+                        &server_def.url, server_def.auth.as_ref()
+                    );
+                    match client.initialize().await {
+                        Ok(_) => {
+                            match client.call_tool(&tc.name, tc.arguments.clone()).await {
+                                Ok(result) => {
+                                    let content = serde_json::to_string(&result).unwrap_or_default();
+                                    return (content, None);
+                                }
+                                Err(e) => return (format!("MCP tool error: {}", e), None),
+                            }
+                        }
+                        Err(e) => return (format!("MCP initialize error: {}", e), None),
+                    }
+                } else {
+                    return (format!("MCP server '{}' not found", mcp_tool.server_id), None);
+                }
+            }
+
             // Subgraph tool dispatch (existing logic)
             let tool_ref = ctx.node_config.tools.iter()
                 .find(|t| t.name == tc.name);
@@ -256,6 +293,9 @@ impl NodeExecutor for GenerateExecutor {
 
         // Build skill index from upstream skill_set nodes
         let skill_index = build_skill_index(&node_config.skill_sets, state, node_id)?;
+
+        // Build MCP tool index from upstream mcp_tools nodes
+        let mcp_tool_index = build_mcp_tool_index(&node_config.mcp_tool_sets, state, node_id)?;
 
         // Build skill metadata for system_prompt injection
         let skill_metadata = if !skill_index.is_empty() {
@@ -514,6 +554,27 @@ impl NodeExecutor for GenerateExecutor {
             }
         }
 
+        // 3. MCP tools from mcp_tools nodes
+        for (tool_name, mcp_tool) in &mcp_tool_index {
+            // Naming conflict check against user tools and skill tools
+            if node_config.tools.iter().any(|t| t.name == *tool_name) {
+                return Err(EngineError::NodeExecutionFailed(
+                    format!("Node '{}': MCP tool '{}' conflicts with user-defined tool", node_id, tool_name)
+                ));
+            }
+            if skill_index.contains_key(tool_name) || tool_name == "load_skill" || tool_name == "load_skill_reference" {
+                return Err(EngineError::NodeExecutionFailed(
+                    format!("Node '{}': MCP tool '{}' conflicts with built-in tool", node_id, tool_name)
+                ));
+            }
+
+            all_tool_defs.push(crate::providers::ToolDefinition {
+                name: tool_name.clone(),
+                description: mcp_tool.description.clone(),
+                parameters: mcp_tool.input_schema.clone(),
+            });
+        }
+
         // Register all tools if model supports function calling
         if !all_tool_defs.is_empty() {
             let supports_fc = model_caps.map(|c| c.function_calling).unwrap_or(true);
@@ -577,6 +638,7 @@ impl NodeExecutor for GenerateExecutor {
                 node_config,
                 config,
                 skill_index: &skill_index,
+                mcp_tool_index: &mcp_tool_index,
                 node_id,
             };
 
@@ -821,6 +883,69 @@ fn build_skill_index(
                 .unwrap_or_default();
 
             index.insert(name, ResolvedSkill { description, content, references });
+        }
+    }
+
+    Ok(index)
+}
+
+/// Build MCP tool index from upstream mcp_tools node outputs in state.
+/// Returns a HashMap keyed by tool name, containing description, inputSchema, and server_id.
+fn build_mcp_tool_index(
+    mcp_tool_set_ids: &[String],
+    state: &ExecutionState,
+    node_id: &str,
+) -> Result<HashMap<String, ResolvedMcpTool>, EngineError> {
+    let mut index = HashMap::new();
+
+    for mt_id in mcp_tool_set_ids {
+        let tools_path = format!("{}.tools", mt_id);
+        let tools_value = state.read(&tools_path)
+            .ok_or_else(|| {
+                error!(node = %node_id, mcp_tools = %mt_id, "MCP tools node output not found in state");
+                EngineError::NodeExecutionFailed(
+                    format!("Node '{}': mcp_tools '{}' not found in state", node_id, mt_id)
+                )
+            })?;
+
+        let server_path = format!("{}.server", mt_id);
+        let server_id = state.read(&server_path)
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+            .unwrap_or_else(|| mt_id.clone());
+
+        let tools_array = tools_value.as_array()
+            .ok_or_else(|| EngineError::NodeExecutionFailed(
+                format!("Node '{}': mcp_tools '{}' output is not an array", node_id, mt_id)
+            ))?;
+
+        for tool_val in tools_array {
+            let name = tool_val.get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if name.is_empty() { continue; }
+
+            let description = tool_val.get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+
+            let input_schema = tool_val.get("inputSchema")
+                .cloned()
+                .unwrap_or(json!({
+                    "type": "object",
+                    "properties": {},
+                }));
+
+            if index.contains_key(&name) {
+                warn!(node = %node_id, tool = %name, "Duplicate MCP tool name, overwriting");
+            }
+
+            index.insert(name, ResolvedMcpTool {
+                description,
+                input_schema,
+                server_id: server_id.clone(),
+            });
         }
     }
 
