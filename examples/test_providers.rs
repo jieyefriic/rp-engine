@@ -1,6 +1,10 @@
 //! Test all LLM providers with real API calls
 //!
-//! Run with: cargo run --example test_providers
+//! Run with: OPENAI_API_KEY=... ANTHROPIC_API_KEY=... cargo run --example test_providers
+//!
+//! Required env vars (set the ones you want to test):
+//!   OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY,
+//!   XAI_API_KEY, QWEN_API_KEY, ZHIPU_API_KEY, MOONSHOT_API_KEY
 
 use riceprompt_engine::{
     OpenAIProvider, AnthropicProvider, GeminiProvider,
@@ -8,15 +12,9 @@ use riceprompt_engine::{
     LLMProvider, Message, ChatOptions,
 };
 
-// API Keys
-const OPENAI_KEY: &str = "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";
-const ANTHROPIC_KEY: &str = "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";
-const GEMINI_KEY: &str = "REDACTED_GEMINI_KEY";
-const DEEPSEEK_KEY: &str = "REDACTED_DEEPSEEK_KEY";
-const XAI_KEY: &str = "xai-wwEt0Lr8duEzoY3ClFvM0bpscdf0VE7IC0G8ZtdOoVveIGmFDOy76NIrKoIwMtz4bVLoV4ZztPgxSQBr";
-const QWEN_KEY: &str = "REDACTED_DASHSCOPE_KEY";
-const ZHIPU_KEY: &str = "REDACTED_DASHSCOPE_KEY";  // Same dashscope key
-const MOONSHOT_KEY: &str = "REDACTED_DASHSCOPE_KEY";  // Same dashscope key
+fn get_key(name: &str) -> Option<String> {
+    std::env::var(name).ok().filter(|s| !s.is_empty())
+}
 
 async fn test_provider<P: LLMProvider>(provider: &P, name: &str) {
     println!("\n{}", "=".repeat(60));
@@ -46,42 +44,64 @@ async fn test_provider<P: LLMProvider>(provider: &P, name: &str) {
 
 #[tokio::main]
 async fn main() {
-    println!("🚀 RicePrompt-Engine Provider Tests");
-    println!("Testing all providers with real API calls...\n");
+    println!("RicePrompt-Engine Provider Tests");
+    println!("Testing providers with API keys from environment variables...\n");
 
-    // OpenAI
-    let openai = OpenAIProvider::new(OPENAI_KEY);
-    test_provider(&openai, "OpenAI (gpt-4o-mini)").await;
+    let mut tested = 0;
 
-    // Anthropic
-    let anthropic = AnthropicProvider::new(ANTHROPIC_KEY);
-    test_provider(&anthropic, "Anthropic (claude-sonnet-4)").await;
+    if let Some(key) = get_key("OPENAI_API_KEY") {
+        let provider = OpenAIProvider::new(&key);
+        test_provider(&provider, "OpenAI (gpt-4o-mini)").await;
+        tested += 1;
+    }
 
-    // Gemini
-    let gemini = GeminiProvider::new(GEMINI_KEY);
-    test_provider(&gemini, "Gemini (gemini-2.0-flash)").await;
+    if let Some(key) = get_key("ANTHROPIC_API_KEY") {
+        let provider = AnthropicProvider::new(&key);
+        test_provider(&provider, "Anthropic (claude-sonnet-4)").await;
+        tested += 1;
+    }
 
-    // DeepSeek
-    let deepseek = DeepSeekProvider::new(DEEPSEEK_KEY);
-    test_provider(&deepseek, "DeepSeek (deepseek-chat)").await;
+    if let Some(key) = get_key("GEMINI_API_KEY") {
+        let provider = GeminiProvider::new(&key);
+        test_provider(&provider, "Gemini (gemini-2.0-flash)").await;
+        tested += 1;
+    }
 
-    // xAI
-    let xai = XAIProvider::new(XAI_KEY);
-    test_provider(&xai, "xAI (grok-2-latest)").await;
+    if let Some(key) = get_key("DEEPSEEK_API_KEY") {
+        let provider = DeepSeekProvider::new(&key);
+        test_provider(&provider, "DeepSeek (deepseek-chat)").await;
+        tested += 1;
+    }
 
-    // Qwen
-    let qwen = QwenProvider::new(QWEN_KEY);
-    test_provider(&qwen, "Qwen (qwen-turbo)").await;
+    if let Some(key) = get_key("XAI_API_KEY") {
+        let provider = XAIProvider::new(&key);
+        test_provider(&provider, "xAI (grok-2-latest)").await;
+        tested += 1;
+    }
 
-    // Zhipu
-    let zhipu = ZhipuProvider::new(ZHIPU_KEY);
-    test_provider(&zhipu, "Zhipu (glm-4.7)").await;
+    if let Some(key) = get_key("QWEN_API_KEY") {
+        let provider = QwenProvider::new(&key);
+        test_provider(&provider, "Qwen (qwen-turbo)").await;
+        tested += 1;
+    }
 
-    // Moonshot
-    let moonshot = MoonshotProvider::new(MOONSHOT_KEY);
-    test_provider(&moonshot, "Moonshot (kimi-k2-thinking)").await;
+    if let Some(key) = get_key("ZHIPU_API_KEY") {
+        let provider = ZhipuProvider::new(&key);
+        test_provider(&provider, "Zhipu (glm-4.7)").await;
+        tested += 1;
+    }
+
+    if let Some(key) = get_key("MOONSHOT_API_KEY") {
+        let provider = MoonshotProvider::new(&key);
+        test_provider(&provider, "Moonshot (kimi-k2-thinking)").await;
+        tested += 1;
+    }
 
     println!("\n{}", "=".repeat(60));
-    println!("All tests completed!");
+    if tested == 0 {
+        println!("No API keys found. Set env vars to test providers.");
+    } else {
+        println!("Tested {} providers.", tested);
+    }
     println!("{}", "=".repeat(60));
 }
