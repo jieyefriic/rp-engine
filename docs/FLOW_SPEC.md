@@ -53,6 +53,13 @@ subgraphs:                               # Optional. For supervisor, iterator, a
     nodes: [...]
     edges: [...]
 
+mcp_servers:                             # Optional. MCP server definitions
+  server_id:
+    url: "https://mcp.example.com/mcp"  # Required. Streamable HTTP endpoint
+    auth:                                # Optional. Authentication
+      type: bearer                       # "bearer" or "api_key"
+      token: "${MCP_TOKEN}"              # Supports ${ENV_VAR} expansion
+
 harness:                                 # Optional. Workflow-level instructions for all generate nodes
   instructions: "..."                    # Inline instruction text
   files: ["rules/project.md"]           # External .md file paths
@@ -344,6 +351,22 @@ When `skill_sets` is configured:
 4. The LLM sees skill metadata (name + description), calls `load_skill` to get full content, and optionally calls `load_skill_reference` for referenced resources
 
 User-defined tools **cannot** be named `load_skill` or `load_skill_reference` — the engine rejects these at build time.
+
+**MCP Tool Sets**: Generate nodes can reference `mcp_tools` nodes for LLM-driven MCP tool calling.
+
+```yaml
+- id: agent
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: agent_tpl
+    mcp_tool_sets: ["wiki_tools"]        # References mcp_tools node IDs
+    variables:
+      question: "start.question"
+```
+
+When `mcp_tool_sets` is configured, MCP tools are injected into the generate node's tool definitions alongside user subgraph tools and skill tools. The LLM can call MCP tools autonomously during the tool calling loop; calls are dispatched to the corresponding MCP server.
 
 **Native Tool Calling**: Generate nodes can use LLM function calling to invoke tools backed by subgraphs.
 The LLM decides when to call tools; results are fed back in a multi-round loop.
@@ -1003,190 +1026,158 @@ no system calls. Scripts are limited to 100,000 operations, 1MB strings, and 10,
 
 ---
 
-### `search` — Web Search
+### `search` — _(Removed)_
 
-Queries web search APIs and returns structured results. Search providers are registered at
-Engine level via `Engine::builder().search_provider("tavily", api_key)`.
+Search node type has been removed. Search capability will be available as a built-in tool for generate nodes in a future release. The search provider infrastructure (Tavily, Brave, Bocha, Perplexity) is retained internally for this purpose.
 
-Four providers are built-in: **Tavily**, **Brave**, **Bocha/博查**, **Perplexity Sonar**.
-All providers share the same unified parameters and output format — switching providers
-requires changing only the `provider` field.
+YAML files using `type: search` will fail with `CustomNodeNotFound`.
+
+---
+
+### `mcp` — Explicit MCP Tool Call
+
+Calls a specific tool on an MCP (Model Context Protocol) server and returns the result. The MCP client uses Streamable HTTP transport with JSON-RPC 2.0.
 
 ```yaml
-- id: web_search
-  type: search
+- id: wiki_result
+  type: mcp
   config:
-    provider: tavily                       # Required. Engine-registered search provider
-    variables:                             # Required. Must include 'query'
-      query: "start.user_query"
-    operation:                             # Optional. Search parameters
-      max_results: 5
-      freshness: week
-      include_answer: true
+    server: deepwiki                       # Required. References mcp_servers section
+    tool: read_wiki_structure              # Required. MCP tool name
+    variables:                             # Optional. Tool arguments
+      repoName: "anthropics/anthropic-cookbook"
 ```
 
 **Config fields:**
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `provider` | string | **Yes** | Search provider ID: `tavily`, `brave`, `bocha`, `perplexity` |
-| `variables.query` | binding | **Yes** | The search query (from upstream node or literal) |
-| `operation` | map | No | Search parameters (all optional, see table below) |
+| `server` | string | **Yes** | MCP server ID from `mcp_servers` top-level section |
+| `tool` | string | **Yes** | Tool name to invoke on the server |
+| `variables` | map | No | Tool arguments (variable bindings, same syntax as other nodes) |
 
-**Operation parameters** (unified across all providers):
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `max_results` | int | 5 | Number of results to return |
-| `freshness` | string | _(no limit)_ | Time filter: `day`, `week`, `month`, `year` |
-| `include_answer` | bool | false | Request AI-generated summary |
-| `include_raw_content` | bool | false | Include full page content per result |
-| `search_depth` | string | `basic` | Tavily-specific: `basic` or `advanced` |
-| `country` | string | - | 2-letter country code (`US`, `CN`) for geo-biased results |
-| `language` | string | - | Language code (`en`, `zh`) for result language |
-| `include_domains` | string[] | [] | Only include results from these domains |
-| `exclude_domains` | string[] | [] | Exclude results from these domains |
-| `model` | string | `sonar` | Perplexity-specific: `sonar`, `sonar-pro` |
-| `search_type` | string | `web` | Search variant: `web` (default), `news` (Tavily/Brave), `ai` (Bocha) |
-
-The engine automatically maps unified parameters to each provider's native API format:
-
-| Unified | Tavily | Brave | Bocha | Perplexity |
-|---------|--------|-------|-------|------------|
-| `freshness: week` | `time_range: "week"` | `freshness: "pw"` | `freshness: "oneWeek"` | `search_recency_filter: "week"` |
-| `max_results: 5` | `max_results: 5` | `count: 5` | `count: 5` | _(N/A)_ |
-| `include_answer: true` | `include_answer: true` | _(N/A)_ | `summary: true` | _(always)_ |
-| `search_type: news` | `topic: "news"` | `/news/search` endpoint | _(N/A)_ | _(N/A)_ |
-| `search_type: ai` | _(N/A)_ | _(N/A)_ | `/v1/ai-search` endpoint | _(N/A)_ |
-
-**Output fields** (identical for all providers):
+**Output fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `{node_id}.results` | array | Search results (see SearchResult below) |
-| `{node_id}.answer` | string \| null | AI-generated summary (if available) |
-| `{node_id}.query` | string | The actual search query used |
+| `{node_id}.result` | any | Tool call result (JSON value from MCP server) |
+| `{node_id}._timing_ms` | number | Execution time in milliseconds |
+| `{node_id}._error` | bool | Present and `true` on failure |
+| `{node_id}._error_message` | string | Error description (on failure) |
 
-**SearchResult object** (each element in `results`):
+**MCP server definition** (in top-level `mcp_servers`):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `title` | string | Page title |
-| `url` | string | Page URL |
-| `content` | string | Snippet / content summary |
-| `score` | float \| null | Relevance score 0-1 (Tavily only) |
-| `raw_content` | string \| null | Full page content (if `include_raw_content`) |
-| `published_date` | string \| null | Publication date |
-| `site_name` | string \| null | Source site name |
-| `favicon` | string \| null | Favicon URL |
-
-**Provider characteristics:**
-
-| Provider | Index | Strengths | Answer support |
-|----------|-------|-----------|----------------|
-| **Tavily** | Wraps major engines | AI-optimized snippets, relevance scoring | `include_answer` option |
-| **Brave** | Own 35B page index | Best value ($3/1K), independent, privacy-focused, news search | Paid summarizer only |
-| **Bocha** | Own 100B page index (CN) | Best Chinese web coverage, DeepSeek official search, AI search | `summary` per result, AI search answer |
-| **Perplexity** | Own index + LLM | Always returns synthesized answer with citations | Always (primary output) |
-
-**Examples:**
-
-Minimal:
 ```yaml
-- id: search
-  type: search
-  config:
-    provider: tavily
-    variables:
-      query: "start.user_query"
+mcp_servers:
+  deepwiki:
+    url: "https://mcp.deepwiki.com/mcp"
+  private_server:
+    url: "https://internal.example.com/mcp"
+    auth:
+      type: bearer                         # "bearer" or "api_key"
+      token: "${MCP_TOKEN}"
 ```
 
-Full options:
-```yaml
-- id: search
-  type: search
-  config:
-    provider: bocha
-    variables:
-      query: "start.user_query"
-    operation:
-      max_results: 10
-      freshness: week
-      include_answer: true
-      country: CN
-      language: zh
-      exclude_domains: ["spam.com", "ads.com"]
-```
+**Auth types:**
+- `bearer` — sends `Authorization: Bearer <token>` header
+- `api_key` — sends `X-API-Key: <token>` header
 
-News search (Brave):
-```yaml
-- id: news_search
-  type: search
-  config:
-    provider: brave
-    variables:
-      query: "start.news_topic"
-    operation:
-      search_type: news
-      max_results: 10
-      freshness: day
-```
+**Protocol details:**
+- Transport: Streamable HTTP (POST to server URL)
+- Wire format: JSON-RPC 2.0
+- Handles both plain JSON and SSE (`text/event-stream`) responses
+- Session management via `Mcp-Session-Id` header
 
-AI-enhanced search (Bocha):
-```yaml
-- id: ai_search
-  type: search
-  config:
-    provider: bocha
-    variables:
-      query: "start.user_query"
-    operation:
-      search_type: ai
-      max_results: 5
-      include_answer: true
-```
+**Example — call DeepWiki (no auth needed):**
 
-Search → Generate (RAG pattern):
 ```yaml
+mcp_servers:
+  deepwiki:
+    url: "https://mcp.deepwiki.com/mcp"
+
 nodes:
   - id: start
     type: start
 
-  - id: web_search
-    type: search
+  - id: wiki
+    type: mcp
     config:
-      provider: tavily
+      server: deepwiki
+      tool: read_wiki_structure
       variables:
-        query: "start.user_query"
-      operation:
-        max_results: 5
-        include_answer: true
-
-  - id: synthesize
-    type: generate
-    config:
-      provider: qwen
-      model: qwen-plus
-      template: rag_template
-      variables:
-        search_results: "web_search.results"
-        search_answer: "web_search.answer"
-        user_query: "start.user_query"
+        repoName: "start.repo"
 
   - id: response
     type: response
     config:
       output:
-        answer: "synthesize.text"
+        structure: "wiki.result"
 
 edges:
   - from: start
-    to: web_search
-  - from: web_search
-    to: synthesize
-  - from: synthesize
+    to: wiki
+  - from: wiki
     to: response
 ```
+
+---
+
+### `mcp_tools` — MCP Tool Discovery for LLM
+
+Connects to an MCP server, discovers available tools via `tools/list`, and outputs tool definitions to state. These tools are consumed by `generate` nodes through the `mcp_tool_sets` config field, enabling LLM-driven MCP tool calling.
+
+```yaml
+- id: wiki_tools
+  type: mcp_tools
+  config:
+    server: deepwiki                       # Required. References mcp_servers section
+```
+
+**Config fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `server` | string | **Yes** | MCP server ID from `mcp_servers` top-level section |
+
+**Output fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `{node_id}.tools` | array | Array of MCP tool definitions (name, description, inputSchema) |
+| `{node_id}.server` | string | Server ID (for routing tool calls) |
+| `{node_id}._tool_count` | number | Number of tools discovered |
+
+**Connection to generate nodes:**
+
+Generate nodes consume MCP tools via the `mcp_tool_sets` config field (same pattern as `skill_sets`). The `mcp_tools` node must be connected via edges to the generate node.
+
+```yaml
+nodes:
+  - id: wiki_tools
+    type: mcp_tools
+    config:
+      server: deepwiki
+
+  - id: agent
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: agent_tpl
+      mcp_tool_sets: ["wiki_tools"]        # References mcp_tools node IDs
+      variables:
+        question: "start.question"
+
+edges:
+  - from: wiki_tools
+    to: agent
+```
+
+When `mcp_tool_sets` is configured:
+1. The engine reads tool definitions from each referenced `mcp_tools` node's state
+2. Injects MCP tools into the generate node's tool_defs alongside user subgraph tools and skill tools
+3. During the tool calling loop, the LLM can autonomously call MCP tools
+4. MCP tool calls are dispatched to the corresponding MCP server
 
 ---
 
