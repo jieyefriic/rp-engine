@@ -1,0 +1,123 @@
+version: "1.0"
+name: "S10 ETL Pipeline (Transform + Iterator)"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: parse_data
+    type: transform
+    config:
+      script: |
+        let raw = raw_data;
+        let records = [];
+        for item in raw {
+          records.push(#{
+            "name": item["name"],
+            "value": item["value"],
+            "category": if item["value"] > 50 { "high" } else { "low" },
+            "normalized": item["value"] / 100.0
+          });
+        }
+        #{
+          "records": records,
+          "total": records.len()
+        }
+      variables:
+        raw_data: "start.data"
+
+  - id: process_each
+    type: iterator
+    config:
+      items: "parse_data.records"
+      subgraph_ref: "sg_process"
+      item_var: "record"
+      parallel: true
+      max_concurrency: 3
+      on_error: collect
+
+  - id: aggregate
+    type: transform
+    config:
+      script: |
+        let results = results;
+        let high_count = 0;
+        let low_count = 0;
+        for r in results {
+          if r["enriched_category"] == "high" {
+            high_count += 1;
+          } else {
+            low_count += 1;
+          }
+        }
+        #{
+          "total_processed": results.len(),
+          "high_value_count": high_count,
+          "low_value_count": low_count,
+          "results": results
+        }
+      variables:
+        results: "process_each.results"
+
+  - id: response
+    type: response
+    config:
+      output:
+        total_processed: "aggregate.total_processed"
+        high_value_count: "aggregate.high_value_count"
+        low_value_count: "aggregate.low_value_count"
+
+edges:
+  - from: start
+    to: parse_data
+  - from: parse_data
+    to: process_each
+  - from: process_each
+    to: aggregate
+  - from: aggregate
+    to: response
+
+subgraphs:
+  sg_process:
+    nodes:
+      - id: sg_start
+        type: start
+      - id: sg_enrich
+        type: generate
+        config:
+          provider: qwen
+          model: qwen-flash
+          template: sg_tpl
+          variables:
+            record: "sg_start.record"
+      - id: sg_merge
+        type: transform
+        config:
+          script: |
+            #{
+              "enriched_category": category,
+              "enrichment": enrichment
+            }
+          variables:
+            category: "sg_start.record.category"
+            enrichment: "sg_enrich.output"
+      - id: sg_response
+        type: response
+        config:
+          output:
+            enriched_category: "sg_merge.enriched_category"
+            enrichment: "sg_merge.enrichment"
+    edges:
+      - from: sg_start
+        to: sg_enrich
+      - from: sg_enrich
+        to: sg_merge
+      - from: sg_merge
+        to: sg_response
+
+templates:
+  sg_tpl:
+    user_prompt: "In one sentence, describe what this data point suggests: {{record}}"
+    config:
+      temperature: 0.3
+      max_tokens: 80

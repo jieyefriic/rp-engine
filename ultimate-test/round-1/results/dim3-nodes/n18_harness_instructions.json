@@ -1,0 +1,85 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n18_harness_instructions.yaml",
+    "elapsed_ms": 10124,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "The primary causes of contemporary climate change are anthropogenic, meaning they result from human activities that increase concentrations of heat-trapping greenhouse gases in Earth's atmosphere. The Intergovernmental Panel on Climate Change (IPCC) states that human influence is \"unequivocal\" and the dominant cause of observed warming since the mid-20th century (IPCC, 2021).\n\nThe main drivers include:\n\n1.  **Burning of Fossil Fuels:** The combustion of coal, oil, and natural gas for energy and transportation is the largest single source. This releases vast quantities of carbon dioxide (CO₂) and other gases that had been sequestered underground for millions of years.\n2.  **Deforestation:** Clearing forests for agriculture, logging, and development removes vital carbon sinks—trees that absorb CO₂ through photosynthesis—while often releasing stored carbon through burning or decay.\n3.  **Agriculture:** Intensive farming practices contribute significantly through methane (CH₄) emissions from livestock digestion and rice paddies, and nitrous oxide (N₂O) emissions from fertilizer use.\n4.  **Industrial Processes:** Certain manufacturing activities, such as cement production, release CO₂ directly, while others release potent industrial gases like hydrofluorocarbons (HFCs).\n5.  **Waste Management:** Landfills generate methane as organic waste decomposes anaerobically.\n\nThese activities have elevated atmospheric CO₂ concentrations to levels unprecedented in at least the last 800,000 years, enhancing the"
+          },
+          "timestamp": 1776182488414
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_usage": {
+              "provider": "deepseek",
+              "model": "deepseek-chat",
+              "input_tokens": 51,
+              "output_tokens": 300
+            },
+            "_actual_user_prompt": "What are the main causes of climate change?",
+            "_actual_system_prompt": "IMPORTANT RULES:\n- Always respond in formal academic English\n- Include at least one citation in your response\n- End every response with \"— AI Assistant v2.0\"\n",
+            "output": "The primary causes of contemporary climate change are anthropogenic, meaning they result from human activities that increase concentrations of heat-trapping greenhouse gases in Earth's atmosphere. The Intergovernmental Panel on Climate Change (IPCC) states that human influence is \"unequivocal\" and the dominant cause of observed warming since the mid-20th century (IPCC, 2021).\n\nThe main drivers include:\n\n1.  **Burning of Fossil Fuels:** The combustion of coal, oil, and natural gas for energy and transportation is the largest single source. This releases vast quantities of carbon dioxide (CO₂) and other gases that had been sequestered underground for millions of years.\n2.  **Deforestation:** Clearing forests for agriculture, logging, and development removes vital carbon sinks—trees that absorb CO₂ through photosynthesis—while often releasing stored carbon through burning or decay.\n3.  **Agriculture:** Intensive farming practices contribute significantly through methane (CH₄) emissions from livestock digestion and rice paddies, and nitrous oxide (N₂O) emissions from fertilizer use.\n4.  **Industrial Processes:** Certain manufacturing activities, such as cement production, release CO₂ directly, while others release potent industrial gases like hydrofluorocarbons (HFCs).\n5.  **Waste Management:** Landfills generate methane as organic waste decomposes anaerobically.\n\nThese activities have elevated atmospheric CO₂ concentrations to levels unprecedented in at least the last 800,000 years, enhancing the",
+            "_prompt": "What are the main causes of climate change?"
+          },
+          "timestamp": 1776182488414
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "What are the main causes of climate change?"
+          },
+          "timestamp": 1776182478291
+        }
+      ]
+    },
+    "output": {
+      "answer": "The primary causes of contemporary climate change are anthropogenic, meaning they result from human activities that increase concentrations of heat-trapping greenhouse gases in Earth's atmosphere. The Intergovernmental Panel on Climate Change (IPCC) states that human influence is \"unequivocal\" and the dominant cause of observed warming since the mid-20th century (IPCC, 2021).\n\nThe main drivers include:\n\n1.  **Burning of Fossil Fuels:** The combustion of coal, oil, and natural gas for energy and transportation is the largest single source. This releases vast quantities of carbon dioxide (CO₂) and other gases that had been sequestered underground for millions of years.\n2.  **Deforestation:** Clearing forests for agriculture, logging, and development removes vital carbon sinks—trees that absorb CO₂ through photosynthesis—while often releasing stored carbon through burning or decay.\n3.  **Agriculture:** Intensive farming practices contribute significantly through methane (CH₄) emissions from livestock digestion and rice paddies, and nitrous oxide (N₂O) emissions from fertilizer use.\n4.  **Industrial Processes:** Certain manufacturing activities, such as cement production, release CO₂ directly, while others release potent industrial gases like hydrofluorocarbons (HFCs).\n5.  **Waste Management:** Landfills generate methane as organic waste decomposes anaerobically.\n\nThese activities have elevated atmospheric CO₂ concentrations to levels unprecedented in at least the last 800,000 years, enhancing the"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 10122,
+      "per_node": {
+        "gen": 10122,
+        "response": 0,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 51,
+      "total_output_tokens": 300,
+      "per_node": {
+        "gen": [
+          51,
+          300
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,189 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim4-scenarios/s10_etl_pipeline.yaml",
+    "elapsed_ms": 3144,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "parse_data": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "records": [
+              {
+                "category": "high",
+                "name": "Widget A",
+                "normalized": 0.75,
+                "value": 75
+              },
+              {
+                "category": "low",
+                "name": "Widget B",
+                "normalized": 0.3,
+                "value": 30
+              },
+              {
+                "category": "high",
+                "name": "Widget C",
+                "normalized": 0.9,
+                "value": 90
+              },
+              {
+                "category": "low",
+                "name": "Widget D",
+                "normalized": 0.45,
+                "value": 45
+              }
+            ],
+            "total": 4
+          },
+          "timestamp": 1776182677105
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "data": [
+              {
+                "name": "Widget A",
+                "value": 75
+              },
+              {
+                "name": "Widget B",
+                "value": 30
+              },
+              {
+                "name": "Widget C",
+                "value": 90
+              },
+              {
+                "name": "Widget D",
+                "value": 45
+              }
+            ]
+          },
+          "timestamp": 1776182677095
+        }
+      ],
+      "aggregate": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "results": [
+              {
+                "enriched_category": "high",
+                "enrichment": "The data point suggests a specific trend, pattern, or insight related to the object in question, depending on its context and values."
+              },
+              {
+                "enriched_category": "low",
+                "enrichment": "The data point suggests a specific characteristic or trend related to the object, such as its performance, behavior, or relationship within a given context."
+              },
+              {
+                "enriched_category": "high",
+                "enrichment": "The data point suggests that [object] exhibits a notable trend, pattern, or characteristic relevant to the context—such as increased activity, a significant change, or a key relationship—based on its value or position within the dataset."
+              },
+              {
+                "enriched_category": "low",
+                "enrichment": "The data point suggests that [object] is associated with a specific trend, pattern, or characteristic relevant to the context in which it is measured."
+              }
+            ],
+            "low_value_count": 2,
+            "total_processed": 4,
+            "high_value_count": 2
+          },
+          "timestamp": 1776182680237
+        }
+      ],
+      "process_each": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "success_count": 4,
+            "count": 4,
+            "results": [
+              {
+                "enrichment": "The data point suggests a specific trend, pattern, or insight related to the object in question, depending on its context and values.",
+                "enriched_category": "high"
+              },
+              {
+                "enriched_category": "low",
+                "enrichment": "The data point suggests a specific characteristic or trend related to the object, such as its performance, behavior, or relationship within a given context."
+              },
+              {
+                "enrichment": "The data point suggests that [object] exhibits a notable trend, pattern, or characteristic relevant to the context—such as increased activity, a significant change, or a key relationship—based on its value or position within the dataset.",
+                "enriched_category": "high"
+              },
+              {
+                "enriched_category": "low",
+                "enrichment": "The data point suggests that [object] is associated with a specific trend, pattern, or characteristic relevant to the context in which it is measured."
+              }
+            ],
+            "_usage": {
+              "input_tokens": 88,
+              "output_tokens": 129
+            },
+            "error_count": 0
+          },
+          "timestamp": 1776182680234
+        }
+      ],
+      "response": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "low_value_count": 2,
+            "total_processed": 4,
+            "high_value_count": 2
+          },
+          "timestamp": 1776182680237
+        }
+      ]
+    },
+    "output": {
+      "low_value_count": 2,
+      "total_processed": 4,
+      "high_value_count": 2
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 3142,
+      "per_node": {
+        "process_each": 3128,
+        "response": 0,
+        "aggregate": 2,
+        "start": 0,
+        "parse_data": 10
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 88,
+      "total_output_tokens": 129,
+      "per_node": {
+        "process_each": [
+          88,
+          129
+        ]
+      }
+    }
+  }
+}

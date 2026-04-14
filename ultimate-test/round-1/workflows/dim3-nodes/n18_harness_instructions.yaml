@@ -1,0 +1,41 @@
+version: "1.0"
+name: "N18 Harness Instructions Injection"
+
+harness:
+  instructions: |
+    IMPORTANT RULES:
+    - Always respond in formal academic English
+    - Include at least one citation in your response
+    - End every response with "— AI Assistant v2.0"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl
+      variables:
+        query: "start.query"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen.output"
+
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl:
+    user_prompt: "{{query}}"
+    config:
+      temperature: 0.5
+      max_tokens: 300
