@@ -1,7 +1,7 @@
 {
   "_test_meta": {
     "yaml_path": "ultimate-test/round-1/workflows/dim2-connectors/d14_redis_hash.yaml",
-    "elapsed_ms": 473472,
+    "elapsed_ms": 9,
     "providers_registered": [
       "openai",
       "anthropic",
@@ -14,8 +14,89 @@
       "minimax",
       "huoshan"
     ],
-    "status": "Error"
+    "status": "Success"
   },
-  "_error": "Redis error: Failed to connect to Redis: Connection refused (os error 111)",
-  "_error_debug": "RedisError(\"Failed to connect to Redis: Connection refused (os error 111)\")"
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "email": "test@example.com",
+            "age": "28",
+            "name": "TestUser",
+            "uid": "42"
+          },
+          "timestamp": 1776192250845
+        }
+      ],
+      "hget": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "exists": true,
+            "field_count": 3,
+            "value": {
+              "name": "TestUser",
+              "email": "test@example.com",
+              "age": 28
+            }
+          },
+          "timestamp": 1776192250853
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "user_data": {
+              "name": "TestUser",
+              "email": "test@example.com",
+              "age": 28
+            },
+            "set_result": null
+          },
+          "timestamp": 1776192250853
+        }
+      ],
+      "hset": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "ok": true,
+            "fields_set": 3
+          },
+          "timestamp": 1776192250851
+        }
+      ]
+    },
+    "output": {
+      "user_data": {
+        "name": "TestUser",
+        "email": "test@example.com",
+        "age": 28
+      },
+      "set_result": null
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 8,
+      "per_node": {
+        "hget": 1,
+        "start": 0,
+        "response": 0,
+        "hset": 5
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
 }
