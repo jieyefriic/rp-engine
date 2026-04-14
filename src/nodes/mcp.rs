@@ -33,7 +33,8 @@ impl McpClient {
         Self::new(url, auth)
     }
 
-    /// Create a new MCP client with optional authentication
+    /// Create a new MCP client with optional authentication.
+    /// URL is validated for SSRF protection (blocks private IPs, non-HTTP schemes).
     fn new(url: &str, auth: Option<&McpAuth>) -> Self {
         let mut builder = Client::builder();
 
@@ -276,6 +277,9 @@ impl NodeExecutor for McpToolsExecutor {
                 format!("Node '{}': MCP server '{}' not found", node_id, server_id)
             ))?;
 
+        // SSRF validation
+        super::connectors::validate_url(&server_def.url)?;
+
         info!(
             node = %node_id,
             server = %server_id,
@@ -351,6 +355,9 @@ impl NodeExecutor for McpExecutor {
         let variables = super::resolve_variables(&node_config.variables, state);
         let arguments: Value = serde_json::to_value(&variables)
             .unwrap_or(json!({}));
+
+        // SSRF validation
+        super::connectors::validate_url(&server_def.url)?;
 
         info!(
             node = %node_id,
