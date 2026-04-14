@@ -86,10 +86,9 @@ fn create_rhai_engine() -> RhaiEngine {
     engine.set_max_array_size(10_000);
     engine.set_max_map_size(10_000);
 
-    // now() → ISO8601 timestamp string (Beijing time UTC+8)
+    // now() → ISO8601 timestamp string (UTC)
     engine.register_fn("now", || -> String {
-        let now = chrono::Utc::now() + chrono::Duration::hours(8);
-        now.format("%Y-%m-%d %H:%M:%S").to_string()
+        chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
     });
 
     // uuid() → random UUID v4 string

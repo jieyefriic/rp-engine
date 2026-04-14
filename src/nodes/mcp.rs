@@ -166,7 +166,9 @@ impl McpClient {
         );
 
         // Send initialized notification (no response expected, but some servers require it)
-        let _ = self.rpc_call("notifications/initialized", json!({})).await;
+        if let Err(e) = self.rpc_call("notifications/initialized", json!({})).await {
+            debug!(error = %e, "MCP initialized notification failed (non-fatal)");
+        }
 
         Ok(result)
     }

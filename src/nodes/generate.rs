@@ -694,6 +694,15 @@ impl NodeExecutor for GenerateExecutor {
                 break;
             }
 
+            // If we exhausted all rounds without a final response, warn
+            if final_content.is_empty() {
+                warn!(
+                    node = %node_id,
+                    max_rounds = max_rounds,
+                    "Tool calling loop exhausted max_rounds without final response"
+                );
+            }
+
             (final_content, final_thinking, Some(total_usage), None)
         } else {
             // Simple non-streaming path (no tools)
