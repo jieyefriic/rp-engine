@@ -1,0 +1,84 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p10_r1_huoshan_basic.yaml",
+    "elapsed_ms": 10006,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "What is 2+2? Answer in one sentence."
+          },
+          "timestamp": 1776176761037
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_actual_user_prompt": "What is 2+2? Answer in one sentence.",
+            "output": "2 + 2 equals 4.",
+            "_usage": {
+              "provider": "huoshan",
+              "model": "doubao-seed-2-0-lite-260215",
+              "input_tokens": 61,
+              "output_tokens": 282
+            },
+            "_prompt": "What is 2+2? Answer in one sentence."
+          },
+          "timestamp": 1776176771041
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "2 + 2 equals 4."
+          },
+          "timestamp": 1776176771041
+        }
+      ]
+    },
+    "output": {
+      "answer": "2 + 2 equals 4."
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 10004,
+      "per_node": {
+        "response": 0,
+        "gen": 10003,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 61,
+      "total_output_tokens": 282,
+      "per_node": {
+        "gen": [
+          61,
+          282
+        ]
+      }
+    }
+  }
+}

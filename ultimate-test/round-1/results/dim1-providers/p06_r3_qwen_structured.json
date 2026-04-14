@@ -1,0 +1,84 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p06_r3_qwen_structured.yaml",
+    "elapsed_ms": 4128,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_usage": {
+              "provider": "qwen",
+              "model": "qwen-flash",
+              "input_tokens": 22,
+              "output_tokens": 200
+            },
+            "_actual_user_prompt": "Analyze this topic and provide a structured response: Photosynthesis in plants",
+            "_prompt": "Analyze this topic and provide a structured response: Photosynthesis in plants",
+            "output": "**Structured Analysis of Photosynthesis in Plants**\n\n---\n\n### **1. Definition**\nPhotosynthesis is a biochemical process in which green plants, algae, and some bacteria convert light energy into chemical energy, primarily in the form of glucose (a sugar), using carbon dioxide (CO₂) and water (H₂O). This process occurs predominantly in the chloroplasts of plant cells and is fundamental to life on Earth.\n\n---\n\n### **2. Chemical Equation**\nThe overall balanced equation for photosynthesis is:\n\n\\[\n6CO_2 + 6H_2O + \\text{light energy} \\rightarrow C_6H_{12}O_6 + 6O_2\n\\]\n\n- **Reactants**: Carbon dioxide (from the air), water (absorbed from the soil), and light energy (usually sunlight).\n- **Products**: Glucose (used for energy and growth), and oxygen (released as a byproduct).\n\n---\n\n### **3. Key Components Inv"
+          },
+          "timestamp": 1776177058283
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "Photosynthesis in plants"
+          },
+          "timestamp": 1776177054156
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "**Structured Analysis of Photosynthesis in Plants**\n\n---\n\n### **1. Definition**\nPhotosynthesis is a biochemical process in which green plants, algae, and some bacteria convert light energy into chemical energy, primarily in the form of glucose (a sugar), using carbon dioxide (CO₂) and water (H₂O). This process occurs predominantly in the chloroplasts of plant cells and is fundamental to life on Earth.\n\n---\n\n### **2. Chemical Equation**\nThe overall balanced equation for photosynthesis is:\n\n\\[\n6CO_2 + 6H_2O + \\text{light energy} \\rightarrow C_6H_{12}O_6 + 6O_2\n\\]\n\n- **Reactants**: Carbon dioxide (from the air), water (absorbed from the soil), and light energy (usually sunlight).\n- **Products**: Glucose (used for energy and growth), and oxygen (released as a byproduct).\n\n---\n\n### **3. Key Components Inv"
+          },
+          "timestamp": 1776177058283
+        }
+      ]
+    },
+    "output": {
+      "answer": "**Structured Analysis of Photosynthesis in Plants**\n\n---\n\n### **1. Definition**\nPhotosynthesis is a biochemical process in which green plants, algae, and some bacteria convert light energy into chemical energy, primarily in the form of glucose (a sugar), using carbon dioxide (CO₂) and water (H₂O). This process occurs predominantly in the chloroplasts of plant cells and is fundamental to life on Earth.\n\n---\n\n### **2. Chemical Equation**\nThe overall balanced equation for photosynthesis is:\n\n\\[\n6CO_2 + 6H_2O + \\text{light energy} \\rightarrow C_6H_{12}O_6 + 6O_2\n\\]\n\n- **Reactants**: Carbon dioxide (from the air), water (absorbed from the soil), and light energy (usually sunlight).\n- **Products**: Glucose (used for energy and growth), and oxygen (released as a byproduct).\n\n---\n\n### **3. Key Components Inv"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 4126,
+      "per_node": {
+        "response": 0,
+        "gen": 4125,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 22,
+      "total_output_tokens": 200,
+      "per_node": {
+        "gen": [
+          22,
+          200
+        ]
+      }
+    }
+  }
+}

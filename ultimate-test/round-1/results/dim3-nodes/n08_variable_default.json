@@ -1,0 +1,84 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n08_variable_default.yaml",
+    "elapsed_ms": 9325,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "**Photosynthesis** is the biological process used by plants, algae, and certain bacteria to convert light energy, usually from the sun, into chemical energy stored in the form of glucose (sugar).  \n\nIn simpler terms, it is how these organisms make their own food.  \n\nThe overall chemical equation for photosynthesis is:  \n\n\\[\n6CO_2 + 6H_2O + \\text{light energy} \\rightarrow C_6H_{12}O_6 + 6O_2\n\\]\n\nThis means **carbon dioxide** and **water**, in the presence of sunlight and chlorophyll (the green pigment in plants), are transformed into **glucose** and **oxygen**.  \n\nPhotosynthesis occurs mainly in the **chloroplasts** of plant cells and involves two key stages:  \n\n1. **Light-dependent reactions** – Capture light energy to produce ATP and NADPH, while releasing oxygen from water.  \n2. **Light-independent reactions (Calvin cycle)** – Use"
+          },
+          "timestamp": 1776178150848
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "output": "**Photosynthesis** is the biological process used by plants, algae, and certain bacteria to convert light energy, usually from the sun, into chemical energy stored in the form of glucose (sugar).  \n\nIn simpler terms, it is how these organisms make their own food.  \n\nThe overall chemical equation for photosynthesis is:  \n\n\\[\n6CO_2 + 6H_2O + \\text{light energy} \\rightarrow C_6H_{12}O_6 + 6O_2\n\\]\n\nThis means **carbon dioxide** and **water**, in the presence of sunlight and chlorophyll (the green pigment in plants), are transformed into **glucose** and **oxygen**.  \n\nPhotosynthesis occurs mainly in the **chloroplasts** of plant cells and involves two key stages:  \n\n1. **Light-dependent reactions** – Capture light energy to produce ATP and NADPH, while releasing oxygen from water.  \n2. **Light-independent reactions (Calvin cycle)** – Use",
+            "_actual_user_prompt": "Answer the following question in English: What is photosynthesis?",
+            "_prompt": "Answer the following question in English: What is photosynthesis?",
+            "_usage": {
+              "provider": "deepseek",
+              "model": "deepseek-chat",
+              "input_tokens": 15,
+              "output_tokens": 200
+            }
+          },
+          "timestamp": 1776178150848
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "What is photosynthesis?"
+          },
+          "timestamp": 1776178141525
+        }
+      ]
+    },
+    "output": {
+      "answer": "**Photosynthesis** is the biological process used by plants, algae, and certain bacteria to convert light energy, usually from the sun, into chemical energy stored in the form of glucose (sugar).  \n\nIn simpler terms, it is how these organisms make their own food.  \n\nThe overall chemical equation for photosynthesis is:  \n\n\\[\n6CO_2 + 6H_2O + \\text{light energy} \\rightarrow C_6H_{12}O_6 + 6O_2\n\\]\n\nThis means **carbon dioxide** and **water**, in the presence of sunlight and chlorophyll (the green pigment in plants), are transformed into **glucose** and **oxygen**.  \n\nPhotosynthesis occurs mainly in the **chloroplasts** of plant cells and involves two key stages:  \n\n1. **Light-dependent reactions** – Capture light energy to produce ATP and NADPH, while releasing oxygen from water.  \n2. **Light-independent reactions (Calvin cycle)** – Use"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 9323,
+      "per_node": {
+        "response": 0,
+        "gen": 9322,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 15,
+      "total_output_tokens": 200,
+      "per_node": {
+        "gen": [
+          15,
+          200
+        ]
+      }
+    }
+  }
+}

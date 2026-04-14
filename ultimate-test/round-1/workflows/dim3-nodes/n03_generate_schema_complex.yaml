@@ -1,0 +1,54 @@
+version: "1.0"
+name: "N03 Complex Output Schema"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl
+      variables:
+        topic: "start.topic"
+      output_schema:
+        - name: title
+          type: string
+          example: "A descriptive title"
+        - name: score
+          type: number
+          example: "8.5"
+        - name: tags
+          type: string[]
+          example: '["tag1", "tag2"]'
+        - name: is_valid
+          type: boolean
+          example: "true"
+        - name: details
+          type: string
+          example: "Detailed explanation here"
+
+  - id: response
+    type: response
+    config:
+      output:
+        title: "gen.title"
+        score: "gen.score"
+        tags: "gen.tags"
+        is_valid: "gen.is_valid"
+        details: "gen.details"
+
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl:
+    user_prompt: "Analyze the following topic and provide a structured assessment: {{topic}}"
+    config:
+      temperature: 0.5
+      max_tokens: 500

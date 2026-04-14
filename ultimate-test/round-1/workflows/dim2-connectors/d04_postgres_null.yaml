@@ -1,0 +1,38 @@
+version: "1.0"
+name: "D04 PostgreSQL NULL Handling"
+
+data_sources:
+  pg_test:
+    name: "Test PostgreSQL"
+    kind: postgresql
+    config:
+      host: "localhost"
+      port: 5432
+      username: "testuser"
+      password: "testpass"
+      database: "testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: query_nulls
+    type: data_connector
+    config:
+      data_source_id: pg_test
+      operation:
+        operation: query
+        sql: "SELECT id, name, score, is_active, metadata, tags FROM test_types WHERE score IS NULL"
+
+  - id: response
+    type: response
+    config:
+      output:
+        data: "query_nulls.data"
+        row_count: "query_nulls.row_count"
+
+edges:
+  - from: start
+    to: query_nulls
+  - from: query_nulls
+    to: response

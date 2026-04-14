@@ -1,0 +1,40 @@
+version: "1.0"
+name: "N32 Iterator Empty Items"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: iterate
+    type: iterator
+    config:
+      items: "start.items"
+      subgraph_ref: "sg_process"
+      item_var: "item"
+
+  - id: response
+    type: response
+    config:
+      output:
+        results: "iterate.results"
+        count: "iterate.count"
+
+edges:
+  - from: start
+    to: iterate
+  - from: iterate
+    to: response
+
+subgraphs:
+  sg_process:
+    nodes:
+      - id: sg_start
+        type: start
+      - id: sg_response
+        type: response
+        config:
+          output:
+            processed: "sg_start.item"
+    edges:
+      - from: sg_start
+        to: sg_response

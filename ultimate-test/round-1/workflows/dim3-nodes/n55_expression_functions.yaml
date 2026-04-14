@@ -1,0 +1,76 @@
+version: "1.0"
+name: "N55 Expression Functions in Conditions"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: create_data
+    type: transform
+    config:
+      script: |
+        #{
+          "items": ["a", "b", "c"],
+          "name": "test"
+        }
+      variables: {}
+
+  - id: gen_a
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_nonempty
+      variables:
+        items: "create_data.items"
+        name: "create_data.name"
+
+  - id: gen_b
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_empty
+      variables:
+        name: "create_data.name"
+
+  - id: response
+    type: response
+    config:
+      output:
+        items: "create_data.items"
+        name: "create_data.name"
+        nonempty_result: "gen_a.output"
+        empty_result: "gen_b.output"
+
+edges:
+  - from: start
+    to: create_data
+  - from: create_data
+    to: gen_a
+    condition: "!empty(create_data.items)"
+  - from: create_data
+    to: gen_b
+    condition: "empty(create_data.items)"
+  - from: gen_a
+    to: response
+  - from: gen_b
+    to: response
+
+templates:
+  tpl_nonempty:
+    user_prompt: |
+      The items list is not empty. It contains: {{items}}
+      Name: {{name}}
+      Describe what you see.
+    config:
+      temperature: 0.5
+      max_tokens: 150
+
+  tpl_empty:
+    user_prompt: |
+      The items list was empty. Name: {{name}}
+      Describe the situation.
+    config:
+      temperature: 0.5
+      max_tokens: 150

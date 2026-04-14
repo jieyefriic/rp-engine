@@ -1,0 +1,179 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim4-scenarios/s16_multi_provider_consensus.yaml",
+    "elapsed_ms": 9016,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "merge": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "answers": {
+              "anthropic": "Hydrogen is the most abundant element in the universe, making up approximately 75% of all ordinary matter by mass. Helium is the second most abundant at about 24%, with all other elements comprising less than 1%.",
+              "openai": "The most abundant element in the universe is hydrogen, which makes up about 75% of the elemental mass. It is primarily found in stars and interstellar gas, playing a crucial role in the formation of galaxies and the universe's evolution. Helium is the second most abundant element, comprising about 24%.",
+              "qwen": "The most abundant element in the universe is hydrogen. It makes up about 75% of the universe's elemental mass and is the primary fuel for stars."
+            }
+          },
+          "timestamp": 1776178692126
+        }
+      ],
+      "synthesize": [
+        {
+          "short_id": "f",
+          "execution_index": 0,
+          "outputs": {
+            "_prompt": "Question: What is the most abundant element in the universe?\n\nThree different AI models answered:\n[object]\n\nSynthesize a consensus answer. Note any disagreements between models.\n",
+            "_actual_user_prompt": "Question: What is the most abundant element in the universe?\n\nThree different AI models answered:\n[object]\n\nSynthesize a consensus answer. Note any disagreements between models.\n",
+            "_actual_system_prompt": "You are a neutral synthesizer. Compare multiple AI responses and find the consensus.",
+            "output": "Based on the responses from the three AI models, there is a clear and unanimous consensus.\n\n**Consensus Answer:**  \nThe most abundant element in the universe is **hydrogen**.\n\n**Supporting Details (Agreement Across Models):**\n- All models agree that hydrogen constitutes approximately **75%** of the universe's elemental mass (or ordinary matter).\n- They also concur that **helium** is the second most abundant element, making up most of the remaining quarter.\n- This abundance is a result of **nucleosynthesis from the Big Bang**, where the lightest elements, hydrogen and helium, were formed first and in the greatest quantities.\n\n**Disagreements:**  \nThere are **no disagreements** among the models on the core question. All three provided the same answer with consistent supporting information regarding abundance percentages and the cosmological origin.",
+            "_usage": {
+              "provider": "deepseek",
+              "model": "deepseek-chat",
+              "input_tokens": 54,
+              "output_tokens": 166
+            }
+          },
+          "timestamp": 1776178698985
+        }
+      ],
+      "response": [
+        {
+          "short_id": "g",
+          "execution_index": 0,
+          "outputs": {
+            "individual_answers": {
+              "anthropic": "Hydrogen is the most abundant element in the universe, making up approximately 75% of all ordinary matter by mass. Helium is the second most abundant at about 24%, with all other elements comprising less than 1%.",
+              "openai": "The most abundant element in the universe is hydrogen, which makes up about 75% of the elemental mass. It is primarily found in stars and interstellar gas, playing a crucial role in the formation of galaxies and the universe's evolution. Helium is the second most abundant element, comprising about 24%.",
+              "qwen": "The most abundant element in the universe is hydrogen. It makes up about 75% of the universe's elemental mass and is the primary fuel for stars."
+            },
+            "consensus": "Based on the responses from the three AI models, there is a clear and unanimous consensus.\n\n**Consensus Answer:**  \nThe most abundant element in the universe is **hydrogen**.\n\n**Supporting Details (Agreement Across Models):**\n- All models agree that hydrogen constitutes approximately **75%** of the universe's elemental mass (or ordinary matter).\n- They also concur that **helium** is the second most abundant element, making up most of the remaining quarter.\n- This abundance is a result of **nucleosynthesis from the Big Bang**, where the lightest elements, hydrogen and helium, were formed first and in the greatest quantities.\n\n**Disagreements:**  \nThere are **no disagreements** among the models on the core question. All three provided the same answer with consistent supporting information regarding abundance percentages and the cosmological origin."
+          },
+          "timestamp": 1776178698985
+        }
+      ],
+      "anthropic_answer": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "_actual_user_prompt": "Answer this question concisely in 2-3 sentences: What is the most abundant element in the universe?",
+            "_usage": {
+              "provider": "anthropic",
+              "model": "claude-haiku-4-5-20251001",
+              "input_tokens": 31,
+              "output_tokens": 50
+            },
+            "_prompt": "Answer this question concisely in 2-3 sentences: What is the most abundant element in the universe?",
+            "output": "Hydrogen is the most abundant element in the universe, making up approximately 75% of all ordinary matter by mass. Helium is the second most abundant at about 24%, with all other elements comprising less than 1%."
+          },
+          "timestamp": 1776178692122
+        }
+      ],
+      "openai_answer": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_usage": {
+              "provider": "openai",
+              "model": "gpt-4o-mini",
+              "input_tokens": 30,
+              "output_tokens": 62
+            },
+            "output": "The most abundant element in the universe is hydrogen, which makes up about 75% of the elemental mass. It is primarily found in stars and interstellar gas, playing a crucial role in the formation of galaxies and the universe's evolution. Helium is the second most abundant element, comprising about 24%.",
+            "_prompt": "Answer this question concisely in 2-3 sentences: What is the most abundant element in the universe?",
+            "_actual_user_prompt": "Answer this question concisely in 2-3 sentences: What is the most abundant element in the universe?"
+          },
+          "timestamp": 1776178692122
+        }
+      ],
+      "qwen_answer": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "output": "The most abundant element in the universe is hydrogen. It makes up about 75% of the universe's elemental mass and is the primary fuel for stars.",
+            "_actual_user_prompt": "Answer this question concisely in 2-3 sentences: What is the most abundant element in the universe?",
+            "_usage": {
+              "provider": "qwen",
+              "model": "qwen-flash",
+              "input_tokens": 31,
+              "output_tokens": 32
+            },
+            "_prompt": "Answer this question concisely in 2-3 sentences: What is the most abundant element in the universe?"
+          },
+          "timestamp": 1776178692122
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "question": "What is the most abundant element in the universe?"
+          },
+          "timestamp": 1776178689972
+        }
+      ]
+    },
+    "output": {
+      "individual_answers": {
+        "anthropic": "Hydrogen is the most abundant element in the universe, making up approximately 75% of all ordinary matter by mass. Helium is the second most abundant at about 24%, with all other elements comprising less than 1%.",
+        "openai": "The most abundant element in the universe is hydrogen, which makes up about 75% of the elemental mass. It is primarily found in stars and interstellar gas, playing a crucial role in the formation of galaxies and the universe's evolution. Helium is the second most abundant element, comprising about 24%.",
+        "qwen": "The most abundant element in the universe is hydrogen. It makes up about 75% of the universe's elemental mass and is the primary fuel for stars."
+      },
+      "consensus": "Based on the responses from the three AI models, there is a clear and unanimous consensus.\n\n**Consensus Answer:**  \nThe most abundant element in the universe is **hydrogen**.\n\n**Supporting Details (Agreement Across Models):**\n- All models agree that hydrogen constitutes approximately **75%** of the universe's elemental mass (or ordinary matter).\n- They also concur that **helium** is the second most abundant element, making up most of the remaining quarter.\n- This abundance is a result of **nucleosynthesis from the Big Bang**, where the lightest elements, hydrogen and helium, were formed first and in the greatest quantities.\n\n**Disagreements:**  \nThere are **no disagreements** among the models on the core question. All three provided the same answer with consistent supporting information regarding abundance percentages and the cosmological origin."
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 9013,
+      "per_node": {
+        "start": 0,
+        "openai_answer": 979,
+        "synthesize": 6858,
+        "qwen_answer": 2146,
+        "anthropic_answer": 801,
+        "merge": 3,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 146,
+      "total_output_tokens": 310,
+      "per_node": {
+        "synthesize": [
+          54,
+          166
+        ],
+        "qwen_answer": [
+          31,
+          32
+        ],
+        "openai_answer": [
+          30,
+          62
+        ],
+        "anthropic_answer": [
+          31,
+          50
+        ]
+      }
+    }
+  }
+}

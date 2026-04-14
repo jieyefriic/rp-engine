@@ -1,0 +1,72 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim4-scenarios/s39_schema_chain.yaml",
+    "elapsed_ms": 8284,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "gen1_outline": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_prompt": "Create an outline for a short essay about: Climate change and its impact on agriculture\nProvide a specific topic title and 3-4 key points to cover.\n",
+            "output": "**Topic Title:** From Field to Fork: How Climate Change Threatens Global Agricultural Stability  \n\n**I. Introduction**  \nA. Opening hook: The vulnerability of global food systems to shifting climate patterns  \nB. Brief overview of climate change as a driver of agricultural disruption  \nC. Thesis statement: Climate change undermines agricultural productivity through extreme weather, altered growing conditions, and increased pest pressures, thereby jeopardizing food security worldwide.  \n\n**II. Key Point 1: Increased Frequency and Severity of Extreme Weather Events**  \nA. Impact of droughts on crop yields and water resources  \nB. Effects of floods and unseasonal rainfall on soil erosion and crop loss  \nC. Case example: Recent droughts in major grain-producing regions (e.g., the U.S. Midwest or the Horn of Africa)  \n\n**III. Key Point 2: Shifts in Growing Seasons and Crop Viability**  \nA. Changes in temperature and precipitation patterns disrupting traditional planting cycles  \nB. Geographic shifts in optimal",
+            "_usage": {
+              "provider": "deepseek",
+              "model": "deepseek-chat",
+              "input_tokens": 47,
+              "output_tokens": 200
+            },
+            "_actual_user_prompt": "Create an outline for a short essay about: Climate change and its impact on agriculture\nProvide a specific topic title and 3-4 key points to cover.\n",
+            "_actual_system_prompt": "You are an academic writer who creates well-structured outlines."
+          },
+          "timestamp": 1776179022486
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "subject": "Climate change and its impact on agriculture"
+          },
+          "timestamp": 1776179014204
+        }
+      ]
+    },
+    "output": {},
+    "error": null,
+    "timing": {
+      "total_ms": 8282,
+      "per_node": {
+        "gen1_outline": 8281,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 47,
+      "total_output_tokens": 200,
+      "per_node": {
+        "gen1_outline": [
+          47,
+          200
+        ]
+      }
+    }
+  }
+}

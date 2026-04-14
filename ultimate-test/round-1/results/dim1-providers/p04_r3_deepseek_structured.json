@@ -1,0 +1,84 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p04_r3_deepseek_structured.yaml",
+    "elapsed_ms": 7062,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "## **Photosynthesis in Plants: A Structured Analysis**\n\n### **1. Core Definition & Significance**\nPhotosynthesis is the **biochemical process** by which green plants, algae, and some bacteria convert **light energy** into **chemical energy**, stored in organic compounds (primarily glucose). It is the **foundation of almost all life on Earth**, as it:\n- Produces **oxygen** as a byproduct.\n- Forms the **base of food chains** (autotrophic nutrition).\n- Drives global carbon and oxygen cycles.\n\n---\n\n### **2. Chemical Equation**\n**Overall Balanced Equation:**\n\\[\n6CO_2 + 12H_2O + \\text{Light Energy} \\rightarrow C_6H_{12}O_6 + 6O_2 + 6H_2O\n\\]\n**Simplified:**  \n\\[\n\\text{Carbon Dioxide + Water + Light} \\rightarrow \\text{Glucose + Oxygen}\n\\]\n\n---\n\n###"
+          },
+          "timestamp": 1776177045145
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "Photosynthesis in plants"
+          },
+          "timestamp": 1776177038086
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "output": "## **Photosynthesis in Plants: A Structured Analysis**\n\n### **1. Core Definition & Significance**\nPhotosynthesis is the **biochemical process** by which green plants, algae, and some bacteria convert **light energy** into **chemical energy**, stored in organic compounds (primarily glucose). It is the **foundation of almost all life on Earth**, as it:\n- Produces **oxygen** as a byproduct.\n- Forms the **base of food chains** (autotrophic nutrition).\n- Drives global carbon and oxygen cycles.\n\n---\n\n### **2. Chemical Equation**\n**Overall Balanced Equation:**\n\\[\n6CO_2 + 12H_2O + \\text{Light Energy} \\rightarrow C_6H_{12}O_6 + 6O_2 + 6H_2O\n\\]\n**Simplified:**  \n\\[\n\\text{Carbon Dioxide + Water + Light} \\rightarrow \\text{Glucose + Oxygen}\n\\]\n\n---\n\n###",
+            "_prompt": "Analyze this topic and provide a structured response: Photosynthesis in plants",
+            "_usage": {
+              "provider": "deepseek",
+              "model": "deepseek-chat",
+              "input_tokens": 18,
+              "output_tokens": 200
+            },
+            "_actual_user_prompt": "Analyze this topic and provide a structured response: Photosynthesis in plants"
+          },
+          "timestamp": 1776177045145
+        }
+      ]
+    },
+    "output": {
+      "answer": "## **Photosynthesis in Plants: A Structured Analysis**\n\n### **1. Core Definition & Significance**\nPhotosynthesis is the **biochemical process** by which green plants, algae, and some bacteria convert **light energy** into **chemical energy**, stored in organic compounds (primarily glucose). It is the **foundation of almost all life on Earth**, as it:\n- Produces **oxygen** as a byproduct.\n- Forms the **base of food chains** (autotrophic nutrition).\n- Drives global carbon and oxygen cycles.\n\n---\n\n### **2. Chemical Equation**\n**Overall Balanced Equation:**\n\\[\n6CO_2 + 12H_2O + \\text{Light Energy} \\rightarrow C_6H_{12}O_6 + 6O_2 + 6H_2O\n\\]\n**Simplified:**  \n\\[\n\\text{Carbon Dioxide + Water + Light} \\rightarrow \\text{Glucose + Oxygen}\n\\]\n\n---\n\n###"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 7059,
+      "per_node": {
+        "gen": 7058,
+        "response": 0,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 18,
+      "total_output_tokens": 200,
+      "per_node": {
+        "gen": [
+          18,
+          200
+        ]
+      }
+    }
+  }
+}

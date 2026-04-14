@@ -1,0 +1,84 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p08_r1_moonshot_basic.yaml",
+    "elapsed_ms": 3265,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "What is 2+2? Answer in one sentence."
+          },
+          "timestamp": 1776176863966
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_prompt": "What is 2+2? Answer in one sentence.",
+            "_usage": {
+              "provider": "moonshot",
+              "model": "kimi-k2.5",
+              "input_tokens": 21,
+              "output_tokens": 9
+            },
+            "_actual_user_prompt": "What is 2+2? Answer in one sentence.",
+            "output": "2 + 2 = 4."
+          },
+          "timestamp": 1776176867229
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "2 + 2 = 4."
+          },
+          "timestamp": 1776176867229
+        }
+      ]
+    },
+    "output": {
+      "answer": "2 + 2 = 4."
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 3263,
+      "per_node": {
+        "response": 0,
+        "gen": 3262,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 21,
+      "total_output_tokens": 9,
+      "per_node": {
+        "gen": [
+          21,
+          9
+        ]
+      }
+    }
+  }
+}

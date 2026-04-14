@@ -1,0 +1,21 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p02_r3_anthropic_structured.yaml",
+    "elapsed_ms": 3886,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Error"
+  },
+  "_error": "Provider error: API error: 529 - Overloaded",
+  "_error_debug": "ProviderError(ApiError { status: 529, message: \"Overloaded\" })"
+}

@@ -1,0 +1,60 @@
+version: "1.0"
+name: "N52 on_error Edge Routing"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen_risky
+    type: generate
+    config:
+      provider: deepseek
+      model: nonexistent-model-999
+      template: tpl
+      variables:
+        query: "start.query"
+      error_handling:
+        retry: 0
+        on_exhausted: continue
+
+  - id: gen_fallback
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_fallback
+      variables:
+        query: "start.query"
+        error_msg: "gen_risky._error_message"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen_fallback.output"
+        had_error: "gen_risky._error"
+        original_error: "gen_risky._error_message"
+
+edges:
+  - from: start
+    to: gen_risky
+  - from: gen_risky
+    to: gen_fallback
+    on_error: true
+  - from: gen_risky
+    to: response
+  - from: gen_fallback
+    to: response
+
+templates:
+  tpl:
+    user_prompt: "{{query}}"
+    config:
+      max_tokens: 100
+
+  tpl_fallback:
+    system_prompt: "The primary model failed. Provide a helpful answer anyway."
+    user_prompt: "Original question: {{query}}\nError from primary: {{error_msg}}"
+    config:
+      temperature: 0.5
+      max_tokens: 200

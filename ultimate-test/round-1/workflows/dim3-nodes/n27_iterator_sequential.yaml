@@ -1,0 +1,71 @@
+version: "1.0"
+name: "N27 Iterator Sequential"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: create_items
+    type: transform
+    config:
+      script: |
+        #{
+          "items": ["Rust programming language", "Python data science", "Go concurrency model"]
+        }
+
+  - id: process_each
+    type: iterator
+    config:
+      items: "create_items.items"
+      subgraph_ref: "sg_summarize"
+      item_var: "item"
+      index_var: "idx"
+      parallel: false
+
+  - id: response
+    type: response
+    config:
+      output:
+        results: "process_each.results"
+        count: "process_each.count"
+        success_count: "process_each.success_count"
+
+edges:
+  - from: start
+    to: create_items
+  - from: create_items
+    to: process_each
+  - from: process_each
+    to: response
+
+subgraphs:
+  sg_summarize:
+    nodes:
+      - id: sg_start
+        type: start
+      - id: sg_gen
+        type: generate
+        config:
+          provider: deepseek
+          model: deepseek-chat
+          template: sg_tpl
+          variables:
+            item: "sg_start.item"
+            idx: "sg_start.idx"
+      - id: sg_response
+        type: response
+        config:
+          output:
+            summary: "sg_gen.output"
+    edges:
+      - from: sg_start
+        to: sg_gen
+      - from: sg_gen
+        to: sg_response
+
+templates:
+  sg_tpl:
+    user_prompt: "Summarize '{{item}}' (item #{{idx}}) in exactly one sentence."
+    config:
+      temperature: 0.3
+      max_tokens: 100

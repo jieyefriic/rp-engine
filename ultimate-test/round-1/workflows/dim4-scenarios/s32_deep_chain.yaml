@@ -1,0 +1,151 @@
+version: "1.0"
+name: "S32 Deep Chain (8 Nodes)"
+description: "Test a deep sequential chain of 5 generate nodes plus a transform, each building on the previous"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen1_brainstorm
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_brainstorm
+      variables:
+        topic: "start.topic"
+
+  - id: gen2_refine
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-flash
+      template: tpl_refine
+      variables:
+        brainstorm: "gen1_brainstorm.output"
+
+  - id: gen3_critique
+    type: generate
+    config:
+      provider: openai
+      model: gpt-4o-mini
+      template: tpl_critique
+      variables:
+        refined: "gen2_refine.output"
+
+  - id: gen4_improve
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_improve
+      variables:
+        refined: "gen2_refine.output"
+        critique: "gen3_critique.output"
+
+  - id: gen5_polish
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-flash
+      template: tpl_polish
+      variables:
+        improved: "gen4_improve.output"
+
+  - id: format_output
+    type: transform
+    config:
+      script: |
+        #{
+          "final_text": polished,
+          "pipeline_stages": ["brainstorm", "refine", "critique", "improve", "polish"],
+          "stage_count": 5
+        }
+      variables:
+        polished: "gen5_polish.output"
+
+  - id: response
+    type: response
+    config:
+      output:
+        brainstorm: "gen1_brainstorm.output"
+        refined: "gen2_refine.output"
+        critique: "gen3_critique.output"
+        improved: "gen4_improve.output"
+        polished: "gen5_polish.output"
+        final: "format_output.final_text"
+        stage_count: "format_output.stage_count"
+
+edges:
+  - from: start
+    to: gen1_brainstorm
+  - from: gen1_brainstorm
+    to: gen2_refine
+  - from: gen2_refine
+    to: gen3_critique
+  - from: gen3_critique
+    to: gen4_improve
+  - from: gen4_improve
+    to: gen5_polish
+  - from: gen5_polish
+    to: format_output
+  - from: format_output
+    to: response
+
+templates:
+  tpl_brainstorm:
+    system_prompt: "You are a creative brainstormer. Generate raw ideas freely."
+    user_prompt: "Brainstorm 3-5 ideas related to: {{topic}}. Just list them briefly."
+    config:
+      temperature: 0.8
+      max_tokens: 250
+
+  tpl_refine:
+    system_prompt: "You are an editor who refines raw ideas into structured concepts."
+    user_prompt: |
+      Take these raw brainstormed ideas and refine them into a structured proposal:
+
+      {{brainstorm}}
+
+      Pick the best 2-3 ideas and flesh them out briefly.
+    config:
+      temperature: 0.5
+      max_tokens: 300
+
+  tpl_critique:
+    system_prompt: "You are a critical reviewer. Find weaknesses and suggest improvements."
+    user_prompt: |
+      Review this proposal and identify weaknesses or gaps:
+
+      {{refined}}
+
+      List 2-3 specific critiques with suggested improvements.
+    config:
+      temperature: 0.4
+      max_tokens: 300
+
+  tpl_improve:
+    system_prompt: "You are a problem solver who addresses feedback constructively."
+    user_prompt: |
+      Original proposal:
+      {{refined}}
+
+      Critiques received:
+      {{critique}}
+
+      Revise the proposal addressing each critique. Produce an improved version.
+    config:
+      temperature: 0.5
+      max_tokens: 400
+
+  tpl_polish:
+    system_prompt: "You are a professional writer who polishes text for clarity and impact."
+    user_prompt: |
+      Polish this text for a professional audience. Improve clarity, flow, and impact:
+
+      {{improved}}
+
+      Produce the final polished version.
+    config:
+      temperature: 0.3
+      max_tokens: 400

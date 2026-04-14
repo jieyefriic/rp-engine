@@ -1,0 +1,90 @@
+version: "1.0"
+name: "S03 Content Moderation Pipeline"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: classify
+    type: generate
+    config:
+      provider: openai
+      model: gpt-4o-mini
+      template: tpl_classify
+      variables:
+        content: "start.content"
+      output_schema:
+        - name: is_safe
+          type: boolean
+          example: "true"
+        - name: risk_level
+          type: string
+          example: "low"
+        - name: categories
+          type: string[]
+          example: '["appropriate"]'
+        - name: reason
+          type: string
+          example: "Content is appropriate for all audiences"
+
+  - id: approve
+    type: generate
+    config:
+      provider: openai
+      model: gpt-4o-mini
+      template: tpl_approve
+      variables:
+        content: "start.content"
+
+  - id: reject
+    type: generate
+    config:
+      provider: openai
+      model: gpt-4o-mini
+      template: tpl_reject
+      variables:
+        content: "start.content"
+        reason: "classify.reason"
+
+  - id: response
+    type: response
+    config:
+      output:
+        is_safe: "classify.is_safe"
+        risk_level: "classify.risk_level"
+        approval: "approve.output"
+        rejection: "reject.output"
+
+edges:
+  - from: start
+    to: classify
+  - from: classify
+    to: approve
+    condition: classify.is_safe == true
+  - from: classify
+    to: reject
+    condition: classify.is_safe == false
+  - from: approve
+    to: response
+  - from: reject
+    to: response
+
+templates:
+  tpl_classify:
+    system_prompt: "You are a content moderation AI. Classify content for safety."
+    user_prompt: "Evaluate this content for safety:\n\n{{content}}"
+    config:
+      temperature: 0.1
+      max_tokens: 200
+
+  tpl_approve:
+    user_prompt: "This content has been approved. Generate a brief approval notice for: {{content}}"
+    config:
+      temperature: 0.5
+      max_tokens: 100
+
+  tpl_reject:
+    user_prompt: "This content was flagged. Reason: {{reason}}. Generate a polite rejection notice explaining why the content '{{content}}' was not approved."
+    config:
+      temperature: 0.5
+      max_tokens: 200

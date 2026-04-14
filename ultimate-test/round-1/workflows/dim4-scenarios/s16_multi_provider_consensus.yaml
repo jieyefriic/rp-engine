@@ -1,0 +1,104 @@
+version: "1.0"
+name: "S16 Multi-Provider Consensus"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: openai_answer
+    type: generate
+    config:
+      provider: openai
+      model: gpt-4o-mini
+      template: tpl_answer
+      variables:
+        question: "start.question"
+
+  - id: anthropic_answer
+    type: generate
+    config:
+      provider: anthropic
+      model: claude-haiku-4-5-20251001
+      template: tpl_answer
+      variables:
+        question: "start.question"
+
+  - id: qwen_answer
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-flash
+      template: tpl_answer
+      variables:
+        question: "start.question"
+
+  - id: merge
+    type: transform
+    config:
+      script: |
+        #{
+          "answers": #{
+            "openai": openai,
+            "anthropic": anthropic,
+            "qwen": qwen
+          }
+        }
+      variables:
+        openai: "openai_answer.output"
+        anthropic: "anthropic_answer.output"
+        qwen: "qwen_answer.output"
+
+  - id: synthesize
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_synthesize
+      variables:
+        question: "start.question"
+        answers: "merge.answers"
+
+  - id: response
+    type: response
+    config:
+      output:
+        individual_answers: "merge.answers"
+        consensus: "synthesize.output"
+
+edges:
+  - from: start
+    to: openai_answer
+  - from: start
+    to: anthropic_answer
+  - from: start
+    to: qwen_answer
+  - from: openai_answer
+    to: merge
+  - from: anthropic_answer
+    to: merge
+  - from: qwen_answer
+    to: merge
+  - from: merge
+    to: synthesize
+  - from: synthesize
+    to: response
+
+templates:
+  tpl_answer:
+    user_prompt: "Answer this question concisely in 2-3 sentences: {{question}}"
+    config:
+      temperature: 0.5
+      max_tokens: 200
+
+  tpl_synthesize:
+    system_prompt: "You are a neutral synthesizer. Compare multiple AI responses and find the consensus."
+    user_prompt: |
+      Question: {{question}}
+      
+      Three different AI models answered:
+      {{answers}}
+      
+      Synthesize a consensus answer. Note any disagreements between models.
+    config:
+      temperature: 0.3
+      max_tokens: 400

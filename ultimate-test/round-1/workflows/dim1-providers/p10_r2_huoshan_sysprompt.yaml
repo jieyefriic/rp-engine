@@ -1,0 +1,35 @@
+version: "1.0"
+name: "P10_R2 Huoshan System Prompt"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen
+    type: generate
+    config:
+      provider: huoshan
+      model: doubao-seed-2-0-lite-260215
+      template: tpl_sysprompt
+      variables:
+        query: "start.query"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen.output"
+
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl_sysprompt:
+    system_prompt: "You are a helpful math tutor. Always explain step by step."
+    user_prompt: "{{query}}"
+    config:
+      temperature: 0.7
+      max_tokens: 200

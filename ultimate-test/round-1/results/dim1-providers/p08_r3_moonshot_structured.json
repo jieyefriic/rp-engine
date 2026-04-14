@@ -1,0 +1,84 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p08_r3_moonshot_structured.yaml",
+    "elapsed_ms": 6464,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "# Photosynthesis in Plants: A Structured Analysis\n\n## 1. Definition and Overview\n\nPhotosynthesis is the **biochemical process** by which green plants, algae, and some bacteria convert **light energy** into **chemical energy** stored in glucose, using water and carbon dioxide, with oxygen released as a byproduct.\n\n**Core Equation:**\n```\n6CO₂ + 6H₂O + light energy → C₆H₁₂O₆ + 6O₂\n```\n\n---\n\n## 2. Site of Occurrence\n\n| Structure | Function |\n|-----------|----------|\n| **Chloroplasts** | Primary organelles where photosynthesis occurs |\n| **Thylakoid membranes** | Location of light-dependent reactions |\n| **Stroma** | Fluid-filled space where Calvin cycle occurs |\n| **Chlorophyll** | Primary pigment that captures light energy |\n\n---\n\n## 3. Two Stages of Photosynthesis\n\n### Stage 1: Light-Dependent Reactions"
+          },
+          "timestamp": 1776177089005
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "Photosynthesis in plants"
+          },
+          "timestamp": 1776177082543
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_prompt": "Analyze this topic and provide a structured response: Photosynthesis in plants",
+            "_actual_user_prompt": "Analyze this topic and provide a structured response: Photosynthesis in plants",
+            "output": "# Photosynthesis in Plants: A Structured Analysis\n\n## 1. Definition and Overview\n\nPhotosynthesis is the **biochemical process** by which green plants, algae, and some bacteria convert **light energy** into **chemical energy** stored in glucose, using water and carbon dioxide, with oxygen released as a byproduct.\n\n**Core Equation:**\n```\n6CO₂ + 6H₂O + light energy → C₆H₁₂O₆ + 6O₂\n```\n\n---\n\n## 2. Site of Occurrence\n\n| Structure | Function |\n|-----------|----------|\n| **Chloroplasts** | Primary organelles where photosynthesis occurs |\n| **Thylakoid membranes** | Location of light-dependent reactions |\n| **Stroma** | Fluid-filled space where Calvin cycle occurs |\n| **Chlorophyll** | Primary pigment that captures light energy |\n\n---\n\n## 3. Two Stages of Photosynthesis\n\n### Stage 1: Light-Dependent Reactions",
+            "_usage": {
+              "provider": "moonshot",
+              "model": "kimi-k2.5",
+              "input_tokens": 22,
+              "output_tokens": 200
+            }
+          },
+          "timestamp": 1776177089005
+        }
+      ]
+    },
+    "output": {
+      "answer": "# Photosynthesis in Plants: A Structured Analysis\n\n## 1. Definition and Overview\n\nPhotosynthesis is the **biochemical process** by which green plants, algae, and some bacteria convert **light energy** into **chemical energy** stored in glucose, using water and carbon dioxide, with oxygen released as a byproduct.\n\n**Core Equation:**\n```\n6CO₂ + 6H₂O + light energy → C₆H₁₂O₆ + 6O₂\n```\n\n---\n\n## 2. Site of Occurrence\n\n| Structure | Function |\n|-----------|----------|\n| **Chloroplasts** | Primary organelles where photosynthesis occurs |\n| **Thylakoid membranes** | Location of light-dependent reactions |\n| **Stroma** | Fluid-filled space where Calvin cycle occurs |\n| **Chlorophyll** | Primary pigment that captures light energy |\n\n---\n\n## 3. Two Stages of Photosynthesis\n\n### Stage 1: Light-Dependent Reactions"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 6462,
+      "per_node": {
+        "gen": 6461,
+        "response": 0,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 22,
+      "total_output_tokens": 200,
+      "per_node": {
+        "gen": [
+          22,
+          200
+        ]
+      }
+    }
+  }
+}

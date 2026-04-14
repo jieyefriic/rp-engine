@@ -1,0 +1,38 @@
+version: "1.0"
+name: "D01 PostgreSQL Basic SELECT"
+
+data_sources:
+  pg_test:
+    name: "Test PostgreSQL"
+    kind: postgresql
+    config:
+      host: "localhost"
+      port: 5432
+      username: "testuser"
+      password: "testpass"
+      database: "testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: query
+    type: data_connector
+    config:
+      data_source_id: pg_test
+      operation:
+        operation: query
+        sql: "SELECT id, name, score, is_active, metadata, tags, created_at::text as created_at, uid::text as uid FROM test_types ORDER BY id"
+
+  - id: response
+    type: response
+    config:
+      output:
+        data: "query.data"
+        row_count: "query.row_count"
+
+edges:
+  - from: start
+    to: query
+  - from: query
+    to: response

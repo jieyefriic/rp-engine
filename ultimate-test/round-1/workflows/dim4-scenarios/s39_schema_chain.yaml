@@ -1,0 +1,79 @@
+version: "1.0"
+name: "S39 Multiple Output Schemas in Chain"
+description: "Test that structured output from one generate node feeds correctly into the next"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen1_outline
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_outline
+      variables:
+        subject: "start.subject"
+      output_schema:
+        - name: topic
+          type: string
+          example: "The Impact of Artificial Intelligence on Healthcare"
+        - name: key_points
+          type: string[]
+          example: '["AI improves diagnostics", "Reduces costs", "Ethical concerns"]'
+
+  - id: gen2_essay
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_essay
+      variables:
+        topic: "gen1_outline.topic"
+        key_points: "gen1_outline.key_points"
+      output_schema:
+        - name: essay
+          type: string
+          example: "Artificial intelligence has revolutionized healthcare..."
+        - name: word_count
+          type: number
+          example: "150"
+
+  - id: response
+    type: response
+    config:
+      output:
+        topic: "gen1_outline.topic"
+        key_points: "gen1_outline.key_points"
+        essay: "gen2_essay.essay"
+        word_count: "gen2_essay.word_count"
+
+edges:
+  - from: start
+    to: gen1_outline
+  - from: gen1_outline
+    to: gen2_essay
+  - from: gen2_essay
+    to: response
+
+templates:
+  tpl_outline:
+    system_prompt: "You are an academic writer who creates well-structured outlines."
+    user_prompt: |
+      Create an outline for a short essay about: {{subject}}
+      Provide a specific topic title and 3-4 key points to cover.
+    config:
+      temperature: 0.5
+      max_tokens: 200
+
+  tpl_essay:
+    system_prompt: "You are an academic writer. Write concise, well-structured essays."
+    user_prompt: |
+      Write a short essay with the following outline:
+      Topic: {{topic}}
+      Key points to cover: {{key_points}}
+
+      Write 100-200 words covering all the key points. Also provide the approximate word count.
+    config:
+      temperature: 0.5
+      max_tokens: 400

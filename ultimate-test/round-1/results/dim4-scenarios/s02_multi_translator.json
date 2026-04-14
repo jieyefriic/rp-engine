@@ -1,0 +1,71 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim4-scenarios/s02_multi_translator.yaml",
+    "elapsed_ms": 2227,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "text": "Artificial intelligence is transforming how we work and live. The technology continues to advance at a rapid pace."
+          },
+          "timestamp": 1776178668093
+        }
+      ],
+      "detect_lang": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_prompt": "Detect the language of this text: Artificial intelligence is transforming how we work and live. The technology continues to advance at a rapid pace.",
+            "_actual_user_prompt": "Detect the language of this text: Artificial intelligence is transforming how we work and live. The technology continues to advance at a rapid pace.",
+            "_usage": {
+              "provider": "qwen",
+              "model": "qwen-flash",
+              "input_tokens": 35,
+              "output_tokens": 8
+            },
+            "output": "The language of the text is English."
+          },
+          "timestamp": 1776178670317
+        }
+      ]
+    },
+    "output": {},
+    "error": null,
+    "timing": {
+      "total_ms": 2224,
+      "per_node": {
+        "detect_lang": 2223,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 35,
+      "total_output_tokens": 8,
+      "per_node": {
+        "detect_lang": [
+          35,
+          8
+        ]
+      }
+    }
+  }
+}

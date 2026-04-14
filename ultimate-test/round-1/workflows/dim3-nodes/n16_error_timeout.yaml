@@ -1,0 +1,45 @@
+version: "1.0"
+name: "N16 Error Handling Timeout"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen_slow
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_gen
+      variables:
+        query: "start.query"
+      error_handling:
+        timeout_ms: 100
+        on_exhausted: continue
+
+  - id: response
+    type: response
+    config:
+      output:
+        error: "gen_slow._error"
+        error_message: "gen_slow._error_message"
+        output: "gen_slow.output"
+
+edges:
+  - from: start
+    to: gen_slow
+  - from: gen_slow
+    to: response
+
+templates:
+  tpl_gen:
+    user_prompt: |
+      Write an extremely detailed, comprehensive essay covering every aspect of the following topic.
+      Include historical context, current state, future predictions, multiple perspectives,
+      detailed examples, case studies, statistical analysis, and thorough citations.
+      The essay should be as long and detailed as possible.
+
+      Topic: {{query}}
+    config:
+      temperature: 0.7
+      max_tokens: 4096

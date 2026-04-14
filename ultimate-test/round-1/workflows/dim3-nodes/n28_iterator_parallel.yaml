@@ -1,0 +1,69 @@
+version: "1.0"
+name: "N28 Iterator Parallel"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: create_items
+    type: transform
+    config:
+      script: |
+        #{
+          "items": ["Artificial Intelligence", "Blockchain", "Quantum Computing", "Cybersecurity", "Cloud Computing"]
+        }
+
+  - id: process_each
+    type: iterator
+    config:
+      items: "create_items.items"
+      subgraph_ref: "sg_summarize"
+      item_var: "topic"
+      parallel: true
+      max_concurrency: 3
+
+  - id: response
+    type: response
+    config:
+      output:
+        results: "process_each.results"
+        count: "process_each.count"
+
+edges:
+  - from: start
+    to: create_items
+  - from: create_items
+    to: process_each
+  - from: process_each
+    to: response
+
+subgraphs:
+  sg_summarize:
+    nodes:
+      - id: sg_start
+        type: start
+      - id: sg_gen
+        type: generate
+        config:
+          provider: deepseek
+          model: deepseek-chat
+          template: sg_tpl
+          variables:
+            topic: "sg_start.topic"
+      - id: sg_response
+        type: response
+        config:
+          output:
+            summary: "sg_gen.output"
+    edges:
+      - from: sg_start
+        to: sg_gen
+      - from: sg_gen
+        to: sg_response
+
+templates:
+  sg_tpl:
+    user_prompt: "In one sentence, explain what {{topic}} is."
+    config:
+      temperature: 0.3
+      max_tokens: 80

@@ -1,0 +1,130 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n27_iterator_sequential.yaml",
+    "elapsed_ms": 7551,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "process_each": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "error_count": 0,
+            "results": [
+              {
+                "summary": "Rust is a systems programming language that prioritizes memory safety, concurrency, and performance without needing a garbage collector."
+              },
+              {
+                "summary": "Python data science is the practice of using Python's extensive ecosystem of libraries like Pandas, NumPy, and scikit-learn to analyze, visualize, and extract insights from data."
+              },
+              {
+                "summary": "The Go concurrency model uses goroutines and channels to enable safe and efficient communication and synchronization between lightweight, independently executing functions."
+              }
+            ],
+            "success_count": 3,
+            "_usage": {
+              "input_tokens": 65,
+              "output_tokens": 85
+            },
+            "count": 3
+          },
+          "timestamp": 1776178203760
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "results": [
+              {
+                "summary": "Rust is a systems programming language that prioritizes memory safety, concurrency, and performance without needing a garbage collector."
+              },
+              {
+                "summary": "Python data science is the practice of using Python's extensive ecosystem of libraries like Pandas, NumPy, and scikit-learn to analyze, visualize, and extract insights from data."
+              },
+              {
+                "summary": "The Go concurrency model uses goroutines and channels to enable safe and efficient communication and synchronization between lightweight, independently executing functions."
+              }
+            ],
+            "success_count": 3,
+            "count": 3
+          },
+          "timestamp": 1776178203760
+        }
+      ],
+      "create_items": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "items": [
+              "Rust programming language",
+              "Python data science",
+              "Go concurrency model"
+            ]
+          },
+          "timestamp": 1776178196215
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776178196211
+        }
+      ]
+    },
+    "output": {
+      "results": [
+        {
+          "summary": "Rust is a systems programming language that prioritizes memory safety, concurrency, and performance without needing a garbage collector."
+        },
+        {
+          "summary": "Python data science is the practice of using Python's extensive ecosystem of libraries like Pandas, NumPy, and scikit-learn to analyze, visualize, and extract insights from data."
+        },
+        {
+          "summary": "The Go concurrency model uses goroutines and channels to enable safe and efficient communication and synchronization between lightweight, independently executing functions."
+        }
+      ],
+      "success_count": 3,
+      "count": 3
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 7549,
+      "per_node": {
+        "create_items": 3,
+        "start": 0,
+        "process_each": 7544,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 65,
+      "total_output_tokens": 85,
+      "per_node": {
+        "process_each": [
+          65,
+          85
+        ]
+      }
+    }
+  }
+}

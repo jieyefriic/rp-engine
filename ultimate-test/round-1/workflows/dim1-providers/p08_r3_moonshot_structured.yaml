@@ -1,0 +1,44 @@
+version: "1.0"
+name: "P08_R3 Moonshot Structured Output"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen
+    type: generate
+    config:
+      provider: moonshot
+      model: kimi-k2.5
+      template: tpl_structured
+      variables:
+        query: "start.query"
+      output_schema:
+        - name: summary
+          type: string
+          example: "A brief summary"
+        - name: confidence
+          type: number
+          example: "0.85"
+        - name: category
+          type: string
+          example: "science"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen.output"
+
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl_structured:
+    user_prompt: "Analyze this topic and provide a structured response: {{query}}"
+    config:
+      temperature: 0.7
+      max_tokens: 200

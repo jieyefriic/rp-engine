@@ -1,0 +1,62 @@
+version: "1.0"
+name: "S06 Database Report Generator"
+
+data_sources:
+  pg_test:
+    name: "Test PostgreSQL"
+    kind: postgresql
+    config:
+      host: "localhost"
+      port: 5432
+      username: "testuser"
+      password: "testpass"
+      database: "testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: query_data
+    type: data_connector
+    config:
+      data_source_id: pg_test
+      operation:
+        operation: query
+        sql: "SELECT id, name, age, score FROM simple_test ORDER BY id"
+
+  - id: analyze
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_analyze
+      variables:
+        data: "query_data.data"
+        row_count: "query_data.row_count"
+
+  - id: response
+    type: response
+    config:
+      output:
+        raw_data: "query_data.data"
+        report: "analyze.output"
+
+edges:
+  - from: start
+    to: query_data
+  - from: query_data
+    to: analyze
+  - from: analyze
+    to: response
+
+templates:
+  tpl_analyze:
+    system_prompt: "You are a data analyst. Produce clear, actionable insights."
+    user_prompt: |
+      Analyze this dataset ({{row_count}} rows):
+      {{data}}
+      
+      Provide: 1) Summary statistics 2) Key findings 3) Recommendations
+    config:
+      temperature: 0.3
+      max_tokens: 500

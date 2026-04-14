@@ -1,0 +1,85 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n09_tools_subgraph.yaml",
+    "elapsed_ms": 3504,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "The result of $ 15 \\times 7 + 23 $ is **128**."
+          },
+          "timestamp": 1776178241748
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "What is 15 * 7 + 23?"
+          },
+          "timestamp": 1776178238247
+        }
+      ],
+      "agent": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_usage": {
+              "provider": "qwen",
+              "model": "qwen-plus",
+              "input_tokens": 448,
+              "output_tokens": 49
+            },
+            "_prompt": "What is 15 * 7 + 23?",
+            "_actual_system_prompt": "You are a helpful assistant. Use the calculate tool to solve math problems. Always use the tool rather than computing in your head.",
+            "output": "The result of $ 15 \\times 7 + 23 $ is **128**.",
+            "_actual_user_prompt": "What is 15 * 7 + 23?"
+          },
+          "timestamp": 1776178241748
+        }
+      ]
+    },
+    "output": {
+      "answer": "The result of $ 15 \\times 7 + 23 $ is **128**."
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 3501,
+      "per_node": {
+        "agent": 3500,
+        "start": 0,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 448,
+      "total_output_tokens": 49,
+      "per_node": {
+        "agent": [
+          448,
+          49
+        ]
+      }
+    }
+  }
+}

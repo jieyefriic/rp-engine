@@ -1,0 +1,134 @@
+version: "1.0"
+name: "N10 Multi-Round Tool Calling"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: agent
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-plus
+      template: tpl_agent
+      variables:
+        query: "start.query"
+      tools:
+        - name: get_population
+          description: "Get the population of a city"
+          ref: sg_population
+          parameters:
+            type: object
+            properties:
+              city:
+                type: string
+                description: "City name"
+            required:
+              - city
+        - name: get_area
+          description: "Get the area of a city in square kilometers"
+          ref: sg_area
+          parameters:
+            type: object
+            properties:
+              city:
+                type: string
+                description: "City name"
+            required:
+              - city
+      max_tool_rounds: 5
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "agent.output"
+
+edges:
+  - from: start
+    to: agent
+  - from: agent
+    to: response
+
+subgraphs:
+  sg_population:
+    nodes:
+      - id: start
+        type: start
+
+      - id: lookup
+        type: transform
+        config:
+          script: |
+            let city = city.to_lower();
+            let pop = if city.contains("tokyo") {
+              "13,960,000"
+            } else if city.contains("new york") || city.contains("nyc") {
+              "8,336,000"
+            } else {
+              "Unknown city"
+            };
+            #{
+              "population": pop,
+              "city": city
+            }
+          variables:
+            city: "start.city"
+
+      - id: response
+        type: response
+        config:
+          output:
+            result: "lookup.population"
+            city: "lookup.city"
+
+    edges:
+      - from: start
+        to: lookup
+      - from: lookup
+        to: response
+
+  sg_area:
+    nodes:
+      - id: start
+        type: start
+
+      - id: lookup
+        type: transform
+        config:
+          script: |
+            let city = city.to_lower();
+            let area = if city.contains("tokyo") {
+              "2,194 sq km"
+            } else if city.contains("new york") || city.contains("nyc") {
+              "783 sq km"
+            } else {
+              "Unknown city"
+            };
+            #{
+              "area": area,
+              "city": city
+            }
+          variables:
+            city: "start.city"
+
+      - id: response
+        type: response
+        config:
+          output:
+            result: "lookup.area"
+            city: "lookup.city"
+
+    edges:
+      - from: start
+        to: lookup
+      - from: lookup
+        to: response
+
+templates:
+  tpl_agent:
+    user_prompt: "{{query}}"
+    system_prompt: "You are a data analyst assistant. Use the available tools to look up data before answering. You must call the tools to get the actual data -- do not guess or use your own knowledge."
+    config:
+      temperature: 0.3
+      max_tokens: 500

@@ -1,0 +1,104 @@
+version: "1.0"
+name: "S28 Iterator Error Collection"
+description: "Process items with an iterator where one item triggers an error; collect errors instead of failing"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: create_tasks
+    type: transform
+    config:
+      script: |
+        #{
+          "items": [
+            #{"task": "Summarize machine learning concepts", "provider": "deepseek", "model": "deepseek-chat"},
+            #{"task": "Explain quantum computing basics", "provider": "qwen", "model": "qwen-flash"},
+            #{"task": "Describe blockchain technology", "provider": "nonexistent_provider_xyz", "model": "fake-model"},
+            #{"task": "Outline cloud computing benefits", "provider": "openai", "model": "gpt-4o-mini"},
+            #{"task": "Discuss cybersecurity best practices", "provider": "deepseek", "model": "deepseek-chat"}
+          ]
+        }
+      variables: {}
+
+  - id: process_tasks
+    type: iterator
+    config:
+      items: "create_tasks.items"
+      subgraph_ref: "sg_process"
+      item_var: "task_item"
+      index_var: "task_idx"
+      parallel: false
+      on_error: collect
+
+  - id: analyze_results
+    type: transform
+    config:
+      script: |
+        let results = results;
+        let success = success_count;
+        let errors = error_count;
+        let error_list = error_list;
+        #{
+          "summary": "Processed " + results.len().to_string() + " tasks",
+          "success_count": success,
+          "error_count": errors,
+          "errors": error_list,
+          "total_items": 5
+        }
+      variables:
+        results: "process_tasks.results"
+        success_count: "process_tasks.success_count"
+        error_count: "process_tasks.error_count"
+        error_list: "process_tasks.errors"
+
+  - id: response
+    type: response
+    config:
+      output:
+        results: "process_tasks.results"
+        success_count: "analyze_results.success_count"
+        error_count: "analyze_results.error_count"
+        errors: "analyze_results.errors"
+        summary: "analyze_results.summary"
+
+edges:
+  - from: start
+    to: create_tasks
+  - from: create_tasks
+    to: process_tasks
+  - from: process_tasks
+    to: analyze_results
+  - from: analyze_results
+    to: response
+
+subgraphs:
+  sg_process:
+    nodes:
+      - id: sg_start
+        type: start
+      - id: sg_generate
+        type: generate
+        config:
+          provider: deepseek
+          model: deepseek-chat
+          template: sg_tpl_task
+          variables:
+            task: "sg_start.task_item.task"
+      - id: sg_response
+        type: response
+        config:
+          output:
+            result: "sg_generate.output"
+    edges:
+      - from: sg_start
+        to: sg_generate
+      - from: sg_generate
+        to: sg_response
+
+templates:
+  sg_tpl_task:
+    user_prompt: "In one sentence, explain: {{task}}"
+    config:
+      temperature: 0.3
+      max_tokens: 100

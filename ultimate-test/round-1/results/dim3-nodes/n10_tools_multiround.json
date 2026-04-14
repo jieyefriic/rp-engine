@@ -1,0 +1,85 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n10_tools_multiround.yaml",
+    "elapsed_ms": 10759,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "agent": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_actual_system_prompt": "You are a data analyst assistant. Use the available tools to look up data before answering. You must call the tools to get the actual data -- do not guess or use your own knowledge.",
+            "_prompt": "Compare the population density of Tokyo and New York",
+            "_actual_user_prompt": "Compare the population density of Tokyo and New York",
+            "_usage": {
+              "provider": "qwen",
+              "model": "qwen-plus",
+              "input_tokens": 771,
+              "output_tokens": 363
+            },
+            "output": "Now that I have the data:\n\n- **Tokyo**:\n  - Population: 13,960,000\n  - Area: 2,194 km²\n  - Population Density = $ \\frac{13,960,000}{2,194} \\approx 6,363 $ people/km²\n\n- **New York**:\n  - Population: 8,336,000\n  - Area: 783 km²\n  - Population Density = $ \\frac{8,336,000}{783} \\approx 10,646 $ people/km²\n\n### Comparison:\n- Tokyo's population density is approximately **6,363 people/km²**.\n- New York's population density is approximately **10,646 people/km²**.\n\nThus, **New York has a higher population density than Tokyo**, despite Tokyo having a larger total population."
+          },
+          "timestamp": 1776178255677
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "Now that I have the data:\n\n- **Tokyo**:\n  - Population: 13,960,000\n  - Area: 2,194 km²\n  - Population Density = $ \\frac{13,960,000}{2,194} \\approx 6,363 $ people/km²\n\n- **New York**:\n  - Population: 8,336,000\n  - Area: 783 km²\n  - Population Density = $ \\frac{8,336,000}{783} \\approx 10,646 $ people/km²\n\n### Comparison:\n- Tokyo's population density is approximately **6,363 people/km²**.\n- New York's population density is approximately **10,646 people/km²**.\n\nThus, **New York has a higher population density than Tokyo**, despite Tokyo having a larger total population."
+          },
+          "timestamp": 1776178255677
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "Compare the population density of Tokyo and New York"
+          },
+          "timestamp": 1776178244922
+        }
+      ]
+    },
+    "output": {
+      "answer": "Now that I have the data:\n\n- **Tokyo**:\n  - Population: 13,960,000\n  - Area: 2,194 km²\n  - Population Density = $ \\frac{13,960,000}{2,194} \\approx 6,363 $ people/km²\n\n- **New York**:\n  - Population: 8,336,000\n  - Area: 783 km²\n  - Population Density = $ \\frac{8,336,000}{783} \\approx 10,646 $ people/km²\n\n### Comparison:\n- Tokyo's population density is approximately **6,363 people/km²**.\n- New York's population density is approximately **10,646 people/km²**.\n\nThus, **New York has a higher population density than Tokyo**, despite Tokyo having a larger total population."
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 10755,
+      "per_node": {
+        "response": 0,
+        "start": 0,
+        "agent": 10754
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 771,
+      "total_output_tokens": 363,
+      "per_node": {
+        "agent": [
+          771,
+          363
+        ]
+      }
+    }
+  }
+}

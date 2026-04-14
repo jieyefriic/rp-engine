@@ -1,0 +1,40 @@
+version: "1.0"
+name: "N22 Transform File Script"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: transform
+    type: transform
+    config:
+      file: "process_data"
+      variables:
+        items: "start.items"
+
+  - id: response
+    type: response
+    config:
+      output:
+        sum: "transform.sum"
+        count: "transform.count"
+        average: "transform.average"
+
+edges:
+  - from: start
+    to: transform
+  - from: transform
+    to: response
+
+transforms:
+  process_data: |
+    let items = items;
+    let total = 0;
+    for item in items {
+      total += item;
+    }
+    #{
+      "sum": total,
+      "count": items.len(),
+      "average": if items.len() > 0 { total / items.len() } else { 0 }
+    }

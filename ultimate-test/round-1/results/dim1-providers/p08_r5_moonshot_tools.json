@@ -1,0 +1,84 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p08_r5_moonshot_tools.yaml",
+    "elapsed_ms": 18503,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_prompt": "What's the weather like in Tokyo right now?",
+            "_usage": {
+              "provider": "moonshot",
+              "model": "kimi-k2.5",
+              "input_tokens": 500,
+              "output_tokens": 425
+            },
+            "_actual_user_prompt": "What's the weather like in Tokyo right now?",
+            "output": "I apologize, but it seems the function returned general information about Tokyo rather than current weather data. Unfortunately, I don't have access to real-time weather information for Tokyo at the moment. \n\nTo get the current weather in Tokyo, I'd recommend:\n- Checking a weather website like Weather.com, AccuWeather, or the Japan Meteorological Agency (JMA)\n- Using a weather app on your phone\n- Asking a voice assistant like Siri, Google Assistant, or Alexa\n\nIs there anything else I can help you with regarding Tokyo or other topics?"
+          },
+          "timestamp": 1776177348801
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "I apologize, but it seems the function returned general information about Tokyo rather than current weather data. Unfortunately, I don't have access to real-time weather information for Tokyo at the moment. \n\nTo get the current weather in Tokyo, I'd recommend:\n- Checking a weather website like Weather.com, AccuWeather, or the Japan Meteorological Agency (JMA)\n- Using a weather app on your phone\n- Asking a voice assistant like Siri, Google Assistant, or Alexa\n\nIs there anything else I can help you with regarding Tokyo or other topics?"
+          },
+          "timestamp": 1776177348801
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "What is the weather in Tokyo?"
+          },
+          "timestamp": 1776177330300
+        }
+      ]
+    },
+    "output": {
+      "answer": "I apologize, but it seems the function returned general information about Tokyo rather than current weather data. Unfortunately, I don't have access to real-time weather information for Tokyo at the moment. \n\nTo get the current weather in Tokyo, I'd recommend:\n- Checking a weather website like Weather.com, AccuWeather, or the Japan Meteorological Agency (JMA)\n- Using a weather app on your phone\n- Asking a voice assistant like Siri, Google Assistant, or Alexa\n\nIs there anything else I can help you with regarding Tokyo or other topics?"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 18501,
+      "per_node": {
+        "response": 0,
+        "start": 0,
+        "gen": 18500
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 500,
+      "total_output_tokens": 425,
+      "per_node": {
+        "gen": [
+          500,
+          425
+        ]
+      }
+    }
+  }
+}

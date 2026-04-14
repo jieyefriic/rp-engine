@@ -1,0 +1,52 @@
+version: "1.0"
+name: "N17 Loop with Conversation History"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: think
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_think
+      variables:
+        task: "start.task"
+        thoughts: "think[*].thought"
+      output_schema:
+        - name: thought
+          type: string
+          example: "My current analysis is..."
+        - name: needs_more
+          type: boolean
+          example: "true"
+
+  - id: response
+    type: response
+    config:
+      output:
+        final_thought: "think.thought"
+        all_thoughts: "think[*].thought"
+
+edges:
+  - from: start
+    to: think
+  - from: think
+    to: think
+    condition: think.needs_more == true
+    max_iterations: 3
+  - from: think
+    to: response
+    condition: think.needs_more == false
+  - from: think
+    to: response
+    is_default: true
+
+templates:
+  tpl_think:
+    system_prompt: "You are a step-by-step reasoner. Break the problem into steps. After 2-3 steps, set needs_more to false."
+    user_prompt: "Task: {{task}}\n\nPrevious thoughts: {{thoughts}}\n\nProvide your next thought step."
+    config:
+      temperature: 0.5
+      max_tokens: 300

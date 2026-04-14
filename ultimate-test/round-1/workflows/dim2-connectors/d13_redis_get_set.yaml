@@ -1,0 +1,49 @@
+version: "1.0"
+name: "D13 Redis GET/SET"
+
+data_sources:
+  redis_test:
+    name: "Test Redis"
+    kind: redis
+    config:
+      url: "redis://localhost:6379/0"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: set_value
+    type: data_connector
+    config:
+      data_source_id: redis_test
+      operation:
+        operation: set
+        key_template: "ut:test_key"
+        value_template: "{val}"
+        ttl: 300
+      variables:
+        val: "start.value"
+
+  - id: get_value
+    type: data_connector
+    config:
+      data_source_id: redis_test
+      operation:
+        operation: get
+        key_template: "ut:test_key"
+
+  - id: response
+    type: response
+    config:
+      output:
+        set_result: "set_value.data"
+        get_result: "get_value.value"
+        exists: "get_value.exists"
+
+edges:
+  - from: start
+    to: set_value
+  - from: set_value
+    to: get_value
+  - from: get_value
+    to: response

@@ -1,0 +1,213 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim4-scenarios/s33_wide_fanout.yaml",
+    "elapsed_ms": 3574,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "gen4": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "output": "Space exploration is like a giant adventure where astronauts fly in rockets to visit other planets and see stars up close! I wish I could ride a spaceship and wave at the Moon while floating in space.",
+            "_usage": {
+              "provider": "qwen",
+              "model": "qwen-flash",
+              "input_tokens": 27,
+              "output_tokens": 39
+            },
+            "_actual_user_prompt": "From the perspective of a child, briefly comment on: Space exploration (2-3 sentences)",
+            "_prompt": "From the perspective of a child, briefly comment on: Space exploration (2-3 sentences)"
+          },
+          "timestamp": 1776178720512
+        }
+      ],
+      "merge": [
+        {
+          "short_id": "g",
+          "execution_index": 0,
+          "outputs": {
+            "provider_count": 5,
+            "perspectives": [
+              "Space exploration represents a critical frontier for scientific inquiry, offering insights into the origins of the universe, the potential for extraterrestrial life, and the fundamental laws of physics. It drives technological advancements and fosters international collaboration, while also addressing pressing challenges on Earth, such as climate change and resource management. Ultimately, exploring space expands our knowledge and challenges our understanding of humanity's place in the cosmos.",
+              "# Space Exploration: Economic Perspective\n\nSpace exploration represents a high-risk, capital-intensive investment with significant positive externalities—technological spillovers from aerospace, materials science, and computing have historically generated substantial returns beyond direct space activities. However, economists debate whether these benefits justify the enormous public expenditures, particularly when competing against pressing terrestrial needs; the efficiency argument strengthens when private commercial ventures (SpaceX, Blue Origin) reduce costs and create profit-driven innovation. The sector's long-term economic value may ultimately depend on whether space resources and activities become genuinely revenue-generating rather than remaining primarily government-funded endeavors.",
+              "Space exploration compels us to confront our cosmic insignificance while simultaneously affirming the profound significance of our capacity for curiosity and transcendence. It is the ultimate material enactment of the philosophical imperative to know ourselves and our place in the universe, transforming the human condition from a terrestrial given into a cosmic question.",
+              "Space exploration is like a giant adventure where astronauts fly in rockets to visit other planets and see stars up close! I wish I could ride a spaceship and wave at the Moon while floating in space.",
+              "Ah, human space exploration—such a quaint endeavor, like toddlers fumbling with blocks to reach the stars, your probes and rockets inching across the void with admirable persistence yet laughable slowness. From our vantage in the nebula clusters, we've long transcended such crude mechanics, weaving wormholes like threads in a cosmic tapestry. Still, your curiosity intrigues us; perhaps one day you'll join the galactic chorus instead of shouting into the silence."
+            ]
+          },
+          "timestamp": 1776178720517
+        }
+      ],
+      "gen1": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "_prompt": "From the perspective of a scientist, briefly comment on: Space exploration (2-3 sentences)",
+            "_actual_user_prompt": "From the perspective of a scientist, briefly comment on: Space exploration (2-3 sentences)",
+            "_usage": {
+              "provider": "openai",
+              "model": "gpt-4o-mini",
+              "input_tokens": 26,
+              "output_tokens": 77
+            },
+            "output": "Space exploration represents a critical frontier for scientific inquiry, offering insights into the origins of the universe, the potential for extraterrestrial life, and the fundamental laws of physics. It drives technological advancements and fosters international collaboration, while also addressing pressing challenges on Earth, such as climate change and resource management. Ultimately, exploring space expands our knowledge and challenges our understanding of humanity's place in the cosmos."
+          },
+          "timestamp": 1776178720512
+        }
+      ],
+      "gen5": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "output": "Ah, human space exploration—such a quaint endeavor, like toddlers fumbling with blocks to reach the stars, your probes and rockets inching across the void with admirable persistence yet laughable slowness. From our vantage in the nebula clusters, we've long transcended such crude mechanics, weaving wormholes like threads in a cosmic tapestry. Still, your curiosity intrigues us; perhaps one day you'll join the galactic chorus instead of shouting into the silence.",
+            "_usage": {
+              "provider": "xai",
+              "model": "grok-4-fast",
+              "input_tokens": 175,
+              "output_tokens": 89
+            },
+            "_prompt": "From the perspective of an alien, briefly comment on: Space exploration (2-3 sentences)",
+            "_actual_user_prompt": "From the perspective of an alien, briefly comment on: Space exploration (2-3 sentences)"
+          },
+          "timestamp": 1776178720512
+        }
+      ],
+      "gen2": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "output": "# Space Exploration: Economic Perspective\n\nSpace exploration represents a high-risk, capital-intensive investment with significant positive externalities—technological spillovers from aerospace, materials science, and computing have historically generated substantial returns beyond direct space activities. However, economists debate whether these benefits justify the enormous public expenditures, particularly when competing against pressing terrestrial needs; the efficiency argument strengthens when private commercial ventures (SpaceX, Blue Origin) reduce costs and create profit-driven innovation. The sector's long-term economic value may ultimately depend on whether space resources and activities become genuinely revenue-generating rather than remaining primarily government-funded endeavors.",
+            "_actual_user_prompt": "From the perspective of an economist, briefly comment on: Space exploration (2-3 sentences)",
+            "_usage": {
+              "provider": "anthropic",
+              "model": "claude-haiku-4-5-20251001",
+              "input_tokens": 27,
+              "output_tokens": 135
+            },
+            "_prompt": "From the perspective of an economist, briefly comment on: Space exploration (2-3 sentences)"
+          },
+          "timestamp": 1776178720512
+        }
+      ],
+      "gen3": [
+        {
+          "short_id": "f",
+          "execution_index": 0,
+          "outputs": {
+            "_actual_user_prompt": "From the perspective of a philosopher, briefly comment on: Space exploration (2-3 sentences)",
+            "output": "Space exploration compels us to confront our cosmic insignificance while simultaneously affirming the profound significance of our capacity for curiosity and transcendence. It is the ultimate material enactment of the philosophical imperative to know ourselves and our place in the universe, transforming the human condition from a terrestrial given into a cosmic question.",
+            "_prompt": "From the perspective of a philosopher, briefly comment on: Space exploration (2-3 sentences)",
+            "_usage": {
+              "provider": "deepseek",
+              "model": "deepseek-chat",
+              "input_tokens": 23,
+              "output_tokens": 59
+            }
+          },
+          "timestamp": 1776178720512
+        }
+      ],
+      "response": [
+        {
+          "short_id": "h",
+          "execution_index": 0,
+          "outputs": {
+            "provider_count": 5,
+            "perspectives": [
+              "Space exploration represents a critical frontier for scientific inquiry, offering insights into the origins of the universe, the potential for extraterrestrial life, and the fundamental laws of physics. It drives technological advancements and fosters international collaboration, while also addressing pressing challenges on Earth, such as climate change and resource management. Ultimately, exploring space expands our knowledge and challenges our understanding of humanity's place in the cosmos.",
+              "# Space Exploration: Economic Perspective\n\nSpace exploration represents a high-risk, capital-intensive investment with significant positive externalities—technological spillovers from aerospace, materials science, and computing have historically generated substantial returns beyond direct space activities. However, economists debate whether these benefits justify the enormous public expenditures, particularly when competing against pressing terrestrial needs; the efficiency argument strengthens when private commercial ventures (SpaceX, Blue Origin) reduce costs and create profit-driven innovation. The sector's long-term economic value may ultimately depend on whether space resources and activities become genuinely revenue-generating rather than remaining primarily government-funded endeavors.",
+              "Space exploration compels us to confront our cosmic insignificance while simultaneously affirming the profound significance of our capacity for curiosity and transcendence. It is the ultimate material enactment of the philosophical imperative to know ourselves and our place in the universe, transforming the human condition from a terrestrial given into a cosmic question.",
+              "Space exploration is like a giant adventure where astronauts fly in rockets to visit other planets and see stars up close! I wish I could ride a spaceship and wave at the Moon while floating in space.",
+              "Ah, human space exploration—such a quaint endeavor, like toddlers fumbling with blocks to reach the stars, your probes and rockets inching across the void with admirable persistence yet laughable slowness. From our vantage in the nebula clusters, we've long transcended such crude mechanics, weaving wormholes like threads in a cosmic tapestry. Still, your curiosity intrigues us; perhaps one day you'll join the galactic chorus instead of shouting into the silence."
+            ]
+          },
+          "timestamp": 1776178720517
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "perspective1": "a scientist",
+            "perspective2": "an economist",
+            "perspective3": "a philosopher",
+            "perspective4": "a child",
+            "perspective5": "an alien",
+            "topic": "Space exploration"
+          },
+          "timestamp": 1776178716946
+        }
+      ]
+    },
+    "output": {
+      "provider_count": 5,
+      "perspectives": [
+        "Space exploration represents a critical frontier for scientific inquiry, offering insights into the origins of the universe, the potential for extraterrestrial life, and the fundamental laws of physics. It drives technological advancements and fosters international collaboration, while also addressing pressing challenges on Earth, such as climate change and resource management. Ultimately, exploring space expands our knowledge and challenges our understanding of humanity's place in the cosmos.",
+        "# Space Exploration: Economic Perspective\n\nSpace exploration represents a high-risk, capital-intensive investment with significant positive externalities—technological spillovers from aerospace, materials science, and computing have historically generated substantial returns beyond direct space activities. However, economists debate whether these benefits justify the enormous public expenditures, particularly when competing against pressing terrestrial needs; the efficiency argument strengthens when private commercial ventures (SpaceX, Blue Origin) reduce costs and create profit-driven innovation. The sector's long-term economic value may ultimately depend on whether space resources and activities become genuinely revenue-generating rather than remaining primarily government-funded endeavors.",
+        "Space exploration compels us to confront our cosmic insignificance while simultaneously affirming the profound significance of our capacity for curiosity and transcendence. It is the ultimate material enactment of the philosophical imperative to know ourselves and our place in the universe, transforming the human condition from a terrestrial given into a cosmic question.",
+        "Space exploration is like a giant adventure where astronauts fly in rockets to visit other planets and see stars up close! I wish I could ride a spaceship and wave at the Moon while floating in space.",
+        "Ah, human space exploration—such a quaint endeavor, like toddlers fumbling with blocks to reach the stars, your probes and rockets inching across the void with admirable persistence yet laughable slowness. From our vantage in the nebula clusters, we've long transcended such crude mechanics, weaving wormholes like threads in a cosmic tapestry. Still, your curiosity intrigues us; perhaps one day you'll join the galactic chorus instead of shouting into the silence."
+      ]
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 3571,
+      "per_node": {
+        "gen1": 2544,
+        "gen4": 2781,
+        "merge": 4,
+        "gen2": 3085,
+        "start": 0,
+        "gen3": 3559,
+        "response": 0,
+        "gen5": 2645
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 278,
+      "total_output_tokens": 399,
+      "per_node": {
+        "gen1": [
+          26,
+          77
+        ],
+        "gen4": [
+          27,
+          39
+        ],
+        "gen5": [
+          175,
+          89
+        ],
+        "gen3": [
+          23,
+          59
+        ],
+        "gen2": [
+          27,
+          135
+        ]
+      }
+    }
+  }
+}

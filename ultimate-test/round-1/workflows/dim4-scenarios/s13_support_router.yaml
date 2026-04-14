@@ -1,0 +1,107 @@
+version: "1.0"
+name: "S13 Customer Support Router"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: classify
+    type: generate
+    config:
+      provider: openai
+      model: gpt-4o-mini
+      template: tpl_classify
+      variables:
+        message: "start.message"
+      output_schema:
+        - name: intent
+          type: string
+          example: "billing"
+        - name: urgency
+          type: string
+          example: "medium"
+
+  - id: billing_handler
+    type: generate
+    config:
+      provider: anthropic
+      model: claude-haiku-4-5-20251001
+      template: tpl_billing
+      variables:
+        message: "start.message"
+
+  - id: tech_handler
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_tech
+      variables:
+        message: "start.message"
+
+  - id: general_handler
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-flash
+      template: tpl_general
+      variables:
+        message: "start.message"
+
+  - id: response
+    type: response
+    config:
+      output:
+        intent: "classify.intent"
+        urgency: "classify.urgency"
+        billing_response: "billing_handler.output"
+        tech_response: "tech_handler.output"
+        general_response: "general_handler.output"
+
+edges:
+  - from: start
+    to: classify
+  - from: classify
+    to: billing_handler
+    condition: classify.intent == 'billing'
+  - from: classify
+    to: tech_handler
+    condition: classify.intent == 'technical'
+  - from: classify
+    to: general_handler
+    is_default: true
+  - from: billing_handler
+    to: response
+  - from: tech_handler
+    to: response
+  - from: general_handler
+    to: response
+
+templates:
+  tpl_classify:
+    system_prompt: "Classify customer support messages. Categories: billing, technical, general."
+    user_prompt: "Classify this customer message: {{message}}"
+    config:
+      temperature: 0.1
+      max_tokens: 100
+
+  tpl_billing:
+    system_prompt: "You are a billing support specialist. Be helpful and precise about charges."
+    user_prompt: "Customer message: {{message}}\n\nProvide a helpful billing support response."
+    config:
+      temperature: 0.5
+      max_tokens: 300
+
+  tpl_tech:
+    system_prompt: "You are a technical support engineer. Provide step-by-step troubleshooting."
+    user_prompt: "Customer message: {{message}}\n\nProvide technical support guidance."
+    config:
+      temperature: 0.5
+      max_tokens: 300
+
+  tpl_general:
+    system_prompt: "You are a friendly customer service representative."
+    user_prompt: "Customer message: {{message}}\n\nProvide a helpful response."
+    config:
+      temperature: 0.7
+      max_tokens: 300

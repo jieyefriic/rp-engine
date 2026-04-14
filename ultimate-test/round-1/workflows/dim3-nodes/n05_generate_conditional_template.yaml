@@ -1,0 +1,69 @@
+version: "1.0"
+name: "N05 Conditional Template Selection"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: classify
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_classify
+      variables:
+        query: "start.query"
+      output_schema:
+        - name: category
+          type: string
+          example: "technical"
+
+  - id: gen_response
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template:
+        default: tpl_general
+        conditions:
+          - when: classify.category == 'technical'
+            use: tpl_technical
+      variables:
+        query: "start.query"
+        category: "classify.category"
+
+  - id: response
+    type: response
+    config:
+      output:
+        category: "classify.category"
+        answer: "gen_response.output"
+
+edges:
+  - from: start
+    to: classify
+  - from: classify
+    to: gen_response
+  - from: gen_response
+    to: response
+
+templates:
+  tpl_classify:
+    user_prompt: "Classify this question into exactly one category: 'technical' or 'general'. Question: {{query}}"
+    config:
+      temperature: 0.1
+      max_tokens: 50
+
+  tpl_general:
+    system_prompt: "You are a friendly, casual assistant. Keep answers brief and conversational."
+    user_prompt: "{{query}}"
+    config:
+      temperature: 0.8
+      max_tokens: 200
+
+  tpl_technical:
+    system_prompt: "You are a precise technical expert. Provide detailed, accurate, formal explanations."
+    user_prompt: "{{query}}"
+    config:
+      temperature: 0.3
+      max_tokens: 400

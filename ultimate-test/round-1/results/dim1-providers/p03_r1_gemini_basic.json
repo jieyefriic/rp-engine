@@ -1,0 +1,21 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p03_r1_gemini_basic.yaml",
+    "elapsed_ms": 153,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Error"
+  },
+  "_error": "Provider error: Authentication failed",
+  "_error_debug": "ProviderError(AuthenticationFailed)"
+}

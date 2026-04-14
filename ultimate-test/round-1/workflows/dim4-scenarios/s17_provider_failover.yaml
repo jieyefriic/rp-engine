@@ -1,0 +1,55 @@
+version: "1.0"
+name: "S17 Provider Failover Chain"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: primary
+    type: generate
+    config:
+      provider: deepseek
+      model: nonexistent-premium-model
+      template: tpl_answer
+      variables:
+        query: "start.query"
+      error_handling:
+        retry: 1
+        retry_delay_ms: 500
+        on_exhausted: continue
+
+  - id: fallback
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-flash
+      template: tpl_answer
+      variables:
+        query: "start.query"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "fallback.output"
+        primary_failed: "primary._error"
+        primary_error: "primary._error_message"
+        used_fallback: "fallback.output"
+
+edges:
+  - from: start
+    to: primary
+  - from: primary
+    to: fallback
+    on_error: true
+  - from: primary
+    to: response
+  - from: fallback
+    to: response
+
+templates:
+  tpl_answer:
+    user_prompt: "{{query}}"
+    config:
+      temperature: 0.5
+      max_tokens: 200

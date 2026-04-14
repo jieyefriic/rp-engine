@@ -1,0 +1,84 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p01_r9_openai_sampling.yaml",
+    "elapsed_ms": 1601,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "As the first feline astronaut, Whiskers strutted across the crimson sands of Mars, leaving paw prints in the dust that sparkled like stardust, while dreaming of a future where catnip trees flourished beneath the twin moons."
+          },
+          "timestamp": 1776177484206
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_actual_user_prompt": "Write a creative one-sentence story about a cat on Mars",
+            "_usage": {
+              "provider": "openai",
+              "model": "gpt-4o-mini",
+              "input_tokens": 19,
+              "output_tokens": 48
+            },
+            "_prompt": "Write a creative one-sentence story about a cat on Mars",
+            "output": "As the first feline astronaut, Whiskers strutted across the crimson sands of Mars, leaving paw prints in the dust that sparkled like stardust, while dreaming of a future where catnip trees flourished beneath the twin moons."
+          },
+          "timestamp": 1776177484206
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "a cat on Mars"
+          },
+          "timestamp": 1776177482607
+        }
+      ]
+    },
+    "output": {
+      "answer": "As the first feline astronaut, Whiskers strutted across the crimson sands of Mars, leaving paw prints in the dust that sparkled like stardust, while dreaming of a future where catnip trees flourished beneath the twin moons."
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 1599,
+      "per_node": {
+        "start": 0,
+        "gen": 1598,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 19,
+      "total_output_tokens": 48,
+      "per_node": {
+        "gen": [
+          19,
+          48
+        ]
+      }
+    }
+  }
+}
