@@ -146,6 +146,9 @@ async fn execute_rest_api(
     // Resolve template variables in URL
     let url = resolve_template_vars(url_str, state);
 
+    // SSRF validation
+    connectors::validate_url(&url)?;
+
     // Get method
     let method = connection.get("method")
         .and_then(|v| v.as_str())

@@ -452,6 +452,7 @@ async fn execute_insert(
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
     let table = get_required_string(operation, "table", state)?;
+    super::validate_sql_identifier(&table)?;
 
     let data = operation.get("data")
         .and_then(|v| v.as_object())
@@ -462,6 +463,7 @@ async fn execute_insert(
     let mut params: Vec<SqlParam> = Vec::new();
 
     for (i, (col, val)) in data.iter().enumerate() {
+        super::validate_sql_identifier(col)?;
         columns.push(format!("\"{}\"", col));
         placeholders.push(format!("${}", i + 1));
         let resolved = resolve_value(val, variables);
@@ -503,6 +505,7 @@ async fn execute_select(
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
     let table = get_required_string(operation, "table", state)?;
+    super::validate_sql_identifier(&table)?;
 
     let columns = operation.get("columns")
         .and_then(|v| v.as_array())
@@ -561,6 +564,7 @@ async fn execute_update(
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
     let table = get_required_string(operation, "table", state)?;
+    super::validate_sql_identifier(&table)?;
 
     let set_data = operation.get("set")
         .and_then(|v| v.as_object())
@@ -613,6 +617,7 @@ async fn execute_delete(
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
     let table = get_required_string(operation, "table", state)?;
+    super::validate_sql_identifier(&table)?;
 
     let (where_clause, params) = build_where_clause(operation, variables);
 
