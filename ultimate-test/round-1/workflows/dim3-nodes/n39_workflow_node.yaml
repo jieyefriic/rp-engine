@@ -1,0 +1,28 @@
+version: "1.0"
+name: "N39 Workflow Node (Sub-Workflow)"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: sub
+    type: workflow
+    config:
+      workflow: "nonexistent_sub"
+      variables:
+        query: "start.query"
+      error_handling:
+        on_exhausted: continue
+
+  - id: response
+    type: response
+    config:
+      output:
+        had_error: "sub._error"
+        error_message: "sub._error_message"
+
+edges:
+  - from: start
+    to: sub
+  - from: sub
+    to: response

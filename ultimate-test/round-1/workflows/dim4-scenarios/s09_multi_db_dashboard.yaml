@@ -27,7 +27,7 @@ nodes:
       data_source_id: pg_test
       operation:
         operation: query
-        sql: "SELECT COUNT(*) as total_users, AVG(age) as avg_age, AVG(score) as avg_score FROM simple_test"
+        sql: "SELECT COUNT(*)::int as total_users, AVG(age)::int as avg_age, AVG(score)::float as avg_score FROM simple_test"
 
   - id: redis_info
     type: data_connector
@@ -42,9 +42,8 @@ nodes:
     config:
       script: |
         #{
-          "pg_stats": pg_data,
-          "redis_cached": redis_exists,
-          "combined_report": "DB has " + pg_data.to_string() + " | Redis cache exists: " + redis_exists.to_string()
+          "pg_data": pg_data,
+          "redis_exists": redis_exists
         }
       variables:
         pg_data: "pg_query.data"
@@ -57,14 +56,15 @@ nodes:
       model: deepseek-chat
       template: tpl_narrate
       variables:
-        report: "merge.combined_report"
+        pg_stats: "pg_query.data"
+        cache_exists: "redis_info.exists"
 
   - id: response
     type: response
     config:
       output:
-        pg_stats: "merge.pg_stats"
-        redis_cached: "merge.redis_cached"
+        pg_data: "merge.pg_data"
+        redis_exists: "merge.redis_exists"
         narrative: "narrate.output"
 
 edges:
@@ -83,7 +83,7 @@ edges:
 
 templates:
   tpl_narrate:
-    user_prompt: "Create a brief dashboard summary from this data: {{report}}"
+    user_prompt: "Create a brief dashboard summary. Database stats: {{pg_stats}}. Redis cache available: {{cache_exists}}."
     config:
       temperature: 0.5
       max_tokens: 200

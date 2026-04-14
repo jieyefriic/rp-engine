@@ -1,0 +1,86 @@
+version: "1.0"
+name: "S26 Graceful Degradation"
+description: "Primary provider fails, transform detects error, conditional routes to fallback"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen_primary
+    type: generate
+    config:
+      provider: deepseek
+      model: nonexistent-model-primary-404
+      template: tpl_answer
+      variables:
+        query: "start.query"
+      error_handling:
+        retry: 1
+        retry_delay_ms: 500
+        on_exhausted: continue
+
+  - id: check_error
+    type: transform
+    config:
+      script: |
+        #{
+          "has_error": had_error,
+          "primary_output": if had_error { "" } else { primary_out },
+          "error_info": if had_error { err_msg } else { "" }
+        }
+      variables:
+        had_error: "gen_primary._error"
+        primary_out: "gen_primary.output"
+        err_msg: "gen_primary._error_message"
+
+  - id: gen_fallback
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-flash
+      template: tpl_answer
+      variables:
+        query: "start.query"
+
+  - id: use_primary
+    type: transform
+    config:
+      script: |
+        #{"answer": primary_output}
+      variables:
+        primary_output: "check_error.primary_output"
+
+  - id: response
+    type: response
+    config:
+      output:
+        primary_had_error: "check_error.has_error"
+        error_info: "check_error.error_info"
+        fallback_answer: "gen_fallback.output"
+        primary_answer: "use_primary.answer"
+
+edges:
+  - from: start
+    to: gen_primary
+  - from: gen_primary
+    to: check_error
+  - from: check_error
+    to: gen_fallback
+    condition: check_error.has_error == true
+  - from: check_error
+    to: use_primary
+    condition: check_error.has_error == false
+  - from: check_error
+    to: gen_fallback
+    is_default: true
+  - from: gen_fallback
+    to: response
+  - from: use_primary
+    to: response
+
+templates:
+  tpl_answer:
+    user_prompt: "{{query}}"
+    config:
+      temperature: 0.5
+      max_tokens: 200

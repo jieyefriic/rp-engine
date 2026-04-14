@@ -1,0 +1,60 @@
+version: "1.0"
+name: "S38 Long Context"
+description: "Generate a long text via transform, then summarize it with LLM"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: generate_text
+    type: transform
+    config:
+      script: |
+        let paragraphs = [
+          "The history of artificial intelligence dates back to the mid-20th century when pioneers like Alan Turing and John McCarthy laid the groundwork for what would become one of the most transformative fields in computer science. Turing's seminal paper 'Computing Machinery and Intelligence' posed the fundamental question of whether machines can think, introducing the famous Turing Test as a benchmark for machine intelligence. McCarthy, who coined the term 'artificial intelligence' in 1956 at the Dartmouth Conference, envisioned a future where machines could simulate any aspect of human learning and reasoning.",
+          "The early decades of AI research were marked by both remarkable optimism and significant setbacks. The initial enthusiasm led to ambitious predictions about machines achieving human-level intelligence within a generation. Researchers developed early programs that could solve algebra problems, prove geometric theorems, and engage in simple natural language processing. However, the limitations of these early systems soon became apparent, leading to periods known as 'AI winters' where funding and interest in the field declined substantially.",
+          "The resurgence of AI in the 21st century has been driven primarily by three factors: the availability of massive datasets, dramatic increases in computing power through GPUs and cloud infrastructure, and breakthroughs in machine learning algorithms, particularly deep learning. Neural networks, which had been explored since the 1940s, finally found their moment when researchers like Geoffrey Hinton, Yann LeCun, and Yoshua Bengio demonstrated that deep architectures could achieve remarkable results in image recognition, speech processing, and natural language understanding.",
+          "Modern large language models represent a paradigm shift in artificial intelligence. By training transformer architectures on vast corpora of text data, these models have demonstrated emergent capabilities that surprised even their creators. From generating coherent essays to writing functional code, from translating between languages to reasoning about complex problems, LLMs have expanded the boundaries of what was thought possible with statistical approaches to language. The development of models like GPT, Claude, and others has sparked both excitement about their potential applications and serious discussions about their limitations and risks.",
+          "Looking forward, the field of AI faces both tremendous opportunities and significant challenges. On the opportunity side, AI promises to accelerate scientific discovery, improve healthcare diagnostics, enhance educational accessibility, and address complex global problems like climate change. On the challenge side, researchers and policymakers must grapple with issues of bias and fairness, the environmental impact of training large models, the potential for misuse, and the broader societal implications of increasingly capable AI systems. The responsible development of AI will require collaboration across disciplines, transparent research practices, and thoughtful governance frameworks."
+        ];
+        let long_text = "";
+        for p in paragraphs {
+          long_text += p + "\n\n";
+        }
+        #{"long_text": long_text, "char_count": long_text.len()}
+
+  - id: summarize
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_summarize
+      variables:
+        text: "generate_text.long_text"
+        char_count: "generate_text.char_count"
+
+  - id: response
+    type: response
+    config:
+      output:
+        char_count: "generate_text.char_count"
+        summary: "summarize.output"
+
+edges:
+  - from: start
+    to: generate_text
+  - from: generate_text
+    to: summarize
+  - from: summarize
+    to: response
+
+templates:
+  tpl_summarize:
+    system_prompt: "You are a concise summarizer. Produce clear, accurate summaries."
+    user_prompt: |
+      Summarize the following text ({{char_count}} characters) in 3-4 sentences:
+
+      {{text}}
+    config:
+      temperature: 0.3
+      max_tokens: 300

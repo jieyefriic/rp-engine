@@ -1,0 +1,172 @@
+version: "1.0"
+name: "S05 SEO Article Writer"
+description: "Generate an SEO-optimized article with keyword research, outline, parallel section writing, and compilation"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: keywords
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-flash
+      template: tpl_keywords
+      variables:
+        topic: "start.topic"
+      output_schema:
+        - name: primary_keyword
+          type: string
+          example: "machine learning"
+        - name: secondary_keywords
+          type: string[]
+          example: '["deep learning", "neural networks", "AI"]'
+
+  - id: outline
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-flash
+      template: tpl_outline
+      variables:
+        topic: "start.topic"
+        primary_keyword: "keywords.primary_keyword"
+        secondary_keywords: "keywords.secondary_keywords"
+      output_schema:
+        - name: title
+          type: string
+          example: "The Ultimate Guide to Machine Learning"
+        - name: sections
+          type: string[]
+          example: '["Introduction", "Key Concepts", "Applications", "Conclusion"]'
+
+  - id: build_items
+    type: transform
+    config:
+      script: |
+        let items = [];
+        for s in sections {
+          items.push(#{
+            "section_title": s,
+            "article_title": title,
+            "primary_keyword": pk,
+            "secondary_keywords": sks
+          });
+        }
+        #{"items": items, "title": title}
+      variables:
+        sections: "outline.sections"
+        title: "outline.title"
+        pk: "keywords.primary_keyword"
+        sks: "keywords.secondary_keywords"
+
+  - id: write_sections
+    type: iterator
+    config:
+      items: "build_items.items"
+      subgraph_ref: "sg_write"
+      item_var: "section"
+      parallel: true
+      max_concurrency: 4
+
+  - id: compile
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-flash
+      template: tpl_compile
+      variables:
+        title: "build_items.title"
+        section_contents: "write_sections.results"
+
+  - id: response
+    type: response
+    config:
+      output:
+        title: "build_items.title"
+        primary_keyword: "keywords.primary_keyword"
+        sections_written: "write_sections.count"
+        article: "compile.output"
+
+edges:
+  - from: start
+    to: keywords
+  - from: keywords
+    to: outline
+  - from: outline
+    to: build_items
+  - from: build_items
+    to: write_sections
+  - from: write_sections
+    to: compile
+  - from: compile
+    to: response
+
+subgraphs:
+  sg_write:
+    nodes:
+      - id: sg_start
+        type: start
+      - id: sg_gen
+        type: generate
+        config:
+          provider: qwen
+          model: qwen-flash
+          template: sg_tpl_write
+          variables:
+            section: "sg_start.section"
+      - id: sg_response
+        type: response
+        config:
+          output:
+            content: "sg_gen.output"
+    edges:
+      - from: sg_start
+        to: sg_gen
+      - from: sg_gen
+        to: sg_response
+
+templates:
+  tpl_keywords:
+    system_prompt: "You are an SEO keyword researcher. Identify the best keywords for search ranking."
+    user_prompt: "Research SEO keywords for an article about: {{topic}}. Return a primary keyword and 3-5 secondary keywords."
+    config:
+      temperature: 0.3
+      max_tokens: 200
+
+  tpl_outline:
+    system_prompt: "You are an SEO content strategist. Create article outlines optimized for search engines."
+    user_prompt: |
+      Create an article outline for: {{topic}}
+      Primary keyword: {{primary_keyword}}
+      Secondary keywords: {{secondary_keywords}}
+
+      Return a compelling title and 4-5 section headings.
+    config:
+      temperature: 0.5
+      max_tokens: 300
+
+  sg_tpl_write:
+    system_prompt: "You are an SEO content writer. Naturally incorporate keywords while maintaining readability."
+    user_prompt: |
+      Write a section for the article "{{section.article_title}}".
+      Section: {{section.section_title}}
+      Primary keyword: {{section.primary_keyword}}
+      Secondary keywords: {{section.secondary_keywords}}
+
+      Write 2-3 paragraphs. Naturally include the primary keyword at least once.
+    config:
+      temperature: 0.6
+      max_tokens: 400
+
+  tpl_compile:
+    system_prompt: "You are a professional editor. Compile sections into a cohesive, SEO-optimized article."
+    user_prompt: |
+      Compile these sections into a polished article.
+      Title: {{title}}
+      Sections: {{section_contents}}
+
+      Ensure smooth transitions and consistent tone throughout.
+    config:
+      temperature: 0.4
+      max_tokens: 1500

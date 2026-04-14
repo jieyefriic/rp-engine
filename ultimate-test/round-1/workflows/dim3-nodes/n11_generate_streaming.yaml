@@ -1,0 +1,35 @@
+version: "1.0"
+name: "N11 Generate Streaming"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      stream: true
+      template: tpl
+      variables:
+        query: "start.query"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen.output"
+
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl:
+    user_prompt: "{{query}}"
+    config:
+      temperature: 0.7
+      max_tokens: 200

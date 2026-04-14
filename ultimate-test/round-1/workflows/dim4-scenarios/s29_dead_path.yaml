@@ -1,0 +1,88 @@
+version: "1.0"
+name: "S29 Dead Path Handling"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gate
+    type: generate
+    config:
+      provider: openai
+      model: gpt-4o-mini
+      template: tpl_gate
+      variables:
+        instruction: "start.instruction"
+      output_schema:
+        - name: route
+          type: string
+          example: "B"
+
+  - id: gen_a
+    type: generate
+    config:
+      provider: openai
+      model: gpt-4o-mini
+      template: tpl_route
+      variables:
+        route_name: "'Route A'"
+
+  - id: gen_b
+    type: generate
+    config:
+      provider: openai
+      model: gpt-4o-mini
+      template: tpl_route
+      variables:
+        route_name: "'Route B'"
+
+  - id: gen_c
+    type: generate
+    config:
+      provider: openai
+      model: gpt-4o-mini
+      template: tpl_route
+      variables:
+        route_name: "'Route C (default)'"
+
+  - id: response
+    type: response
+    config:
+      output:
+        chosen_route: "gate.route"
+        route_a_output: "gen_a.output"
+        route_b_output: "gen_b.output"
+        route_c_output: "gen_c.output"
+
+edges:
+  - from: start
+    to: gate
+  - from: gate
+    to: gen_a
+    condition: gate.route == 'A'
+  - from: gate
+    to: gen_b
+    condition: gate.route == 'B'
+  - from: gate
+    to: gen_c
+    is_default: true
+  - from: gen_a
+    to: response
+  - from: gen_b
+    to: response
+  - from: gen_c
+    to: response
+
+templates:
+  tpl_gate:
+    system_prompt: "You are a router. Return exactly the route letter specified by the user."
+    user_prompt: "{{instruction}}\n\nReturn the route letter as instructed. Only return a single letter: A, B, or C."
+    config:
+      temperature: 0.0
+      max_tokens: 20
+
+  tpl_route:
+    user_prompt: "You are on {{route_name}}. Confirm arrival by saying: 'Arrived at {{route_name}} successfully.'"
+    config:
+      temperature: 0.3
+      max_tokens: 50
