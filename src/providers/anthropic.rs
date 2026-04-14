@@ -57,7 +57,7 @@ impl AnthropicProvider {
 
         headers.insert(
             "x-api-key",
-            HeaderValue::from_str(&self.api_key).unwrap(),
+            HeaderValue::from_str(&self.api_key).unwrap_or_else(|_| HeaderValue::from_static("invalid-key")),
         );
         headers.insert(
             "anthropic-version",
@@ -88,7 +88,7 @@ impl AnthropicProvider {
         if !beta_headers.is_empty() {
             headers.insert(
                 "anthropic-beta",
-                HeaderValue::from_str(&beta_headers.join(",")).unwrap(),
+                HeaderValue::from_str(&beta_headers.join(",")).unwrap_or_else(|_| HeaderValue::from_static("")),
             );
         }
 

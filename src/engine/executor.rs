@@ -1094,7 +1094,7 @@ async fn execute_single_node(
     }
 
     // All retries exhausted
-    let err = last_error.unwrap();
+    let err = last_error.expect("retry loop guarantees last_error is set");
     let timing_ms = node_start.elapsed().as_millis() as u64;
 
     if on_exhausted == "continue" {
