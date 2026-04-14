@@ -773,23 +773,29 @@ fn row_value_to_json(row: &Row, idx: usize, pg_type: &tokio_postgres::types::Typ
     use tokio_postgres::types::Type;
 
     match *pg_type {
-        Type::BOOL => row.get::<_, Option<bool>>(idx)
+        Type::BOOL => row.try_get::<_, Option<bool>>(idx)
+            .ok().flatten()
             .map(Value::Bool)
             .unwrap_or(Value::Null),
-        Type::INT2 => row.get::<_, Option<i16>>(idx)
+        Type::INT2 => row.try_get::<_, Option<i16>>(idx)
+            .ok().flatten()
             .map(|v| Value::Number(v.into()))
             .unwrap_or(Value::Null),
-        Type::INT4 => row.get::<_, Option<i32>>(idx)
+        Type::INT4 => row.try_get::<_, Option<i32>>(idx)
+            .ok().flatten()
             .map(|v| Value::Number(v.into()))
             .unwrap_or(Value::Null),
-        Type::INT8 => row.get::<_, Option<i64>>(idx)
+        Type::INT8 => row.try_get::<_, Option<i64>>(idx)
+            .ok().flatten()
             .map(|v| Value::Number(v.into()))
             .unwrap_or(Value::Null),
-        Type::FLOAT4 => row.get::<_, Option<f32>>(idx)
+        Type::FLOAT4 => row.try_get::<_, Option<f32>>(idx)
+            .ok().flatten()
             .and_then(|v| serde_json::Number::from_f64(v as f64))
             .map(Value::Number)
             .unwrap_or(Value::Null),
-        Type::FLOAT8 => row.get::<_, Option<f64>>(idx)
+        Type::FLOAT8 => row.try_get::<_, Option<f64>>(idx)
+            .ok().flatten()
             .and_then(|v| serde_json::Number::from_f64(v))
             .map(Value::Number)
             .unwrap_or(Value::Null),
@@ -814,18 +820,61 @@ fn row_value_to_json(row: &Row, idx: usize, pg_type: &tokio_postgres::types::Typ
                 }
             }
         }
-        Type::JSON | Type::JSONB => row.get::<_, Option<Value>>(idx)
+        Type::JSON | Type::JSONB => row.try_get::<_, Option<Value>>(idx)
+            .ok().flatten()
             .unwrap_or(Value::Null),
-        Type::UUID => row.get::<_, Option<uuid::Uuid>>(idx)
+        Type::UUID => row.try_get::<_, Option<uuid::Uuid>>(idx)
+            .ok().flatten()
             .map(|v| Value::String(v.to_string()))
             .unwrap_or(Value::Null),
-        Type::TIMESTAMP => row.get::<_, Option<NaiveDateTime>>(idx)
+        Type::TIMESTAMP => row.try_get::<_, Option<NaiveDateTime>>(idx)
+            .ok().flatten()
             .map(|v| Value::String(v.format("%Y-%m-%d %H:%M:%S").to_string()))
             .unwrap_or(Value::Null),
-        Type::TIMESTAMPTZ => row.get::<_, Option<DateTime<Utc>>>(idx)
+        Type::TIMESTAMPTZ => row.try_get::<_, Option<DateTime<Utc>>>(idx)
+            .ok().flatten()
             .map(|v| Value::String(v.to_rfc3339()))
             .unwrap_or(Value::Null),
-        _ => row.get::<_, Option<String>>(idx)
+        // Array types
+        Type::BOOL_ARRAY => row.try_get::<_, Option<Vec<bool>>>(idx)
+            .ok().flatten()
+            .map(|v| serde_json::json!(v))
+            .unwrap_or(Value::Null),
+        Type::INT2_ARRAY => row.try_get::<_, Option<Vec<i16>>>(idx)
+            .ok().flatten()
+            .map(|v| serde_json::json!(v))
+            .unwrap_or(Value::Null),
+        Type::INT4_ARRAY => row.try_get::<_, Option<Vec<i32>>>(idx)
+            .ok().flatten()
+            .map(|v| serde_json::json!(v))
+            .unwrap_or(Value::Null),
+        Type::INT8_ARRAY => row.try_get::<_, Option<Vec<i64>>>(idx)
+            .ok().flatten()
+            .map(|v| serde_json::json!(v))
+            .unwrap_or(Value::Null),
+        Type::FLOAT4_ARRAY => row.try_get::<_, Option<Vec<f32>>>(idx)
+            .ok().flatten()
+            .map(|v| serde_json::json!(v))
+            .unwrap_or(Value::Null),
+        Type::FLOAT8_ARRAY => row.try_get::<_, Option<Vec<f64>>>(idx)
+            .ok().flatten()
+            .map(|v| serde_json::json!(v))
+            .unwrap_or(Value::Null),
+        Type::TEXT_ARRAY | Type::VARCHAR_ARRAY => row.try_get::<_, Option<Vec<String>>>(idx)
+            .ok().flatten()
+            .map(|v| serde_json::json!(v))
+            .unwrap_or(Value::Null),
+        Type::UUID_ARRAY => row.try_get::<_, Option<Vec<uuid::Uuid>>>(idx)
+            .ok().flatten()
+            .map(|v| Value::Array(v.into_iter().map(|u| Value::String(u.to_string())).collect()))
+            .unwrap_or(Value::Null),
+        Type::JSON_ARRAY | Type::JSONB_ARRAY => row.try_get::<_, Option<Vec<Value>>>(idx)
+            .ok().flatten()
+            .map(|v| Value::Array(v))
+            .unwrap_or(Value::Null),
+        // Fallback: try string, then null
+        _ => row.try_get::<_, Option<String>>(idx)
+            .ok().flatten()
             .map(Value::String)
             .unwrap_or(Value::Null),
     }
