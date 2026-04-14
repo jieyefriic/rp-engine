@@ -10,13 +10,15 @@ use riceprompt_engine::{
 };
 use serde_json::{json, Value};
 
-/// API key for Qwen (DashScope)
-const QWEN_API_KEY: &str = "REDACTED_DASHSCOPE_KEY";
+/// API key for Qwen (DashScope) — read from environment variable
+fn qwen_api_key() -> String {
+    std::env::var("QWEN_API_KEY").expect("QWEN_API_KEY env var must be set")
+}
 
 /// Create an engine with Qwen provider
 async fn setup_engine() -> Engine {
     Engine::builder()
-        .provider("qwen", QWEN_API_KEY)
+        .provider("qwen", &qwen_api_key())
         .build()
         .await
         .unwrap()

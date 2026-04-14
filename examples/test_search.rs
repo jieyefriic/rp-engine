@@ -4,11 +4,13 @@
 
 use riceprompt_engine::{QwenProvider, LLMProvider, Message, ChatOptions};
 
-const QWEN_KEY: &str = "REDACTED_DASHSCOPE_KEY";
+fn qwen_key() -> String {
+    std::env::var("QWEN_API_KEY").expect("QWEN_API_KEY env var must be set")
+}
 
 #[tokio::main]
 async fn main() {
-    let qwen = QwenProvider::new(QWEN_KEY);
+    let qwen = QwenProvider::new(&qwen_key());
 
     // Test 1: With search enabled (should return real-time info)
     println!("=== Test 1: enable_search = true ===");
