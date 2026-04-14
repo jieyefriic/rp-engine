@@ -80,3 +80,12 @@ Issues found in the rp-engine itself during testing. Each entry describes a bug,
 - **Actual behavior**: `answer: null` despite fallback node producing valid content.
 - **Suggestion**: Investigate whether on_error routing affects the response node's ability to read state. May be related to dead path detection incorrectly marking the fallback→response edge.
 - **Severity**: High — error recovery workflows are non-functional if fallback output can't be consumed.
+
+## EI-10: Redis connector only supports 7 operations, missing hash/list/sorted set
+- **Found in test**: [D14], [D16]
+- **Source file**: `src/nodes/connectors/redis.rs:327-338`
+- **Problem**: The Redis connector only supports: `get`, `set`, `del`, `publish`, `json_append`, `json_merge`, `json_delete`. Common Redis operations like `hset`, `hgetall`, `lpush`, `lrange`, `sadd`, `smembers`, `zadd`, `zrange` are all unsupported and return `InvalidOperation` error.
+- **Expected behavior**: At minimum, hash (`hset`/`hgetall`) and list (`lpush`/`lrange`) operations should be supported, as they are among the most common Redis usage patterns.
+- **Actual behavior**: `Unknown Redis operation: hset` error.
+- **Suggestion**: Add support for at least: `hset`, `hget`, `hgetall`, `hdel`, `lpush`, `rpush`, `lrange`, `lpop`, `rpop`. Optionally: sorted sets (`zadd`, `zrange`), sets (`sadd`, `smembers`).
+- **Severity**: Medium — limits Redis to simple key-value and JSON operations only.

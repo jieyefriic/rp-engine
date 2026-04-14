@@ -1,0 +1,21 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim2-connectors/d14_redis_hash.yaml",
+    "elapsed_ms": 473472,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Error"
+  },
+  "_error": "Redis error: Failed to connect to Redis: Connection refused (os error 111)",
+  "_error_debug": "RedisError(\"Failed to connect to Redis: Connection refused (os error 111)\")"
+}
