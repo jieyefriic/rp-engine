@@ -133,6 +133,12 @@ impl<'a> ExecutionGraph<'a> {
                     return false;
                 }
 
+                // Skip edges that have been marked dead (e.g., normal edges
+                // suppressed when on_error routing is active)
+                if state.is_edge_dead(&edge.from, &edge.to) {
+                    return false;
+                }
+
                 // on_error edges: only active when source has _error output
                 if edge.on_error {
                     return state.get_output(&format!("{}._error", edge.from))
