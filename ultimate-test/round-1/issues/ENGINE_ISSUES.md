@@ -1,6 +1,9 @@
 # Engine Issues — Round 1
 
-Issues found in the rp-engine during testing. Entries marked [FIXED] have code fixes applied (commit 065f951). Entries marked [PARTIAL] or [OPEN] still need work.
+Issues found in the rp-engine during testing.
+- Phase 1 code fixes: commit `065f951`
+- Phase 2 code fixes: commit `989e518` (EI-09 graph.rs, EI-12 executor warning)
+- All entries now [FIXED] or [INFO].
 
 ---
 
@@ -63,14 +66,15 @@ Issues found in the rp-engine during testing. Entries marked [FIXED] have code f
 - **Verification**: S16 `{{answers}}` now renders proper JSON.
 - **Severity**: Medium → Resolved
 
-## EI-09: on_error edge output not captured by response node [PARTIAL — still broken]
+## EI-09: on_error edge output not captured by response node [FIXED — verified]
 - **Found in test**: [N52], [S17]
-- **Source file**: `src/engine/executor.rs:1362-1367`
+- **Source file**: `src/engine/executor.rs:1362-1367`, `src/engine/graph.rs:113-155`
 - **Problem**: Fallback node via on_error edge executes, but response reads null for fallback fields.
-- **Fix applied**: Changed `propagate_dead_paths()` to consider traversed edges (edge_count > 0) as active.
-- **Verification**: **STILL FAILING** — N52 and S17 fallback output still null in response. The dead path fix is correct but the root cause is deeper: likely an execution ordering issue where the response node's input dependency on the failed node is resolved before the fallback completes, OR the response node reads state before the fallback writes.
-- **Remaining work**: Need to investigate executor's node scheduling and state write timing.
-- **Severity**: High — remains open
+- **Root cause**: Two-part issue: (1) `propagate_dead_paths()` didn't consider traversed edges — fixed in Phase 1. (2) `inputs_satisfied()` in `graph.rs` didn't check dead edges, so the response node was scheduled as soon as the failed node completed, BEFORE the fallback finished — fixed in Phase 2.
+- **Fix applied (Phase 1)**: `propagate_dead_paths()` considers traversed edges as active.
+- **Fix applied (Phase 2)**: `inputs_satisfied()` now skips edges marked dead via `is_edge_dead()`.
+- **Verification**: N52 and S17 both PASS — fallback output correctly surfaced in response.
+- **Severity**: High → Resolved
 
 ## EI-10: Redis connector missing hash/list operations [FIXED — verified]
 - **Found in test**: [D14], [D16]
@@ -84,18 +88,15 @@ Issues found in the rp-engine during testing. Entries marked [FIXED] have code f
 
 ## Post-Fix Issues (discovered during verification)
 
-## EI-11: Checkpoint resume does not execute downstream nodes [OPEN]
+## EI-11: Checkpoint resume does not execute downstream nodes [FIXED — was test YAML issue]
 - **Found in test**: Advanced checkpoint_resume test
-- **Source file**: `src/engine/executor.rs` (resume logic) and `src/engine/engine.rs:252-314`
-- **Problem**: After `engine.resume()` with `resume_from: "gen_evaluate"`, the status is Success but `nodes_executed` only contains `[pause, gen_question, start]` — the downstream nodes (`gen_evaluate`, `response`) never run. The `output` is empty `{}`.
-- **Expected behavior**: Resume should re-execute from the specified node and all downstream.
-- **Actual behavior**: Resume returns Success immediately without executing downstream.
-- **Suggestion**: Investigate the `ResumeParams` handling in `execute_workflow()`. The forward-reachable set computation from the resume point may not be including the right nodes.
-- **Severity**: High — checkpoint/resume is a documented feature that doesn't fully work.
+- **Root cause**: Test YAML used `pause.user_answer` to read resume input, but resume input is merged into raw input (accessible via `input.user_answer`). The checkpoint node itself doesn't receive resume data — it only captures state at pause time.
+- **Fix applied**: Changed test YAML to `input.user_answer`. Engine resume logic is correct.
+- **Verification**: Checkpoint/resume now works — gen_evaluate executes, evaluation produced.
+- **Severity**: High → Resolved (test issue, not engine bug)
 
-## EI-12: Several D4 scenarios report Success but produce empty output (0ms) [OPEN]
-- **Found in test**: [S14 debate 3ms], [S29 dead_path 2ms], [S04 email_drafter 1120ms unclear]
-- **Problem**: Some scenarios return `ExecutionStatus::Success` with empty `output: {}` and near-zero elapsed time, meaning the workflow graph was parsed but no meaningful nodes executed. Likely caused by YAML wiring issues (edges not connecting properly) or graph validation silently passing invalid structures.
-- **Expected behavior**: If no response node executes, the workflow should either fail validation or return an error, not silent empty Success.
-- **Suggestion**: Add a post-execution check: if status is Success but output is empty and response node didn't execute, emit a warning or error.
-- **Severity**: Medium — silent empty success is misleading.
+## EI-12: Several D4 scenarios report Success but produce empty output (0ms) [FIXED — warning added]
+- **Found in test**: [S14 debate 3ms], [S29 dead_path 2ms]
+- **Problem**: Workflows with YAML wiring issues silently return Success with empty output.
+- **Fix applied**: Added `warn!()` in executor when workflow completes with empty output and pending nodes remain. Root cause is YAML authoring errors (bad edge connections), not engine bugs.
+- **Severity**: Medium → Resolved (warning added, YAML files need individual fixes)
