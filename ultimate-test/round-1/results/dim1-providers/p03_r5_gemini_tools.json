@@ -1,7 +1,7 @@
 {
   "_test_meta": {
     "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p03_r5_gemini_tools.yaml",
-    "elapsed_ms": 430,
+    "elapsed_ms": 2754,
     "providers_registered": [
       "openai",
       "anthropic",
@@ -14,8 +14,71 @@
       "minimax",
       "huoshan"
     ],
-    "status": "Error"
+    "status": "Success"
   },
-  "_error": "Provider error: Authentication failed",
-  "_error_debug": "ProviderError(AuthenticationFailed)"
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "I'm sorry, I can provide general information about Tokyo, but I don't have the current weather conditions.\n"
+          },
+          "timestamp": 1776220753088
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_actual_user_prompt": "What's the weather like in Tokyo right now?",
+            "_usage": {
+              "provider": "gemini",
+              "model": "gemini-2.0-flash",
+              "input_tokens": 270,
+              "output_tokens": 236
+            },
+            "_prompt": "What's the weather like in Tokyo right now?",
+            "output": "I'm sorry, I can provide general information about Tokyo, but I don't have the current weather conditions.\n"
+          },
+          "timestamp": 1776220753087
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "What is the weather in Tokyo?"
+          },
+          "timestamp": 1776220750336
+        }
+      ]
+    },
+    "output": {
+      "answer": "I'm sorry, I can provide general information about Tokyo, but I don't have the current weather conditions.\n"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 2752,
+      "per_node": {
+        "gen": 2750,
+        "response": 0,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 270,
+      "total_output_tokens": 236,
+      "per_node": {
+        "gen": [
+          270,
+          236
+        ]
+      }
+    }
+  }
 }

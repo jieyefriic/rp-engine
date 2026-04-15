@@ -1,7 +1,7 @@
 {
   "_test_meta": {
     "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p03_r2_gemini_sysprompt.yaml",
-    "elapsed_ms": 133,
+    "elapsed_ms": 1309,
     "providers_registered": [
       "openai",
       "anthropic",
@@ -14,8 +14,72 @@
       "minimax",
       "huoshan"
     ],
-    "status": "Error"
+    "status": "Success"
   },
-  "_error": "Provider error: Authentication failed",
-  "_error_debug": "ProviderError(AuthenticationFailed)"
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "What is the square root of 144?"
+          },
+          "timestamp": 1776220737541
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "The square root of a number is a value that, when multiplied by itself, equals the original number.\n\nTo find the square root of 144, we need to find a number that, when multiplied by itself, equals 144.\n\nWe know that:\n\n*   10 * 10 = 100 (too low)\n*   11 * 11 = 121 (closer)\n*   12 * 12 = 144 (exactly right!)\n\nTherefore, the square root of 144 is $\\boxed{12}$."
+          },
+          "timestamp": 1776220738846
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_usage": {
+              "provider": "gemini",
+              "model": "gemini-2.0-flash",
+              "input_tokens": 24,
+              "output_tokens": 128
+            },
+            "output": "The square root of a number is a value that, when multiplied by itself, equals the original number.\n\nTo find the square root of 144, we need to find a number that, when multiplied by itself, equals 144.\n\nWe know that:\n\n*   10 * 10 = 100 (too low)\n*   11 * 11 = 121 (closer)\n*   12 * 12 = 144 (exactly right!)\n\nTherefore, the square root of 144 is $\\boxed{12}$.",
+            "_actual_system_prompt": "You are a helpful math tutor. Always explain step by step.",
+            "_actual_user_prompt": "What is the square root of 144?",
+            "_prompt": "What is the square root of 144?"
+          },
+          "timestamp": 1776220738846
+        }
+      ]
+    },
+    "output": {
+      "answer": "The square root of a number is a value that, when multiplied by itself, equals the original number.\n\nTo find the square root of 144, we need to find a number that, when multiplied by itself, equals 144.\n\nWe know that:\n\n*   10 * 10 = 100 (too low)\n*   11 * 11 = 121 (closer)\n*   12 * 12 = 144 (exactly right!)\n\nTherefore, the square root of 144 is $\\boxed{12}$."
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 1306,
+      "per_node": {
+        "response": 0,
+        "gen": 1304,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 24,
+      "total_output_tokens": 128,
+      "per_node": {
+        "gen": [
+          24,
+          128
+        ]
+      }
+    }
+  }
 }

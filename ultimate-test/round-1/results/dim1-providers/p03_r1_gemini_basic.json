@@ -1,7 +1,7 @@
 {
   "_test_meta": {
     "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p03_r1_gemini_basic.yaml",
-    "elapsed_ms": 153,
+    "elapsed_ms": 594,
     "providers_registered": [
       "openai",
       "anthropic",
@@ -14,8 +14,71 @@
       "minimax",
       "huoshan"
     ],
-    "status": "Error"
+    "status": "Success"
   },
-  "_error": "Provider error: Authentication failed",
-  "_error_debug": "ProviderError(AuthenticationFailed)"
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "2+2 equals 4.\n"
+          },
+          "timestamp": 1776220732326
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "What is 2+2? Answer in one sentence."
+          },
+          "timestamp": 1776220731734
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "output": "2+2 equals 4.\n",
+            "_actual_user_prompt": "What is 2+2? Answer in one sentence.",
+            "_usage": {
+              "provider": "gemini",
+              "model": "gemini-2.0-flash",
+              "input_tokens": 12,
+              "output_tokens": 8
+            },
+            "_prompt": "What is 2+2? Answer in one sentence."
+          },
+          "timestamp": 1776220732326
+        }
+      ]
+    },
+    "output": {
+      "answer": "2+2 equals 4.\n"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 592,
+      "per_node": {
+        "gen": 591,
+        "response": 0,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 12,
+      "total_output_tokens": 8,
+      "per_node": {
+        "gen": [
+          12,
+          8
+        ]
+      }
+    }
+  }
 }
