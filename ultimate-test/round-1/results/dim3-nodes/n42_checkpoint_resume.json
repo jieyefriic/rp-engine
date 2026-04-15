@@ -1,0 +1,13 @@
+{
+  "_test": "checkpoint_resume",
+  "status": "Success",
+  "phase1_ms": 958,
+  "phase2_ms": 0,
+  "question": null,
+  "output": {},
+  "nodes_executed": [
+    "pause",
+    "gen_question",
+    "start"
+  ]
+}
