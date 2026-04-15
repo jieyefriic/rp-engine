@@ -1,7 +1,8 @@
-//! Moonshot (Kimi) provider implementation
+//! Moonshot / Kimi (月之暗面) provider implementation
 //!
-//! Moonshot API is compatible with OpenAI API format via Dashscope.
-//! API: https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
+//! Native Moonshot API — OpenAI-compatible format.
+//! API: https://api.moonshot.cn/v1/chat/completions
+//! Docs: https://platform.kimi.com/docs/api/chat
 
 use async_trait::async_trait;
 
@@ -11,8 +12,8 @@ use super::{
     OpenAICompatibleProvider,
 };
 
-const MOONSHOT_API_URL: &str = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
-const DEFAULT_MODEL: &str = "kimi-k2-thinking";
+const MOONSHOT_API_URL: &str = "https://api.moonshot.cn/v1/chat/completions";
+const DEFAULT_MODEL: &str = "kimi-k2.5";
 
 /// Moonshot (Kimi) provider
 pub struct MoonshotProvider {

@@ -130,7 +130,9 @@
       "allowBothTempAndTopP": true
     },
     "models": [
-      { "id": "glm-4.7", "name": "GLM-4.7", "modelType": "chat", "contextWindow": 198000, "maxTokens": 16000, "inputPrice": 0.56, "outputPrice": 2.22, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": false, "modelNote": "智谱最新旗舰模型，支持深度思考模式", "badge": "New" }
+      { "id": "glm-5.1", "name": "GLM-5.1", "modelType": "chat", "contextWindow": 200000, "maxTokens": 128000, "inputPrice": 1.0, "outputPrice": 4.0, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": false, "modelNote": "智谱最新旗舰模型，200K上下文，支持思考模式/结构化输出/Function Call/MCP", "badge": "New" },
+      { "id": "glm-5", "name": "GLM-5", "modelType": "chat", "contextWindow": 200000, "maxTokens": 128000, "inputPrice": 0.5, "outputPrice": 2.0, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": false, "modelNote": "高性能旗舰模型，200K上下文" },
+      { "id": "glm-4.7", "name": "GLM-4.7", "modelType": "chat", "contextWindow": 198000, "maxTokens": 16000, "inputPrice": 0.56, "outputPrice": 2.22, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": false }
     ]
   },
   {

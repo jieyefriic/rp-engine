@@ -13,9 +13,9 @@ export DEEPSEEK_API_KEY="sk-5d3bc96906294872ac9b70d38a391bc9"
 export MINIMAX_API_KEY="sk-api-AVsKZb46ImEOcllLu8PNcWXVkr4sZG57GoxplvIE1NCRbgis6W1aivZR2JgnF4ycM73pCwDnduINy8sAtLGqluLz_e6AKRMKqEjf0DqlyJszPfRuGcGX0g4"
 export QWEN_API_KEY="sk-18c59231d9f1452ab4f91ab81dd063f0"
 export HUOSHAN_API_KEY="db1d143a-cb48-48e5-8560-d110ccc83fe8"
-# Zhipu and Moonshot route through DashScope in this engine, so they need the Qwen/DashScope key
-export MOONSHOT_API_KEY="sk-18c59231d9f1452ab4f91ab81dd063f0"
-export ZHIPU_API_KEY="sk-18c59231d9f1452ab4f91ab81dd063f0"
+# Zhipu and Moonshot now use native API endpoints (no longer via DashScope)
+export MOONSHOT_API_KEY="sk-pEzyGBzldvkkYQlvRbSrgLDu29GqqstnrK343VGDawCpQzYm"
+export ZHIPU_API_KEY="593e20ffd5ba446a9ac897d069f9b30b.7YvcIDHui89XxOh8"
 
 cd /home/user/rp-engine
 BASE="ultimate-test/round-1"

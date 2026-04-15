@@ -1,7 +1,7 @@
 {
   "_test_meta": {
     "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p07_r1_zhipu_basic.yaml",
-    "elapsed_ms": 5591,
+    "elapsed_ms": 5248,
     "providers_registered": [
       "openai",
       "anthropic",
@@ -19,32 +19,14 @@
   "result": {
     "status": "Success",
     "executions": {
-      "gen": [
-        {
-          "short_id": "b",
-          "execution_index": 0,
-          "outputs": {
-            "_prompt": "What is 2+2? Answer in one sentence.",
-            "_actual_user_prompt": "What is 2+2? Answer in one sentence.",
-            "output": "Two plus two equals four.",
-            "_usage": {
-              "provider": "zhipu",
-              "model": "glm-4.7",
-              "input_tokens": 17,
-              "output_tokens": 289
-            }
-          },
-          "timestamp": 1776176858332
-        }
-      ],
       "start": [
         {
           "short_id": "a",
           "execution_index": 0,
           "outputs": {
-            "query": "What is 2+2? Answer in one sentence."
+            "query": "Hi"
           },
-          "timestamp": 1776176852743
+          "timestamp": 1776222201916
         }
       ],
       "response": [
@@ -52,31 +34,49 @@
           "short_id": "c",
           "execution_index": 0,
           "outputs": {
-            "answer": "Two plus two equals four."
+            "answer": "Hello! 👋 How can I assist you today? Feel free to ask any questions or share what's on your mind."
           },
-          "timestamp": 1776176858332
+          "timestamp": 1776222207163
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_actual_user_prompt": "Hi",
+            "_prompt": "Hi",
+            "output": "Hello! 👋 How can I assist you today? Feel free to ask any questions or share what's on your mind.",
+            "_usage": {
+              "provider": "zhipu",
+              "model": "glm-4.7",
+              "input_tokens": 6,
+              "output_tokens": 193
+            }
+          },
+          "timestamp": 1776222207162
         }
       ]
     },
     "output": {
-      "answer": "Two plus two equals four."
+      "answer": "Hello! 👋 How can I assist you today? Feel free to ask any questions or share what's on your mind."
     },
     "error": null,
     "timing": {
-      "total_ms": 5589,
+      "total_ms": 5246,
       "per_node": {
-        "gen": 5588,
+        "start": 0,
         "response": 0,
-        "start": 0
+        "gen": 5245
       }
     },
     "token_usage": {
-      "total_input_tokens": 17,
-      "total_output_tokens": 289,
+      "total_input_tokens": 6,
+      "total_output_tokens": 193,
       "per_node": {
         "gen": [
-          17,
-          289
+          6,
+          193
         ]
       }
     }
