@@ -633,6 +633,7 @@ impl NodeExecutor for GenerateExecutor {
             let mut total_usage = crate::providers::TokenUsage::default();
             let mut final_content = String::new();
             let mut final_thinking = None;
+            let mut last_assistant_content = String::new();
 
             let dispatch_ctx = ToolDispatchContext {
                 node_config,
@@ -653,6 +654,11 @@ impl NodeExecutor for GenerateExecutor {
                 total_usage.input_tokens += response.usage.input_tokens;
                 total_usage.output_tokens += response.usage.output_tokens;
                 total_usage.total_tokens += response.usage.total_tokens;
+
+                // Track last assistant content (even if response also has tool calls)
+                if !response.content.is_empty() {
+                    last_assistant_content = response.content.clone();
+                }
 
                 if let Some(ref tool_calls) = response.tool_calls {
                     if !tool_calls.is_empty() {
@@ -694,12 +700,19 @@ impl NodeExecutor for GenerateExecutor {
                 break;
             }
 
-            // If we exhausted all rounds without a final response, warn
-            if final_content.is_empty() {
+            // If we exhausted all rounds without a final response, fall back to last assistant content
+            if final_content.is_empty() && !last_assistant_content.is_empty() {
                 warn!(
                     node = %node_id,
                     max_rounds = max_rounds,
-                    "Tool calling loop exhausted max_rounds without final response"
+                    "Tool calling loop exhausted max_rounds, using last assistant content as fallback"
+                );
+                final_content = last_assistant_content;
+            } else if final_content.is_empty() {
+                warn!(
+                    node = %node_id,
+                    max_rounds = max_rounds,
+                    "Tool calling loop exhausted max_rounds without any response content"
                 );
             }
 
@@ -757,8 +770,16 @@ impl NodeExecutor for GenerateExecutor {
                             node = %node_id,
                             error = %e,
                             raw_content_preview = %content.chars().take(200).collect::<String>(),
-                            "Failed to parse JSON response, using raw content"
+                            "Failed to parse JSON response, using raw content with default schema fields"
                         );
+                        // Populate schema fields with typed defaults so downstream nodes get
+                        // empty values instead of null (prevents cascade failures in multi-step workflows)
+                        for field in schema {
+                            if !field.name.is_empty() {
+                                outputs.insert(field.name.clone(), get_default_for_type(&field.field_type));
+                            }
+                        }
+                        // Also store raw content for fallback access via gen.output
                         outputs.insert("output".to_string(), Value::String(content.clone()));
                     }
                 }
@@ -964,8 +985,19 @@ fn build_mcp_tool_index(
 fn render_template(template: &str, variables: &HashMap<String, Value>) -> String {
     let reg = Handlebars::new();
 
-    // Convert HashMap to Value::Object for Handlebars
-    let context: Value = serde_json::to_value(variables).unwrap_or(Value::Object(Default::default()));
+    // Pre-process: serialize complex values (Object/Array) to JSON strings
+    // so Handlebars renders them as readable JSON instead of "[object Object]"
+    let processed: HashMap<String, Value> = variables.iter().map(|(k, v)| {
+        let processed_v = match v {
+            Value::Object(_) | Value::Array(_) => {
+                Value::String(serde_json::to_string(v).unwrap_or_default())
+            }
+            _ => v.clone(),
+        };
+        (k.clone(), processed_v)
+    }).collect();
+
+    let context: Value = serde_json::to_value(&processed).unwrap_or(Value::Object(Default::default()));
 
     match reg.render_template(template, &context) {
         Ok(rendered) => rendered,

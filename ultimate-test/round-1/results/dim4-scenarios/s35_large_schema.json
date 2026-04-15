@@ -1,0 +1,103 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim4-scenarios/s35_large_schema.yaml",
+    "elapsed_ms": 9482,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "company": "Tesla"
+          },
+          "timestamp": 1776219756709
+        }
+      ],
+      "analyze_company": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_actual_user_prompt": "Provide a comprehensive profile of Tesla.\nInclude the company name, industry, founding year, headquarters location,\napproximate annual revenue in USD, employee count, main products/services,\ntop competitors, key strengths, and notable weaknesses.\nBe factual and use approximate recent figures.\n",
+            "_usage": {
+              "provider": "openai",
+              "model": "gpt-4o-mini",
+              "input_tokens": 82,
+              "output_tokens": 500
+            },
+            "_actual_system_prompt": "You are a business analyst with deep knowledge of major companies worldwide. Provide accurate, factual information.",
+            "output": "### Tesla, Inc. Profile\n\n- **Company Name**: Tesla, Inc.\n- **Industry**: Automotive, Energy\n- **Founding Year**: 2003\n- **Headquarters Location**: Palo Alto, California, USA\n- **Approximate Annual Revenue**: As of 2022, Tesla reported approximately $81.5 billion in revenue. For 2023, estimates suggest revenue could be around $100 billion, depending on production and sales growth.\n- **Employee Count**: As of late 2023, Tesla employs approximately 127,000 people globally.\n- **Main Products/Services**:\n  - Electric Vehicles (EVs): Models include Model S, Model 3, Model X, and Model Y.\n  - Energy Products: Solar panels, Solar Roof, and energy storage solutions like the Powerwall and Powerpack.\n  - Software: Autopilot and Full Self-Driving (FSD) software.\n  - Charging Infrastructure: Supercharger network for EVs.\n  \n- **Top Competitors**:\n  - General Motors (GM)\n  - Ford Motor Company\n  - Volkswagen Group\n  - Rivian Automotive\n  - Lucid Motors\n  - BYD (Build Your Dreams)\n\n- **Key Strengths**:\n  - **Brand Recognition**: Tesla is a leading name in the EV market, known for innovation and sustainability.\n  - **Technological Leadership**: Strong focus on battery technology and autonomous driving capabilities.\n  - **Vertical Integration**: Control over manufacturing processes, from battery production to vehicle assembly.\n  - **Supercharger Network**: Extensive and growing network of fast-charging stations, enhancing customer convenience.\n  - **Strong Market Position**: Leading sales in the EV segment, particularly in North America and Europe.\n\n- **Notable Weaknesses**:\n  - **Production Challenges**: Tesla has faced issues with scaling production to meet demand, leading to delivery delays.\n  - **Quality Control Issues**: Reports of inconsistent build quality and reliability concerns in some models.\n  - **High Competition**: Increasing competition from traditional automakers and new entrants in the EV space.\n  - **Regulatory Scrutiny**: Facing scrutiny over safety and regulatory compliance, particularly regarding its Autopilot system.\n  - **Market Volatility**: Stock price fluctuations and market perception can impact investor confidence and funding.\n\nThis profile provides a snapshot of Tesla as of late 2023, reflecting its position",
+            "_prompt": "Provide a comprehensive profile of Tesla.\nInclude the company name, industry, founding year, headquarters location,\napproximate annual revenue in USD, employee count, main products/services,\ntop competitors, key strengths, and notable weaknesses.\nBe factual and use approximate recent figures.\n"
+          },
+          "timestamp": 1776219766189
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "industry": null,
+            "competitors": null,
+            "weaknesses": null,
+            "founded_year": null,
+            "company_name": null,
+            "products": null,
+            "headquarters": null,
+            "revenue_usd": null,
+            "strengths": null,
+            "employee_count": null
+          },
+          "timestamp": 1776219766190
+        }
+      ]
+    },
+    "output": {
+      "industry": null,
+      "competitors": null,
+      "weaknesses": null,
+      "founded_year": null,
+      "company_name": null,
+      "products": null,
+      "headquarters": null,
+      "revenue_usd": null,
+      "strengths": null,
+      "employee_count": null
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 9480,
+      "per_node": {
+        "start": 0,
+        "analyze_company": 9479,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 82,
+      "total_output_tokens": 500,
+      "per_node": {
+        "analyze_company": [
+          82,
+          500
+        ]
+      }
+    }
+  }
+}

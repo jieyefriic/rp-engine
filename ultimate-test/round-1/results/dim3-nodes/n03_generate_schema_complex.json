@@ -1,0 +1,114 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n03_generate_schema_complex.yaml",
+    "elapsed_ms": 7547,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "title": "Machine Learning: A Comprehensive Overview of AI's Core Discipline",
+            "tags": [
+              "artificial-intelligence",
+              "data-science",
+              "algorithms",
+              "automation",
+              "predictive-analytics"
+            ],
+            "details": "Machine learning is a transformative subfield of artificial intelligence focused on developing algorithms that enable computers to learn patterns and make decisions from data without explicit programming. It encompasses supervised learning (classification, regression), unsupervised learning (clustering, dimensionality reduction), and reinforcement learning. Key applications span healthcare diagnostics, financial forecasting, autonomous vehicles, natural language processing, and recommendation systems. The field faces challenges including data quality, model interpretability, ethical considerations, and computational requirements. Recent advancements in deep learning, transfer learning, and federated learning continue to expand its capabilities and societal impact.",
+            "is_valid": true,
+            "score": 9.2
+          },
+          "timestamp": 1776220359959
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "score": 9.2,
+            "_prompt": "Analyze the following topic and provide a structured assessment: machine learning\n\nRespond in JSON format:\n{\n  \"title\": \"A descriptive title\",\n  \"score\": 8.5,\n  \"tags\": [\n    \"tag1\",\n    \"tag2\"\n  ],\n  \"is_valid\": true,\n  \"details\": \"Detailed explanation here\"\n}",
+            "details": "Machine learning is a transformative subfield of artificial intelligence focused on developing algorithms that enable computers to learn patterns and make decisions from data without explicit programming. It encompasses supervised learning (classification, regression), unsupervised learning (clustering, dimensionality reduction), and reinforcement learning. Key applications span healthcare diagnostics, financial forecasting, autonomous vehicles, natural language processing, and recommendation systems. The field faces challenges including data quality, model interpretability, ethical considerations, and computational requirements. Recent advancements in deep learning, transfer learning, and federated learning continue to expand its capabilities and societal impact.",
+            "title": "Machine Learning: A Comprehensive Overview of AI's Core Discipline",
+            "tags": [
+              "artificial-intelligence",
+              "data-science",
+              "algorithms",
+              "automation",
+              "predictive-analytics"
+            ],
+            "is_valid": true,
+            "_usage": {
+              "provider": "deepseek",
+              "model": "deepseek-chat",
+              "input_tokens": 96,
+              "output_tokens": 185
+            },
+            "_actual_user_prompt": "Analyze the following topic and provide a structured assessment: machine learning\n\nRespond in JSON format:\n{\n  \"title\": \"A descriptive title\",\n  \"score\": 8.5,\n  \"tags\": [\n    \"tag1\",\n    \"tag2\"\n  ],\n  \"is_valid\": true,\n  \"details\": \"Detailed explanation here\"\n}"
+          },
+          "timestamp": 1776220359959
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "topic": "machine learning"
+          },
+          "timestamp": 1776220352414
+        }
+      ]
+    },
+    "output": {
+      "title": "Machine Learning: A Comprehensive Overview of AI's Core Discipline",
+      "tags": [
+        "artificial-intelligence",
+        "data-science",
+        "algorithms",
+        "automation",
+        "predictive-analytics"
+      ],
+      "details": "Machine learning is a transformative subfield of artificial intelligence focused on developing algorithms that enable computers to learn patterns and make decisions from data without explicit programming. It encompasses supervised learning (classification, regression), unsupervised learning (clustering, dimensionality reduction), and reinforcement learning. Key applications span healthcare diagnostics, financial forecasting, autonomous vehicles, natural language processing, and recommendation systems. The field faces challenges including data quality, model interpretability, ethical considerations, and computational requirements. Recent advancements in deep learning, transfer learning, and federated learning continue to expand its capabilities and societal impact.",
+      "is_valid": true,
+      "score": 9.2
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 7545,
+      "per_node": {
+        "start": 0,
+        "gen": 7544,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 96,
+      "total_output_tokens": 185,
+      "per_node": {
+        "gen": [
+          96,
+          185
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "_test": "streaming",
+  "status": "Success",
+  "elapsed_ms": 2528,
+  "output": {
+    "answer": "1  \n2  \n3  \n4  \n5"
+  },
+  "stream_chunks_count": 9,
+  "stream_chunks_preview": [
+    "gen:1",
+    "gen:  \n",
+    "gen:2",
+    "gen:  \n",
+    "gen:3",
+    "gen:  \n",
+    "gen:4",
+    "gen:  \n",
+    "gen:5"
+  ],
+  "has_ttft": true
+}

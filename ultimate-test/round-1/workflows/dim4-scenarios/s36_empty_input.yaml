@@ -1,0 +1,34 @@
+version: "1.0"
+name: "S36 Empty Input Handling"
+description: "Test that a workflow handles empty/missing input gracefully"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: handle
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-flash
+      template: tpl_handle
+
+  - id: response
+    type: response
+    config:
+      output:
+        reply: "handle.output"
+
+edges:
+  - from: start
+    to: handle
+  - from: handle
+    to: response
+
+templates:
+  tpl_handle:
+    system_prompt: "You are a friendly assistant."
+    user_prompt: "You received no specific input. Say hello and ask how you can help. Keep it to 2-3 sentences."
+    config:
+      temperature: 0.7
+      max_tokens: 150

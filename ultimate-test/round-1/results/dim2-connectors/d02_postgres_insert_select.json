@@ -1,0 +1,21 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim2-connectors/d02_postgres_insert_select.yaml",
+    "elapsed_ms": 2,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Error"
+  },
+  "_error": "Missing required field: operation",
+  "_error_debug": "MissingField(\"operation\")"
+}

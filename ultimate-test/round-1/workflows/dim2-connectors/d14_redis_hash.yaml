@@ -1,0 +1,55 @@
+version: "1.0"
+name: "D14 Redis HSET/HGET"
+
+data_sources:
+  redis_test:
+    name: "Test Redis"
+    kind: redis
+    config:
+      url: "redis://localhost:6379/0"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: hset
+    type: data_connector
+    config:
+      data_source_id: redis_test
+      operation:
+        operation: hset
+        key_template: "ut:user:{uid}"
+        value:
+          name: "{name}"
+          email: "{email}"
+          age: "{age}"
+      variables:
+        uid: "start.uid"
+        name: "start.name"
+        email: "start.email"
+        age: "start.age"
+
+  - id: hget
+    type: data_connector
+    config:
+      data_source_id: redis_test
+      operation:
+        operation: hgetall
+        key_template: "ut:user:{uid}"
+      variables:
+        uid: "start.uid"
+
+  - id: response
+    type: response
+    config:
+      output:
+        set_result: "hset.data"
+        user_data: "hget.value"
+
+edges:
+  - from: start
+    to: hset
+  - from: hset
+    to: hget
+  - from: hget
+    to: response

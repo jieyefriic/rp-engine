@@ -1,0 +1,60 @@
+version: "1.0"
+name: "S19 Search-Augmented QA"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: search_answer
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-flash
+      template: tpl_search
+      variables:
+        question: "start.question"
+
+  - id: verify
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-flash
+      template: tpl_verify
+      variables:
+        question: "start.question"
+        initial_answer: "search_answer.output"
+
+  - id: response
+    type: response
+    config:
+      output:
+        search_answer: "search_answer.output"
+        verified_answer: "verify.output"
+
+edges:
+  - from: start
+    to: search_answer
+  - from: search_answer
+    to: verify
+  - from: verify
+    to: response
+
+templates:
+  tpl_search:
+    system_prompt: "You are a research assistant with web search access. Use search results to provide accurate, up-to-date answers."
+    user_prompt: "Answer this question using search results: {{question}}"
+    config:
+      temperature: 0.3
+      max_tokens: 400
+      enable_search: true
+
+  tpl_verify:
+    system_prompt: "You are a fact-checker. Cross-check the given answer for accuracy and completeness."
+    user_prompt: |
+      Question: {{question}}
+      Initial answer: {{initial_answer}}
+
+      Verify this answer. If it's correct, confirm it. If there are errors or missing details, provide the corrected answer.
+    config:
+      temperature: 0.3
+      max_tokens: 400

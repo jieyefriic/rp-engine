@@ -1,0 +1,114 @@
+version: "1.0"
+name: "N33 Supervisor Basic Planning"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: planner
+    type: supervisor
+    config:
+      provider: qwen
+      model: qwen-plus
+      template: tpl_plan
+      max_iterations: 5
+      max_retry_per_tool: 2
+      timeout: 60000
+      parallel: false
+      variables:
+        user_input: "start.task"
+      tools:
+        - name: "research_topic"
+          description: "Research a specific topic and return key facts"
+          ref: "sg_research"
+        - name: "summarize_findings"
+          description: "Summarize research findings into a concise report"
+          ref: "sg_summarize"
+
+  - id: response
+    type: response
+    config:
+      output:
+        task_result: "planner.task_result"
+        exit_reason: "planner.exit_reason"
+
+edges:
+  - from: start
+    to: planner
+  - from: planner
+    to: response
+    exit_reason: default
+
+subgraphs:
+  sg_research:
+    nodes:
+      - id: sg_start
+        type: start
+      - id: sg_gen
+        type: generate
+        config:
+          provider: qwen
+          model: qwen-flash
+          template: sg_tpl_research
+          variables:
+            detail: "sg_start.action_detail"
+      - id: sg_response
+        type: response
+        config:
+          output:
+            result: "sg_gen.output"
+    edges:
+      - from: sg_start
+        to: sg_gen
+      - from: sg_gen
+        to: sg_response
+
+  sg_summarize:
+    nodes:
+      - id: sg_start
+        type: start
+      - id: sg_gen
+        type: generate
+        config:
+          provider: qwen
+          model: qwen-flash
+          template: sg_tpl_summarize
+          variables:
+            detail: "sg_start.action_detail"
+      - id: sg_response
+        type: response
+        config:
+          output:
+            result: "sg_gen.output"
+    edges:
+      - from: sg_start
+        to: sg_gen
+      - from: sg_gen
+        to: sg_response
+
+templates:
+  tpl_plan:
+    system_prompt: |
+      You are a task planner. Given a user task, break it into steps using the available tools.
+      Return a JSON array of todos, each with:
+      - action_id: unique string id
+      - action_called: tool name to use
+      - action_prerequest: array of action_ids this depends on (empty for first steps)
+      - action_detail: what specifically to do
+      - action_layer: execution order (0 for first, 1 for second, etc.)
+    user_prompt: "Plan how to accomplish this task: {{user_input}}"
+    config:
+      temperature: 0.3
+      max_tokens: 800
+
+  sg_tpl_research:
+    user_prompt: "Research the following: {{detail}}. Provide key facts and findings in 2-3 sentences."
+    config:
+      temperature: 0.5
+      max_tokens: 200
+
+  sg_tpl_summarize:
+    user_prompt: "Summarize the following findings: {{detail}}. Provide a concise 2-sentence summary."
+    config:
+      temperature: 0.3
+      max_tokens: 150

@@ -1,0 +1,78 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n21_transform_inline.yaml",
+    "elapsed_ms": 6,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "transform": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "greeting": "Hello, Alice!",
+            "length": 5,
+            "reversed": "ecilA",
+            "uppercased": "ALICE"
+          },
+          "timestamp": 1776177806594
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "name": "Alice"
+          },
+          "timestamp": 1776177806590
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "length": 5,
+            "uppercased": "ALICE",
+            "greeting": "Hello, Alice!"
+          },
+          "timestamp": 1776177806594
+        }
+      ]
+    },
+    "output": {
+      "length": 5,
+      "uppercased": "ALICE",
+      "greeting": "Hello, Alice!"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 4,
+      "per_node": {
+        "start": 0,
+        "transform": 3,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

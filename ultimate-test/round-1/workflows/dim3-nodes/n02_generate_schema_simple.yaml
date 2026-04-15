@@ -1,0 +1,38 @@
+version: "1.0"
+name: "N02 Generate with Simple Output Schema"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_gen
+      variables:
+        query: "start.query"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen.answer"
+
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl_gen:
+    user_prompt: "{{query}}"
+    config:
+      temperature: 0.7
+      max_tokens: 200
+    output_schema:
+      - name: answer
+        type: string
+        example: "A clear answer"

@@ -1,0 +1,116 @@
+version: "1.0"
+name: "S11 Research Assistant (Supervisor)"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: planner
+    type: supervisor
+    config:
+      provider: qwen
+      model: qwen-plus
+      template: tpl_plan
+      max_iterations: 5
+      max_retry_per_tool: 2
+      timeout: 60000
+      parallel: false
+      variables:
+        user_input: "start.task"
+      tools:
+        - name: "search_info"
+          description: "Search for information about a specific topic and return relevant findings"
+          ref: "sg_search"
+        - name: "summarize"
+          description: "Summarize collected findings into a concise research brief"
+          ref: "sg_summarize"
+
+  - id: response
+    type: response
+    config:
+      output:
+        task_result: "planner.task_result"
+        exit_reason: "planner.exit_reason"
+
+edges:
+  - from: start
+    to: planner
+  - from: planner
+    to: response
+    exit_reason: default
+
+subgraphs:
+  sg_search:
+    nodes:
+      - id: sg_start
+        type: start
+      - id: sg_gen
+        type: generate
+        config:
+          provider: qwen
+          model: qwen-flash
+          template: sg_tpl_search
+          variables:
+            detail: "sg_start.action_detail"
+      - id: sg_response
+        type: response
+        config:
+          output:
+            result: "sg_gen.output"
+    edges:
+      - from: sg_start
+        to: sg_gen
+      - from: sg_gen
+        to: sg_response
+
+  sg_summarize:
+    nodes:
+      - id: sg_start
+        type: start
+      - id: sg_gen
+        type: generate
+        config:
+          provider: qwen
+          model: qwen-flash
+          template: sg_tpl_summarize
+          variables:
+            detail: "sg_start.action_detail"
+      - id: sg_response
+        type: response
+        config:
+          output:
+            result: "sg_gen.output"
+    edges:
+      - from: sg_start
+        to: sg_gen
+      - from: sg_gen
+        to: sg_response
+
+templates:
+  tpl_plan:
+    system_prompt: |
+      You are a research assistant planner. Given a research task, break it into steps using the available tools.
+      Use search_info to gather information about specific subtopics.
+      Use summarize to compile findings into a final research brief.
+      Return a JSON array of todos, each with:
+      - action_id: unique string id
+      - action_called: tool name to use
+      - action_prerequest: array of action_ids this depends on (empty for first steps)
+      - action_detail: what specifically to do
+      - action_layer: execution order (0 for first, 1 for second, etc.)
+    user_prompt: "Research task: {{user_input}}"
+    config:
+      temperature: 0.3
+      max_tokens: 800
+
+  sg_tpl_search:
+    user_prompt: "Search for information about: {{detail}}. Provide 3-4 key facts and findings."
+    config:
+      temperature: 0.5
+      max_tokens: 300
+
+  sg_tpl_summarize:
+    user_prompt: "Summarize the following research findings into a concise brief: {{detail}}"
+    config:
+      temperature: 0.3
+      max_tokens: 200

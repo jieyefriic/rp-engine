@@ -1,0 +1,81 @@
+version: "1.0"
+name: "P03_R5 Gemini Tool Calling"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen
+    type: generate
+    config:
+      provider: gemini
+      model: gemini-2.0-flash
+      template: tpl_tools
+      variables:
+        query: "start.query"
+      tools:
+        - name: "get_weather"
+          description: "Get current weather for a city"
+          ref: "sg_weather"
+          parameters:
+            type: "object"
+            properties:
+              city:
+                type: "string"
+                description: "City name"
+            required:
+              - "city"
+      max_tool_rounds: 3
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen.output"
+
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl_tools:
+    user_prompt: "What's the weather like in Tokyo right now?"
+    config:
+      temperature: 0.7
+      max_tokens: 200
+
+subgraphs:
+  sg_weather:
+    nodes:
+      - id: start
+        type: start
+
+      - id: gen
+        type: generate
+        config:
+          provider: gemini
+          model: gemini-2.0-flash
+          template: tpl_weather_mock
+          variables:
+            city: "start.city"
+
+      - id: response
+        type: response
+        config:
+          output:
+            result: "gen.output"
+
+    edges:
+      - from: start
+        to: gen
+      - from: gen
+        to: response
+
+    templates:
+      tpl_weather_mock:
+        user_prompt: "The weather in {{city}} is sunny, 25°C. This is mock data for testing."
+        config:
+          temperature: 0.7
+          max_tokens: 200

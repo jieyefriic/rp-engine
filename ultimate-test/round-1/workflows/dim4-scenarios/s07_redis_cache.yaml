@@ -1,0 +1,74 @@
+version: "1.0"
+name: "S07 Redis Cache-Aside Pattern"
+
+data_sources:
+  redis_cache:
+    name: "Redis Cache"
+    kind: redis
+    config:
+      url: "redis://localhost:6379/0"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: cache_check
+    type: data_connector
+    config:
+      data_source_id: redis_cache
+      operation:
+        operation: get
+        key_template: "cache:summary:{topic}"
+      variables:
+        topic: "start.topic"
+
+  - id: compute
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-flash
+      template: tpl_compute
+      variables:
+        topic: "start.topic"
+
+  - id: cache_store
+    type: data_connector
+    config:
+      data_source_id: redis_cache
+      operation:
+        operation: set
+        key_template: "cache:summary:{topic}"
+        value_template: "{result}"
+        ttl: 600
+      variables:
+        topic: "start.topic"
+        result: "compute.output"
+
+  - id: response
+    type: response
+    config:
+      output:
+        cache_hit: "cache_check.exists"
+        cached_value: "cache_check.value"
+        computed_value: "compute.output"
+
+edges:
+  - from: start
+    to: cache_check
+  - from: cache_check
+    to: compute
+    condition: cache_check.exists == false
+  - from: cache_check
+    to: response
+    condition: cache_check.exists == true
+  - from: compute
+    to: cache_store
+  - from: cache_store
+    to: response
+
+templates:
+  tpl_compute:
+    user_prompt: "Write a concise 2-sentence summary of: {{topic}}"
+    config:
+      temperature: 0.5
+      max_tokens: 200

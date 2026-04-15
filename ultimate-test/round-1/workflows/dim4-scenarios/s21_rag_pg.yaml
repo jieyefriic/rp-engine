@@ -1,0 +1,66 @@
+version: "1.0"
+name: "S21 RAG-like Pipeline with PG"
+
+data_sources:
+  pg_test:
+    name: "Test PostgreSQL"
+    kind: postgresql
+    config:
+      host: "localhost"
+      port: 5432
+      username: "testuser"
+      password: "testpass"
+      database: "testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: fetch_context
+    type: data_connector
+    config:
+      data_source_id: pg_test
+      operation:
+        operation: query
+        sql: "SELECT id, name, age, score FROM simple_test ORDER BY id"
+
+  - id: answer
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_answer
+      variables:
+        question: "start.question"
+        context: "fetch_context.data"
+        row_count: "fetch_context.row_count"
+
+  - id: response
+    type: response
+    config:
+      output:
+        context_rows: "fetch_context.row_count"
+        raw_context: "fetch_context.data"
+        answer: "answer.output"
+
+edges:
+  - from: start
+    to: fetch_context
+  - from: fetch_context
+    to: answer
+  - from: answer
+    to: response
+
+templates:
+  tpl_answer:
+    system_prompt: "You are a helpful assistant. Answer questions using only the provided context data. If the context doesn't contain enough information, say so."
+    user_prompt: |
+      Context ({{row_count}} rows from database):
+      {{context}}
+
+      Question: {{question}}
+
+      Answer based on the context above.
+    config:
+      temperature: 0.3
+      max_tokens: 400

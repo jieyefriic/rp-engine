@@ -1,0 +1,121 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim4-scenarios/s28_iterator_error_collect.yaml",
+    "elapsed_ms": 14554,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776179046074
+        }
+      ],
+      "create_tasks": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "items": [
+              {
+                "model": "deepseek-chat",
+                "provider": "deepseek",
+                "task": "Summarize machine learning concepts"
+              },
+              {
+                "model": "qwen-flash",
+                "provider": "qwen",
+                "task": "Explain quantum computing basics"
+              },
+              {
+                "model": "fake-model",
+                "provider": "nonexistent_provider_xyz",
+                "task": "Describe blockchain technology"
+              },
+              {
+                "model": "gpt-4o-mini",
+                "provider": "openai",
+                "task": "Outline cloud computing benefits"
+              },
+              {
+                "model": "deepseek-chat",
+                "provider": "deepseek",
+                "task": "Discuss cybersecurity best practices"
+              }
+            ]
+          },
+          "timestamp": 1776179046079
+        }
+      ],
+      "process_tasks": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "success_count": 5,
+            "count": 5,
+            "error_count": 0,
+            "_usage": {
+              "input_tokens": 70,
+              "output_tokens": 169
+            },
+            "results": [
+              {
+                "result": "Machine learning is the field of computer science focused on developing algorithms that enable computers to learn patterns and make predictions from data without being explicitly programmed for each specific task."
+              },
+              {
+                "result": "Quantum computing leverages quantum bits (qubits) that can exist in multiple states simultaneously (superposition) and become interconnected (entanglement) to perform complex calculations far more efficiently than classical computers for specific problems."
+              },
+              {
+                "result": "Blockchain is a decentralized, immutable digital ledger that securely records transactions across a distributed network of computers."
+              },
+              {
+                "result": "Cloud computing offers scalable, on-demand access to computing resources over the internet, providing benefits like cost savings, increased agility, global scalability, enhanced security, and improved business continuity."
+              },
+              {
+                "result": "Cybersecurity best practices involve implementing proactive measures such as strong passwords, multi-factor authentication, regular software updates, employee training, and robust data backup strategies to protect systems and data from unauthorized access and cyber threats."
+              }
+            ]
+          },
+          "timestamp": 1776179060626
+        }
+      ]
+    },
+    "output": {},
+    "error": null,
+    "timing": {
+      "total_ms": 14552,
+      "per_node": {
+        "process_tasks": 14546,
+        "create_tasks": 4,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 70,
+      "total_output_tokens": 169,
+      "per_node": {
+        "process_tasks": [
+          70,
+          169
+        ]
+      }
+    }
+  }
+}

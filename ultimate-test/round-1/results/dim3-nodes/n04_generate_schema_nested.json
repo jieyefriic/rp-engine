@@ -1,0 +1,86 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n04_generate_schema_nested.yaml",
+    "elapsed_ms": 23217,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "items": null,
+            "summary": null
+          },
+          "timestamp": 1776178125416
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "topic": "renewable energy sources"
+          },
+          "timestamp": 1776178102202
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "output": "Here are the top 3 aspects of renewable energy sources, scored on a scale of 1-10 based on their overall impact and importance for the energy transition.\n\n---\n\n### **1. Environmental & Climate Benefits**\n**Score: 10/10**\n\n**Reasons:**\n*   **Drastic Reduction in Greenhouse Gases:** Renewables like solar, wind, and hydro produce little to no direct carbon dioxide or other air pollutants during operation. This is their core value in combating climate change.\n*   **Improved Public Health:** By displacing fossil fuels, they reduce air pollution (smog, particulates), leading to fewer respiratory illnesses, cardiovascular problems, and premature deaths.\n*   **Lower Environmental Footprint:** While manufacturing and installation have impacts, the ongoing operation has minimal waste, no fuel extraction (mining, drilling), and greatly reduced water consumption compared to thermal power plants.\n\n### **2. Energy Security & Independence**\n**Score: 9/10**\n\n**Reasons:**\n*   **Domestic and Abundant Resource:** Sun, wind, water, and geothermal heat are available locally in most regions, reducing dependence on imported fossil fuels and exposure to volatile global markets.\n*   **Diversification of Supply:** A mix of renewables strengthens the energy grid by reducing over-reliance on a single fuel source or supply route, enhancing national resilience.\n*   **Predictable Long-Term Costs:** After installation, the \"fuel\" is free and immune to price shocks. This provides long-term price stability and predictability for economies.\n\n### **3. Economic & Developmental Potential**\n**Score: 8/10**\n\n**Reasons:**\n*   **Job Creation:** The renewable sector is more labor-intensive in installation, manufacturing, and maintenance than automated fossil fuel industries, creating significant local employment opportunities.\n*   **Cost Competitiveness:** The levelized cost of energy (LCOE) for solar and wind has plummeted, now often cheaper than new fossil fuel plants, making them the economically rational choice for new power capacity.\n*   **Energy Access for Remote Areas:** Decentralized renewables (like solar home systems or micro-grids) provide the most viable and cost-effective path to electrification for remote or underserved communities, enabling development.\n\n---\n\n**Honorable Mention (Aspect #4): Technological Innovation & Scalability**\n**Score: 8/10**\n**Reason:** Continuous rapid improvements in efficiency (solar panels, turbine size), energy storage (batteries), and grid integration are solving early limitations, making renewables a more reliable and dominant energy source every year.",
+            "_prompt": "List the top 3 aspects of renewable energy sources with scores and reasons.",
+            "_usage": {
+              "provider": "deepseek",
+              "model": "deepseek-chat",
+              "input_tokens": 19,
+              "output_tokens": 522
+            },
+            "_actual_user_prompt": "List the top 3 aspects of renewable energy sources with scores and reasons."
+          },
+          "timestamp": 1776178125416
+        }
+      ]
+    },
+    "output": {
+      "items": null,
+      "summary": null
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 23215,
+      "per_node": {
+        "gen": 23214,
+        "response": 0,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 19,
+      "total_output_tokens": 522,
+      "per_node": {
+        "gen": [
+          19,
+          522
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,49 @@
+version: "1.0"
+name: "D16 Redis LIST operations"
+
+data_sources:
+  redis_test:
+    name: "Test Redis"
+    kind: redis
+    config:
+      url: "redis://localhost:6379/0"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: lpush
+    type: data_connector
+    config:
+      data_source_id: redis_test
+      operation:
+        operation: lpush
+        key_template: "ut:queue"
+        value_template: "{item}"
+      variables:
+        item: "start.item"
+
+  - id: lrange
+    type: data_connector
+    config:
+      data_source_id: redis_test
+      operation:
+        operation: lrange
+        key_template: "ut:queue"
+        start: 0
+        stop: -1
+
+  - id: response
+    type: response
+    config:
+      output:
+        push_result: "lpush.data"
+        queue_contents: "lrange.value"
+
+edges:
+  - from: start
+    to: lpush
+  - from: lpush
+    to: lrange
+  - from: lrange
+    to: response

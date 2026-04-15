@@ -5,7 +5,9 @@
 use riceprompt_engine::Engine;
 use serde_json::json;
 
-const QWEN_API_KEY: &str = "sk-2a516181a8c6431888fe5312a0f23e46";
+fn qwen_api_key() -> String {
+    std::env::var("QWEN_API_KEY").expect("QWEN_API_KEY env var must be set")
+}
 
 const YAML: &str = r#"
 version: "0.1"
@@ -105,7 +107,7 @@ async fn main() {
     println!("Testing frontend exported YAML...\n");
 
     let engine = Engine::builder()
-        .provider("qwen", QWEN_API_KEY)
+        .provider("qwen", &qwen_api_key())
         .build()
         .await
         .unwrap();

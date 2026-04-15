@@ -1,0 +1,143 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n33_supervisor_basic.yaml",
+    "elapsed_ms": 10449,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "planner": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "task_result": {
+              "summary": "Completed 0 actions (0 success, 0 failed) in 0 iterations",
+              "planner_usage": {
+                "provider": "qwen",
+                "model": "qwen-plus",
+                "input_tokens": 161,
+                "output_tokens": 341
+              },
+              "planner_timing_ms": 10422,
+              "actions": [],
+              "stats": {
+                "total": 0,
+                "success": 0,
+                "failed": 0,
+                "iterations": 0,
+                "token_usage": {
+                  "input_tokens": 161,
+                  "output_tokens": 341
+                }
+              }
+            },
+            "exit_reason": "todo_empty",
+            "_usage": {
+              "input_tokens": 161,
+              "output_tokens": 341
+            }
+          },
+          "timestamp": 1776182469928
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "task": "Research the health benefits of green tea and summarize the findings"
+          },
+          "timestamp": 1776182459499
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "task_result": {
+              "summary": "Completed 0 actions (0 success, 0 failed) in 0 iterations",
+              "planner_usage": {
+                "provider": "qwen",
+                "model": "qwen-plus",
+                "input_tokens": 161,
+                "output_tokens": 341
+              },
+              "planner_timing_ms": 10422,
+              "actions": [],
+              "stats": {
+                "total": 0,
+                "success": 0,
+                "failed": 0,
+                "iterations": 0,
+                "token_usage": {
+                  "input_tokens": 161,
+                  "output_tokens": 341
+                }
+              }
+            },
+            "exit_reason": "todo_empty"
+          },
+          "timestamp": 1776182469928
+        }
+      ]
+    },
+    "output": {
+      "task_result": {
+        "summary": "Completed 0 actions (0 success, 0 failed) in 0 iterations",
+        "planner_usage": {
+          "provider": "qwen",
+          "model": "qwen-plus",
+          "input_tokens": 161,
+          "output_tokens": 341
+        },
+        "planner_timing_ms": 10422,
+        "actions": [],
+        "stats": {
+          "total": 0,
+          "success": 0,
+          "failed": 0,
+          "iterations": 0,
+          "token_usage": {
+            "input_tokens": 161,
+            "output_tokens": 341
+          }
+        }
+      },
+      "exit_reason": "todo_empty"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 10437,
+      "per_node": {
+        "planner": 10422,
+        "response": 0,
+        "start": 2
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 161,
+      "total_output_tokens": 341,
+      "per_node": {
+        "planner": [
+          161,
+          341
+        ]
+      }
+    }
+  }
+}

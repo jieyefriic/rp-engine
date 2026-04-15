@@ -1,0 +1,84 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p04_r5_deepseek_tools.yaml",
+    "elapsed_ms": 37421,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_usage": {
+              "provider": "deepseek",
+              "model": "deepseek-chat",
+              "input_tokens": 1580,
+              "output_tokens": 984
+            },
+            "_prompt": "What's the weather like in Tokyo right now?",
+            "_actual_user_prompt": "What's the weather like in Tokyo right now?",
+            "output": "I apologize, but it seems there was an issue with the weather service. Instead of providing current weather data for Tokyo, I received a general description of the city. \n\nThe tool appears to be returning tourist information rather than actual weather data. Unfortunately, I don't have access to real-time weather information for Tokyo at the moment. You might want to check a reliable weather website or app like Weather.com, AccuWeather, or your device's built-in weather application for the most up-to-date weather conditions in Tokyo."
+          },
+          "timestamp": 1776177215204
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "What is the weather in Tokyo?"
+          },
+          "timestamp": 1776177177786
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "I apologize, but it seems there was an issue with the weather service. Instead of providing current weather data for Tokyo, I received a general description of the city. \n\nThe tool appears to be returning tourist information rather than actual weather data. Unfortunately, I don't have access to real-time weather information for Tokyo at the moment. You might want to check a reliable weather website or app like Weather.com, AccuWeather, or your device's built-in weather application for the most up-to-date weather conditions in Tokyo."
+          },
+          "timestamp": 1776177215204
+        }
+      ]
+    },
+    "output": {
+      "answer": "I apologize, but it seems there was an issue with the weather service. Instead of providing current weather data for Tokyo, I received a general description of the city. \n\nThe tool appears to be returning tourist information rather than actual weather data. Unfortunately, I don't have access to real-time weather information for Tokyo at the moment. You might want to check a reliable weather website or app like Weather.com, AccuWeather, or your device's built-in weather application for the most up-to-date weather conditions in Tokyo."
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 37418,
+      "per_node": {
+        "response": 0,
+        "start": 0,
+        "gen": 37417
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 1580,
+      "total_output_tokens": 984,
+      "per_node": {
+        "gen": [
+          1580,
+          984
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,62 @@
+version: "1.0"
+name: "N47 Skill Set Node"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: skills
+    type: skill_set
+    config:
+      skills:
+        - name: "python_best_practices"
+          description: "Best practices for writing clean Python code"
+          content: |
+            1. Use type hints for function parameters and return values
+            2. Follow PEP 8 style guide
+            3. Use list comprehensions over map/filter where readable
+            4. Prefer pathlib over os.path
+            5. Use context managers (with statements) for resource management
+        - name: "testing_guide"
+          description: "Guide for writing effective unit tests"
+          content: |
+            1. Follow AAA pattern: Arrange, Act, Assert
+            2. One assertion per test method
+            3. Use descriptive test names
+            4. Mock external dependencies
+            5. Test edge cases and error paths
+
+  - id: gen
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl
+      skill_sets: ["skills"]
+      variables:
+        query: "start.query"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen.output"
+
+edges:
+  - from: start
+    to: skills
+  - from: skills
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl:
+    user_prompt: |
+      Answer the following question. If you need detailed guidelines,
+      use the load_skill tool to load the relevant skill first.
+
+      Question: {{query}}
+    config:
+      temperature: 0.3
+      max_tokens: 500

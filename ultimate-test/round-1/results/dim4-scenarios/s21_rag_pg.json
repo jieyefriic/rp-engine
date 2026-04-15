@@ -1,0 +1,82 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim4-scenarios/s21_rag_pg.yaml",
+    "elapsed_ms": 77,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "fetch_context": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "id": 1,
+            "rows": [
+              {
+                "id": 1,
+                "name": "Alice",
+                "age": 30,
+                "score": 95.5
+              },
+              {
+                "id": 2,
+                "name": "Bob",
+                "age": 25,
+                "score": 82.3
+              },
+              {
+                "id": 3,
+                "name": "Charlie",
+                "age": 35,
+                "score": null
+              }
+            ],
+            "count": 3,
+            "age": 30,
+            "score": 95.5,
+            "name": "Alice"
+          },
+          "timestamp": 1776185081361
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "question": "Who has the highest score?"
+          },
+          "timestamp": 1776185081286
+        }
+      ]
+    },
+    "output": {},
+    "error": null,
+    "timing": {
+      "total_ms": 75,
+      "per_node": {
+        "start": 0,
+        "fetch_context": 75
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

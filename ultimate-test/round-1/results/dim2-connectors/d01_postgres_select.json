@@ -1,0 +1,148 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim2-connectors/d01_postgres_select.yaml",
+    "elapsed_ms": 91,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "query": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "metadata": {
+              "role": "admin",
+              "level": 5
+            },
+            "is_active": true,
+            "count": 4,
+            "id": 1,
+            "created_at": "2026-04-14 14:23:52.817949+00",
+            "tags": [
+              "dev",
+              "lead"
+            ],
+            "uid": "74da3d14-01dd-4d79-8442-537cc6aca6b1",
+            "score": null,
+            "rows": [
+              {
+                "id": 1,
+                "name": "Alice",
+                "score": null,
+                "is_active": true,
+                "metadata": {
+                  "role": "admin",
+                  "level": 5
+                },
+                "tags": [
+                  "dev",
+                  "lead"
+                ],
+                "created_at": "2026-04-14 14:23:52.817949+00",
+                "uid": "74da3d14-01dd-4d79-8442-537cc6aca6b1"
+              },
+              {
+                "id": 2,
+                "name": "Bob",
+                "score": null,
+                "is_active": true,
+                "metadata": {
+                  "role": "user",
+                  "level": 2
+                },
+                "tags": [
+                  "dev"
+                ],
+                "created_at": "2026-04-14 14:23:52.817949+00",
+                "uid": "7d8cad24-2eea-4789-b55b-529d32831989"
+              },
+              {
+                "id": 3,
+                "name": "Charlie",
+                "score": null,
+                "is_active": false,
+                "metadata": null,
+                "tags": [],
+                "created_at": "2026-04-14 14:23:52.817949+00",
+                "uid": "dd6c9f79-86d4-4792-999e-8dc37f507843"
+              },
+              {
+                "id": 4,
+                "name": "Diana",
+                "score": null,
+                "is_active": true,
+                "metadata": {
+                  "role": "admin",
+                  "level": 10,
+                  "nested": {
+                    "key": "value"
+                  }
+                },
+                "tags": [
+                  "dev",
+                  "ops",
+                  "lead"
+                ],
+                "created_at": "2026-04-14 14:23:52.817949+00",
+                "uid": "80534dd4-ca0f-43e4-a965-b63eeaf25f01"
+              }
+            ],
+            "name": "Alice"
+          },
+          "timestamp": 1776192243255
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "row_count": null,
+            "data": null
+          },
+          "timestamp": 1776192243255
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776192243166
+        }
+      ]
+    },
+    "output": {
+      "row_count": null,
+      "data": null
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 89,
+      "per_node": {
+        "start": 0,
+        "query": 89,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

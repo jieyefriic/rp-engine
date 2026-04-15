@@ -1,0 +1,34 @@
+version: "1.0"
+name: "P03_R1 Gemini Basic Chat"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen
+    type: generate
+    config:
+      provider: gemini
+      model: gemini-2.0-flash
+      template: tpl_basic
+      variables:
+        query: "start.query"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen.output"
+
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl_basic:
+    user_prompt: "{{query}}"
+    config:
+      temperature: 0.7
+      max_tokens: 200

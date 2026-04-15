@@ -1,0 +1,81 @@
+version: "1.0"
+name: "N30 Iterator on_error Collect"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: create_items
+    type: transform
+    config:
+      script: |
+        #{
+          "items": [
+            #{"text": "First item to summarize", "use_provider": "deepseek"},
+            #{"text": "Second item - will fail", "use_provider": "nonexistent_provider_xyz"},
+            #{"text": "Third item to summarize", "use_provider": "deepseek"}
+          ]
+        }
+      variables: {}
+
+  - id: process_each
+    type: iterator
+    config:
+      items: "create_items.items"
+      subgraph: sg_process
+      item_var: item
+      index_var: idx
+      parallel: false
+      on_error: collect
+
+  - id: response
+    type: response
+    config:
+      output:
+        results: "process_each.results"
+        count: "process_each.count"
+        success_count: "process_each.success_count"
+        error_count: "process_each.error_count"
+        errors: "process_each.errors"
+
+edges:
+  - from: start
+    to: create_items
+  - from: create_items
+    to: process_each
+  - from: process_each
+    to: response
+
+subgraphs:
+  sg_process:
+    nodes:
+      - id: start
+        type: start
+
+      - id: summarize
+        type: generate
+        config:
+          provider: deepseek
+          model: deepseek-chat
+          template: tpl_summarize
+          variables:
+            text: "start.item.text"
+
+      - id: response
+        type: response
+        config:
+          output:
+            summary: "summarize.output"
+
+    edges:
+      - from: start
+        to: summarize
+      - from: summarize
+        to: response
+
+    templates:
+      tpl_summarize:
+        user_prompt: "Summarize this in one sentence: {{text}}"
+        config:
+          temperature: 0.5
+          max_tokens: 100

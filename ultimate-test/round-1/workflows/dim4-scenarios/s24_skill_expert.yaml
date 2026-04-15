@@ -1,0 +1,78 @@
+version: "1.0"
+name: "S24 Skill-Powered Expert"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: cooking_skills
+    type: skill_set
+    config:
+      skills:
+        - name: "knife_techniques"
+          description: "Professional knife techniques for food preparation"
+          content: |
+            ## Knife Techniques
+            1. Julienne: Cut into thin matchstick strips (1/8 inch)
+            2. Brunoise: Fine dice from julienne cuts (1/8 inch cubes)
+            3. Chiffonade: Stack leaves, roll tightly, slice into thin ribbons
+            4. Bias cut: Cut at 45-degree angle for larger surface area
+            5. Supreme: Remove citrus segments between membranes
+            6. Always curl fingers under (claw grip) for safety
+            7. Let the knife weight do the work; use rocking motion
+        - name: "flavor_pairing"
+          description: "Principles of flavor pairing and combination"
+          content: |
+            ## Flavor Pairing
+            1. Salmon pairs with: dill, lemon, capers, asparagus, miso, ginger
+            2. Asparagus pairs with: lemon, garlic, parmesan, hollandaise, salmon
+            3. Balance five tastes: sweet, salty, sour, bitter, umami
+            4. Use acid (citrus, vinegar) to brighten rich dishes
+            5. Fresh herbs added at end; dried herbs added during cooking
+            6. Fat carries flavor - use butter or olive oil as a medium
+        - name: "plating_presentation"
+          description: "Guidelines for professional food plating and presentation"
+          content: |
+            ## Plating & Presentation
+            1. Use odd numbers of elements (rule of thirds)
+            2. Create height with stacking or leaning components
+            3. Wipe plate edges clean before serving
+            4. Use contrasting colors (green against pink salmon)
+            5. Sauce beneath or beside, not over the protein
+            6. Garnish should be edible and relevant to the dish
+            7. Leave negative space - don't overcrowd the plate
+
+  - id: answer
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_answer
+      skill_sets: ["cooking_skills"]
+      variables:
+        question: "start.question"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "answer.output"
+
+edges:
+  - from: start
+    to: cooking_skills
+  - from: cooking_skills
+    to: answer
+  - from: answer
+    to: response
+
+templates:
+  tpl_answer:
+    user_prompt: |
+      Answer the following culinary question. If you need detailed technique
+      guidelines, use the load_skill tool to load the relevant skill first.
+
+      Question: {{question}}
+    config:
+      temperature: 0.4
+      max_tokens: 600

@@ -1,0 +1,84 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p06_r10_qwen_maxtokens.yaml",
+    "elapsed_ms": 2314,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "quantum computing"
+          },
+          "timestamp": 1776177510200
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "**Quantum Computing: A Detailed Explanation**\n\nQuantum computing is a revolutionary paradigm in information processing that"
+          },
+          "timestamp": 1776177512513
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_usage": {
+              "provider": "qwen",
+              "model": "qwen-flash",
+              "input_tokens": 17,
+              "output_tokens": 20
+            },
+            "_prompt": "Explain quantum computing in detail: quantum computing",
+            "output": "**Quantum Computing: A Detailed Explanation**\n\nQuantum computing is a revolutionary paradigm in information processing that",
+            "_actual_user_prompt": "Explain quantum computing in detail: quantum computing"
+          },
+          "timestamp": 1776177512513
+        }
+      ]
+    },
+    "output": {
+      "answer": "**Quantum Computing: A Detailed Explanation**\n\nQuantum computing is a revolutionary paradigm in information processing that"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 2312,
+      "per_node": {
+        "start": 0,
+        "gen": 2311,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 17,
+      "total_output_tokens": 20,
+      "per_node": {
+        "gen": [
+          17,
+          20
+        ]
+      }
+    }
+  }
+}

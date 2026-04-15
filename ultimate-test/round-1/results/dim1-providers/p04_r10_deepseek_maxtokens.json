@@ -1,0 +1,84 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p04_r10_deepseek_maxtokens.yaml",
+    "elapsed_ms": 2113,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "## **Quantum Computing: A Detailed Explanation**\n\n### **1. Fundamental Concept**\nQuantum computing is a"
+          },
+          "timestamp": 1776177507125
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "quantum computing"
+          },
+          "timestamp": 1776177505014
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "output": "## **Quantum Computing: A Detailed Explanation**\n\n### **1. Fundamental Concept**\nQuantum computing is a",
+            "_usage": {
+              "provider": "deepseek",
+              "model": "deepseek-chat",
+              "input_tokens": 12,
+              "output_tokens": 20
+            },
+            "_actual_user_prompt": "Explain quantum computing in detail: quantum computing",
+            "_prompt": "Explain quantum computing in detail: quantum computing"
+          },
+          "timestamp": 1776177507125
+        }
+      ]
+    },
+    "output": {
+      "answer": "## **Quantum Computing: A Detailed Explanation**\n\n### **1. Fundamental Concept**\nQuantum computing is a"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 2111,
+      "per_node": {
+        "gen": 2110,
+        "response": 0,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 12,
+      "total_output_tokens": 20,
+      "per_node": {
+        "gen": [
+          12,
+          20
+        ]
+      }
+    }
+  }
+}

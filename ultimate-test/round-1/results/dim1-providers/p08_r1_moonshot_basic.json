@@ -1,0 +1,21 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p08_r1_moonshot_basic.yaml",
+    "elapsed_ms": 898,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Error"
+  },
+  "_error": "Provider error: API error: 503 - DNS cache overflow",
+  "_error_debug": "ProviderError(ApiError { status: 503, message: \"DNS cache overflow\" })"
+}

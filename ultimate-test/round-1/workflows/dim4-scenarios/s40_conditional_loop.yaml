@@ -1,0 +1,154 @@
+version: "1.0"
+name: "S40 Conditional + Loop Combo"
+description: "Classify problem difficulty and route to simple or iterative solving path"
+
+nodes:
+- id: start
+  type: start
+
+- id: classify_difficulty
+  type: generate
+  config:
+    provider: openai
+    model: gpt-4o-mini
+    template: tpl_classify
+    variables:
+      problem: "start.problem"
+- id: easy_solve
+  type: generate
+  config:
+    provider: qwen
+    model: qwen-flash
+    template: tpl_easy_solve
+    variables:
+      problem: "start.problem"
+
+- id: think
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: tpl_think
+    variables:
+      problem: "start.problem"
+      previous_steps: "think[*].output"
+- id: check_done
+  type: transform
+  config:
+    script: |
+      #{
+        "should_continue": if is_done { false } else { true },
+        "reasoning": reasoning
+      }
+    variables:
+      is_done: "think.is_done"
+      reasoning: "think.reasoning"
+
+- id: hard_answer
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: tpl_hard_answer
+    variables:
+      problem: "start.problem"
+      all_reasoning: "think[*].reasoning"
+
+- id: response
+  type: response
+  config:
+    output:
+      difficulty: "classify_difficulty.difficulty"
+      easy_answer: "easy_solve.output"
+      hard_answer: "hard_answer.output"
+      reasoning_steps: "think[*].reasoning"
+
+edges:
+- from: start
+  to: classify_difficulty
+- from: classify_difficulty
+  to: easy_solve
+  condition: classify_difficulty.difficulty == 'easy'
+- from: classify_difficulty
+  to: think
+  condition: classify_difficulty.difficulty == 'hard'
+- from: classify_difficulty
+  to: think
+  is_default: true
+- from: easy_solve
+  to: response
+- from: think
+  to: check_done
+- from: check_done
+  to: think
+  condition: check_done.should_continue == true
+  max_iterations: 3
+- from: check_done
+  to: hard_answer
+  condition: check_done.should_continue == false
+- from: check_done
+  to: hard_answer
+  is_default: true
+- from: hard_answer
+  to: response
+
+templates:
+  tpl_classify:
+    system_prompt: "You are a problem difficulty classifier."
+    user_prompt: |
+      Classify this problem as either 'easy' or 'hard':
+
+      {{problem}}
+
+      Easy = can be answered directly in one step.
+      Hard = requires multi-step reasoning or analysis.
+      Return exactly 'easy' or 'hard'.
+    config:
+      temperature: 0.1
+      max_tokens: 50
+
+    output_schema:
+    - name: difficulty
+      type: string
+      example: "easy"
+
+  tpl_easy_solve:
+    system_prompt: "You are a helpful assistant. Answer directly and concisely."
+    user_prompt: "Answer this straightforward question: {{problem}}"
+    config:
+      temperature: 0.5
+      max_tokens: 200
+
+  tpl_think:
+    system_prompt: "You are a careful step-by-step reasoner. Work through the problem incrementally."
+    user_prompt: |
+      Problem: {{problem}}
+
+      Previous reasoning steps: {{previous_steps}}
+
+      Provide your next reasoning step. If you have enough information to give a final answer, set is_done to true.
+      After 2-3 steps, you should set is_done to true.
+    config:
+      temperature: 0.5
+      max_tokens: 300
+
+    output_schema:
+    - name: reasoning
+      type: string
+      example: "First, I need to consider..."
+    - name: is_done
+      type: boolean
+      example: "false"
+
+  tpl_hard_answer:
+    system_prompt: "You are a careful problem solver. Synthesize your reasoning into a final answer."
+    user_prompt: |
+      Problem: {{problem}}
+
+      My reasoning process:
+      {{all_reasoning}}
+
+      Based on this reasoning, provide a clear and definitive final answer.
+    config:
+      temperature: 0.3
+      max_tokens: 300

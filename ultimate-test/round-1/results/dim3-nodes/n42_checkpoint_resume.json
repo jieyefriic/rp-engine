@@ -1,0 +1,18 @@
+{
+  "_test": "checkpoint_resume",
+  "status": "Success",
+  "phase1_ms": 1064,
+  "phase2_ms": 1130,
+  "question": null,
+  "output": {
+    "evaluation": "Incorrect, the answer is Nile River.",
+    "question": "What is the longest river in the world?"
+  },
+  "nodes_executed": [
+    "pause",
+    "start",
+    "response",
+    "gen_question",
+    "gen_evaluate"
+  ]
+}

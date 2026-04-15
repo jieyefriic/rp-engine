@@ -1,0 +1,37 @@
+version: "1.0"
+name: "N08 Variable Binding with Default"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl
+      variables:
+        query: "start.query"
+        language:
+          from: "start.language"
+          default: "English"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen.output"
+
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl:
+    user_prompt: "Answer the following question in {{language}}: {{query}}"
+    config:
+      temperature: 0.5
+      max_tokens: 200

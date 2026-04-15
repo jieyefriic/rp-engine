@@ -1,0 +1,116 @@
+version: "1.0"
+name: "S34 Nested Loops"
+description: "Outer iterator with 2 items, each containing an inner iterator with 2 sub-items"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: create_outer
+    type: transform
+    config:
+      script: |
+        #{
+          "items": [
+            #{"category": "fruits", "sub_items": ["apple", "banana"]},
+            #{"category": "colors", "sub_items": ["red", "blue"]}
+          ]
+        }
+
+  - id: outer_iter
+    type: iterator
+    config:
+      items: "create_outer.items"
+      subgraph_ref: "sg_outer"
+      item_var: "outer_item"
+      index_var: "outer_idx"
+      parallel: false
+
+  - id: response
+    type: response
+    config:
+      output:
+        results: "outer_iter.results"
+        count: "outer_iter.count"
+
+edges:
+  - from: start
+    to: create_outer
+  - from: create_outer
+    to: outer_iter
+  - from: outer_iter
+    to: response
+
+subgraphs:
+  sg_outer:
+    nodes:
+      - id: sg_start
+        type: start
+      - id: inner_iter
+        type: iterator
+        config:
+          items: "sg_start.outer_item.sub_items"
+          subgraph_ref: "sg_inner"
+          item_var: "inner_item"
+          index_var: "inner_idx"
+          parallel: false
+      - id: sg_combine
+        type: generate
+        config:
+          provider: qwen
+          model: qwen-flash
+          template: sg_tpl_combine
+          variables:
+            category: "sg_start.outer_item.category"
+            inner_results: "inner_iter.results"
+      - id: sg_response
+        type: response
+        config:
+          output:
+            category: "sg_start.outer_item.category"
+            inner_results: "inner_iter.results"
+            summary: "sg_combine.output"
+    edges:
+      - from: sg_start
+        to: inner_iter
+      - from: inner_iter
+        to: sg_combine
+      - from: sg_combine
+        to: sg_response
+
+  sg_inner:
+    nodes:
+      - id: sg_start
+        type: start
+      - id: sg_gen
+        type: generate
+        config:
+          provider: qwen
+          model: qwen-flash
+          template: sg_tpl_describe
+          variables:
+            item: "sg_start.inner_item"
+            idx: "sg_start.inner_idx"
+      - id: sg_response
+        type: response
+        config:
+          output:
+            description: "sg_gen.output"
+    edges:
+      - from: sg_start
+        to: sg_gen
+      - from: sg_gen
+        to: sg_response
+
+templates:
+  sg_tpl_describe:
+    user_prompt: "Describe '{{item}}' (item #{{idx}}) in exactly one sentence."
+    config:
+      temperature: 0.5
+      max_tokens: 60
+
+  sg_tpl_combine:
+    user_prompt: "Summarize these descriptions for the '{{category}}' category in one sentence: {{inner_results}}"
+    config:
+      temperature: 0.3
+      max_tokens: 100

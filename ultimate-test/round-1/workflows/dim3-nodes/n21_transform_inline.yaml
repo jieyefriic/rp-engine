@@ -1,0 +1,40 @@
+version: "1.0"
+name: "N21 Transform Inline Script"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: transform
+    type: transform
+    config:
+      script: |
+        let result = #{};
+        result["uppercased"] = name.to_upper();
+        result["length"] = name.len();
+        result["greeting"] = "Hello, " + name + "!";
+        let chars = name.to_chars();
+        let reversed = "";
+        let i = chars.len() - 1;
+        while i >= 0 {
+          reversed += chars[i];
+          i -= 1;
+        }
+        result["reversed"] = reversed;
+        result
+      variables:
+        name: "start.name"
+
+  - id: response
+    type: response
+    config:
+      output:
+        uppercased: "transform.uppercased"
+        length: "transform.length"
+        greeting: "transform.greeting"
+
+edges:
+  - from: start
+    to: transform
+  - from: transform
+    to: response

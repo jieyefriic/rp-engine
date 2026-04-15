@@ -1,0 +1,28 @@
+version: "1.0"
+name: "N26 Transform Error Handling"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: bad_transform
+    type: transform
+    config:
+      script: |
+        let x = 10 / 0;
+        #{"result": x}
+      error_handling:
+        on_exhausted: continue
+
+  - id: response
+    type: response
+    config:
+      output:
+        had_error: "bad_transform._error"
+        error_message: "bad_transform._error_message"
+
+edges:
+  - from: start
+    to: bad_transform
+  - from: bad_transform
+    to: response

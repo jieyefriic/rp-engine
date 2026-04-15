@@ -1,0 +1,42 @@
+version: "1.0"
+name: "N23 Transform Built-in Functions"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: transform
+    type: transform
+    config:
+      script: |
+        let ts = now();
+        let id = uuid();
+        let arr = [1, 2, 2, 3, 3, 3];
+        let uniq = unique(arr);
+        let obj = #{"key": "value", "num": 42};
+        let encoded = json_encode(obj);
+        #{
+          "timestamp": ts,
+          "uuid": id,
+          "unique_array": uniq,
+          "encoded_json": encoded,
+          "original_length": arr.len(),
+          "unique_length": uniq.len()
+        }
+
+  - id: response
+    type: response
+    config:
+      output:
+        timestamp: "transform.timestamp"
+        uuid: "transform.uuid"
+        unique_array: "transform.unique_array"
+        encoded_json: "transform.encoded_json"
+        original_length: "transform.original_length"
+        unique_length: "transform.unique_length"
+
+edges:
+  - from: start
+    to: transform
+  - from: transform
+    to: response

@@ -1,0 +1,17 @@
+{
+  "_test": "sub_workflow",
+  "status": "Success",
+  "elapsed_ms": 4765,
+  "output": {
+    "child_status": "Success",
+    "enhanced": "Hello, Alice—welcome to the dazzling world where your name sparkles like stardust, your spirit shines brighter than a supernova, and every single moment is an electrifying new chapter in a story only *you* can write! Get ready to shine, dream big, and make magic happen—you’re absolutely unstoppable! 🌟✨💫",
+    "child_output": "Hello, Alice—welcome to the world where your name sparkles like stardust and every moment feels like a new chapter in a story only you can write!",
+    "child_timing": 3089
+  },
+  "nodes_executed": [
+    "response",
+    "enhance",
+    "call_child",
+    "start"
+  ]
+}

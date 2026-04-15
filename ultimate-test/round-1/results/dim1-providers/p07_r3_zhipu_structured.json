@@ -1,0 +1,84 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p07_r3_zhipu_structured.yaml",
+    "elapsed_ms": 17829,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "Photosynthesis in plants"
+          },
+          "timestamp": 1776177061537
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_prompt": "Analyze this topic and provide a structured response: Photosynthesis in plants",
+            "_usage": {
+              "provider": "zhipu",
+              "model": "glm-4.7",
+              "input_tokens": 19,
+              "output_tokens": 1228
+            },
+            "_actual_user_prompt": "Analyze this topic and provide a structured response: Photosynthesis in plants",
+            "output": "Here is a structured analysis of photosynthesis in plants, broken down into its core components, mechanisms, and significance.\n\n### **1. Executive Summary**\nPhotosynthesis is the biological process by which plants, algae, and certain bacteria convert light energy (usually from the sun) into chemical energy stored in sugars. It is the primary source of energy for nearly all life forms on Earth and is responsible for maintaining atmospheric oxygen levels.\n\n---\n\n### **2. The Fundamental Equation**\nThe overall process can be summarized by the following chemical equation:\n\n**Input:** Carbon Dioxide ($CO_2$) + Water ($H_2O$) + Light Energy\n**Output:** Glucose ($C_6H_{12}O_6$) + Oxygen ($O_2$)\n\n*Chemical Formula:*\n$$6CO_2 + 6H_2O + \\text{Light Energy} \\rightarrow C_6H_{12}O_6 + 6O_2$$\n\n"
+          },
+          "timestamp": 1776177079364
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "Here is a structured analysis of photosynthesis in plants, broken down into its core components, mechanisms, and significance.\n\n### **1. Executive Summary**\nPhotosynthesis is the biological process by which plants, algae, and certain bacteria convert light energy (usually from the sun) into chemical energy stored in sugars. It is the primary source of energy for nearly all life forms on Earth and is responsible for maintaining atmospheric oxygen levels.\n\n---\n\n### **2. The Fundamental Equation**\nThe overall process can be summarized by the following chemical equation:\n\n**Input:** Carbon Dioxide ($CO_2$) + Water ($H_2O$) + Light Energy\n**Output:** Glucose ($C_6H_{12}O_6$) + Oxygen ($O_2$)\n\n*Chemical Formula:*\n$$6CO_2 + 6H_2O + \\text{Light Energy} \\rightarrow C_6H_{12}O_6 + 6O_2$$\n\n"
+          },
+          "timestamp": 1776177079364
+        }
+      ]
+    },
+    "output": {
+      "answer": "Here is a structured analysis of photosynthesis in plants, broken down into its core components, mechanisms, and significance.\n\n### **1. Executive Summary**\nPhotosynthesis is the biological process by which plants, algae, and certain bacteria convert light energy (usually from the sun) into chemical energy stored in sugars. It is the primary source of energy for nearly all life forms on Earth and is responsible for maintaining atmospheric oxygen levels.\n\n---\n\n### **2. The Fundamental Equation**\nThe overall process can be summarized by the following chemical equation:\n\n**Input:** Carbon Dioxide ($CO_2$) + Water ($H_2O$) + Light Energy\n**Output:** Glucose ($C_6H_{12}O_6$) + Oxygen ($O_2$)\n\n*Chemical Formula:*\n$$6CO_2 + 6H_2O + \\text{Light Energy} \\rightarrow C_6H_{12}O_6 + 6O_2$$\n\n"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 17827,
+      "per_node": {
+        "gen": 17826,
+        "response": 0,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 19,
+      "total_output_tokens": 1228,
+      "per_node": {
+        "gen": [
+          19,
+          1228
+        ]
+      }
+    }
+  }
+}

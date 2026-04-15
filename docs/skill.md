@@ -599,7 +599,9 @@ The checkpoint node config uses the same `output` mapping as the response node.
 
 ### transform -- Rhai Script
 
-Runs a Rhai script for pure computation -- no LLM calls, no I/O.
+Runs a [Rhai](https://rhai.rs) script for pure computation -- no LLM calls, no I/O.
+
+> **Rhai is not Rust.** While Rhai syntax looks similar to Rust, it is a separate scripting language. Key differences: no turbofish (`::< >`), no `.collect()`, no trait methods, no ownership/borrowing. See [Rhai documentation](https://rhai.rs/book/) for supported syntax. Built-in functions: `now()`, `uuid()`, `json_encode(value)`, `unique(array)`.
 
 **Purpose:** Data transformation, aggregation, formatting, filtering.
 
@@ -1479,6 +1481,8 @@ nodes:
 
 Data connector nodes (`type: data_connector`) connect to external databases, caches, object storage, and APIs. Every connector uses the V2 pattern: a `data_source_id` referencing a connection definition, an `operation` block, and a `variables` map for parameterized binding.
 
+> **Important:** The `operation` block must contain an inner `operation` field specifying the type (e.g., `query`, `select`, `insert`, `get`, `set`). This double-nesting is required — `operation.operation` is the type specifier, and sibling fields (`sql`, `table`, `key_template`, etc.) are type-specific parameters.
+
 ```yaml
 - id: my_node
   type: data_connector
@@ -1508,7 +1512,7 @@ data_sources:
       # Option B: Individual fields
       host: "localhost"             # Default: localhost
       port: 5432                    # Default: 5432
-      username: "app_user"
+      username: "app_user"          # Note: use "username" (not "user")
       password: "${PG_PASSWORD}"
       database: "myapp"
 ```
@@ -2835,6 +2839,10 @@ edges:
     to: merge
 ```
 
+> **Tip:** When designing error-fallback workflows, use the **multiple sources** variable binding pattern (as shown with `data:` above) to seamlessly read from whichever node succeeded. The response/downstream node uses `["primary.field", "fallback.field"]` so it picks up whichever path produced output.
+
+> **How on_error routing works:** When a node fails (with `on_error edges` present), the engine marks normal outgoing edges from that node as dead and activates the `on_error: true` edge instead. The fallback node executes, and downstream nodes (like `response`) wait for the fallback to complete before running. The `response` node can read outputs from both the failed node (`primary._error`, `primary._error_message`) and the fallback node (`fallback.output`). Both paths write to state and are accessible.
+
 ### Supervisor Exit Edges
 
 ```yaml
@@ -2961,6 +2969,8 @@ templates:
 
 Variables referenced in templates must be defined in the generate node's `variables` map.
 
+> **Object/array variables:** Non-primitive variable values (objects, arrays) are automatically serialized to JSON strings before template rendering, so `{{my_object}}` will render as a JSON string like `{"key":"value"}`. To access individual fields of an object, use `{{my_object.field}}` dot notation or pre-process with a transform node.
+
 ### Config Fields
 
 | Field | Type | Default | Description |
@@ -3017,11 +3027,37 @@ output_schema:
             type: number
 ```
 
-When `output_schema` is present, the engine:
+When `output_schema` is present **on the template**, the engine:
 1. Sends `response_format: json_object` to providers that support it
 2. Appends an example JSON structure to the user prompt
 3. Parses the response with robust extraction (handles markdown fences, prose wrapping, brace matching)
 4. Maps schema fields to node outputs with type-appropriate defaults for missing fields
+
+> **Important:** `output_schema` must be defined on the **template**, not under the generate node's `config` block. The `NodeConfig` struct does not have an `output_schema` field — if placed under `config`, it will be silently ignored by the YAML parser and the LLM will return unstructured text.
+>
+> ```yaml
+> # WRONG — output_schema under node config (silently ignored):
+> nodes:
+>   - id: gen
+>     type: generate
+>     config:
+>       template: my_tpl
+>       output_schema:        # ← IGNORED! NodeConfig drops unknown fields
+>         - name: title
+>           type: string
+>
+> # CORRECT — output_schema on the template:
+> templates:
+>   my_tpl:
+>     user_prompt: "Analyze: {{topic}}"
+>     output_schema:          # ← Works! Template has this field
+>       - name: title
+>         type: string
+>     config:
+>       temperature: 0.5
+> ```
+
+> **Reliability note:** Output schema works best with providers that have native JSON mode (`openai`, `gemini`, `qwen`, `anthropic`). Providers without native JSON mode (e.g., `huoshan` doubao models) rely on prompt-based JSON instruction + regex extraction, which may fail if the LLM returns pure prose. When JSON parsing fails, schema fields receive typed defaults (`""` for string, `0` for number, `false` for boolean, `[]` for arrays) and the raw LLM text is available as `gen.output`. Always test structured output with your specific provider/model combination. For multi-step workflows that depend on schema fields, consider adding fallback logic via transform nodes.
 
 ---
 
@@ -3060,6 +3096,10 @@ providers:
 | `default_model` | No | Default model override. Primarily for `openai_compatible` |
 
 **Built-in provider kinds:** `openai`, `anthropic`, `gemini`, `deepseek`, `xai`, `qwen`, `zhipu`, `moonshot`, `minimax`, `huoshan`, `openai_compatible`.
+
+> **DashScope routing:** `zhipu` and `moonshot` providers are routed through **DashScope** (Alibaba Cloud). Use a DashScope/Qwen API key (same as `qwen`), not native Zhipu or Moonshot API keys. To use native endpoints, declare an `openai_compatible` provider with the native `base_url`.
+
+> **Thinking models and max_tokens:** Models with thinking/reasoning capabilities (e.g., `doubao-seed-*`, `deepseek-reasoner`, `o4-mini`) may produce tokens beyond the `max_tokens` limit because thinking tokens are counted separately. This is expected behavior.
 
 **Priority:** Workflow-level providers override Engine-level providers with the same ID.
 

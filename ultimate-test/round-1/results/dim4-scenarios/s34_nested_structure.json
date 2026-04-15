@@ -1,0 +1,184 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim4-scenarios/s34_nested_structure.yaml",
+    "elapsed_ms": 5289,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "outer_iter": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "results": [
+              {
+                "summary": "The 'fruits' category includes a variety of edible plant products such as apples, bananas, and oranges, known for their sweet or tart flavors and nutritional benefits.",
+                "category": "fruits",
+                "inner_results": [
+                  {
+                    "description": "Apple (item #0) is a round, typically red, green, or yellow fruit produced by an apple tree, known for its crisp texture and sweet or tart flavor."
+                  },
+                  {
+                    "description": "A banana is a curved, yellow tropical fruit with a soft, sweet flesh enclosed in a thin, peeling skin."
+                  }
+                ]
+              },
+              {
+                "inner_results": [
+                  {
+                    "description": "Red is a vibrant color often associated with passion, energy, and danger, occupying the longest wavelength in the visible light spectrum."
+                  },
+                  {
+                    "description": "Blue is a cool, calming color often associated with the sky and ocean, evoking feelings of serenity and depth."
+                  }
+                ],
+                "category": "colors",
+                "summary": "The 'colors' category encompasses a range of hues and shades, representing visual properties of objects through their chromatic characteristics."
+              }
+            ],
+            "success_count": 2,
+            "count": 2,
+            "error_count": 0,
+            "_usage": {
+              "input_tokens": 147,
+              "output_tokens": 165
+            }
+          },
+          "timestamp": 1776184867494
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "results": [
+              {
+                "summary": "The 'fruits' category includes a variety of edible plant products such as apples, bananas, and oranges, known for their sweet or tart flavors and nutritional benefits.",
+                "category": "fruits",
+                "inner_results": [
+                  {
+                    "description": "Apple (item #0) is a round, typically red, green, or yellow fruit produced by an apple tree, known for its crisp texture and sweet or tart flavor."
+                  },
+                  {
+                    "description": "A banana is a curved, yellow tropical fruit with a soft, sweet flesh enclosed in a thin, peeling skin."
+                  }
+                ]
+              },
+              {
+                "inner_results": [
+                  {
+                    "description": "Red is a vibrant color often associated with passion, energy, and danger, occupying the longest wavelength in the visible light spectrum."
+                  },
+                  {
+                    "description": "Blue is a cool, calming color often associated with the sky and ocean, evoking feelings of serenity and depth."
+                  }
+                ],
+                "category": "colors",
+                "summary": "The 'colors' category encompasses a range of hues and shades, representing visual properties of objects through their chromatic characteristics."
+              }
+            ],
+            "count": 2
+          },
+          "timestamp": 1776184867494
+        }
+      ],
+      "create_outer": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "items": [
+              {
+                "category": "fruits",
+                "sub_items": [
+                  "apple",
+                  "banana"
+                ]
+              },
+              {
+                "category": "colors",
+                "sub_items": [
+                  "red",
+                  "blue"
+                ]
+              }
+            ]
+          },
+          "timestamp": 1776184862211
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776184862207
+        }
+      ]
+    },
+    "output": {
+      "results": [
+        {
+          "summary": "The 'fruits' category includes a variety of edible plant products such as apples, bananas, and oranges, known for their sweet or tart flavors and nutritional benefits.",
+          "category": "fruits",
+          "inner_results": [
+            {
+              "description": "Apple (item #0) is a round, typically red, green, or yellow fruit produced by an apple tree, known for its crisp texture and sweet or tart flavor."
+            },
+            {
+              "description": "A banana is a curved, yellow tropical fruit with a soft, sweet flesh enclosed in a thin, peeling skin."
+            }
+          ]
+        },
+        {
+          "inner_results": [
+            {
+              "description": "Red is a vibrant color often associated with passion, energy, and danger, occupying the longest wavelength in the visible light spectrum."
+            },
+            {
+              "description": "Blue is a cool, calming color often associated with the sky and ocean, evoking feelings of serenity and depth."
+            }
+          ],
+          "category": "colors",
+          "summary": "The 'colors' category encompasses a range of hues and shades, representing visual properties of objects through their chromatic characteristics."
+        }
+      ],
+      "count": 2
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 5287,
+      "per_node": {
+        "outer_iter": 5282,
+        "create_outer": 3,
+        "response": 0,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 147,
+      "total_output_tokens": 165,
+      "per_node": {
+        "outer_iter": [
+          147,
+          165
+        ]
+      }
+    }
+  }
+}

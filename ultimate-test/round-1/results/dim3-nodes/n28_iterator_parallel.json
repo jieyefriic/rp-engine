@@ -1,0 +1,148 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n28_iterator_parallel.yaml",
+    "elapsed_ms": 5502,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "process_each": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "count": 5,
+            "_usage": {
+              "input_tokens": 68,
+              "output_tokens": 167
+            },
+            "success_count": 5,
+            "results": [
+              {
+                "summary": "Artificial Intelligence is the field of computer science focused on creating systems capable of performing tasks that typically require human intelligence, such as learning, reasoning, and perception."
+              },
+              {
+                "summary": "Blockchain is a decentralized, immutable digital ledger that records transactions across a network of computers in a way that makes them secure, transparent, and nearly impossible to alter."
+              },
+              {
+                "summary": "Quantum computing is a type of computing that uses the principles of quantum mechanics—such as superposition and entanglement—to process information in ways fundamentally different from classical computers, potentially solving certain complex problems much faster."
+              },
+              {
+                "summary": "Cybersecurity is the practice of protecting systems, networks, and data from digital attacks, damage, or unauthorized access."
+              },
+              {
+                "summary": "Cloud computing is the on-demand delivery of computing services—like servers, storage, databases, networking, software, and analytics—over the internet (\"the cloud\") on a pay-as-you-go basis."
+              }
+            ],
+            "error_count": 0
+          },
+          "timestamp": 1776178212573
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "count": 5,
+            "results": [
+              {
+                "summary": "Artificial Intelligence is the field of computer science focused on creating systems capable of performing tasks that typically require human intelligence, such as learning, reasoning, and perception."
+              },
+              {
+                "summary": "Blockchain is a decentralized, immutable digital ledger that records transactions across a network of computers in a way that makes them secure, transparent, and nearly impossible to alter."
+              },
+              {
+                "summary": "Quantum computing is a type of computing that uses the principles of quantum mechanics—such as superposition and entanglement—to process information in ways fundamentally different from classical computers, potentially solving certain complex problems much faster."
+              },
+              {
+                "summary": "Cybersecurity is the practice of protecting systems, networks, and data from digital attacks, damage, or unauthorized access."
+              },
+              {
+                "summary": "Cloud computing is the on-demand delivery of computing services—like servers, storage, databases, networking, software, and analytics—over the internet (\"the cloud\") on a pay-as-you-go basis."
+              }
+            ]
+          },
+          "timestamp": 1776178212573
+        }
+      ],
+      "create_items": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "items": [
+              "Artificial Intelligence",
+              "Blockchain",
+              "Quantum Computing",
+              "Cybersecurity",
+              "Cloud Computing"
+            ]
+          },
+          "timestamp": 1776178207077
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776178207073
+        }
+      ]
+    },
+    "output": {
+      "count": 5,
+      "results": [
+        {
+          "summary": "Artificial Intelligence is the field of computer science focused on creating systems capable of performing tasks that typically require human intelligence, such as learning, reasoning, and perception."
+        },
+        {
+          "summary": "Blockchain is a decentralized, immutable digital ledger that records transactions across a network of computers in a way that makes them secure, transparent, and nearly impossible to alter."
+        },
+        {
+          "summary": "Quantum computing is a type of computing that uses the principles of quantum mechanics—such as superposition and entanglement—to process information in ways fundamentally different from classical computers, potentially solving certain complex problems much faster."
+        },
+        {
+          "summary": "Cybersecurity is the practice of protecting systems, networks, and data from digital attacks, damage, or unauthorized access."
+        },
+        {
+          "summary": "Cloud computing is the on-demand delivery of computing services—like servers, storage, databases, networking, software, and analytics—over the internet (\"the cloud\") on a pay-as-you-go basis."
+        }
+      ]
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 5499,
+      "per_node": {
+        "process_each": 5495,
+        "start": 0,
+        "response": 0,
+        "create_items": 3
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 68,
+      "total_output_tokens": 167,
+      "per_node": {
+        "process_each": [
+          68,
+          167
+        ]
+      }
+    }
+  }
+}

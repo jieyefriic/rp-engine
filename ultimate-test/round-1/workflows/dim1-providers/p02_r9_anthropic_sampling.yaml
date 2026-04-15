@@ -1,0 +1,34 @@
+version: "1.0"
+name: "P02_R9 Anthropic Temperature Sampling"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen
+    type: generate
+    config:
+      provider: anthropic
+      model: claude-haiku-4-5-20251001
+      template: tpl_sampling
+      variables:
+        query: "start.query"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen.output"
+
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl_sampling:
+    user_prompt: "Write a creative one-sentence story about {{query}}"
+    config:
+      temperature: 0.9
+      max_tokens: 100

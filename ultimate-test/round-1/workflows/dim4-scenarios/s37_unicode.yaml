@@ -1,0 +1,67 @@
+version: "1.0"
+name: "S37 Unicode and Special Characters"
+description: "Test processing of CJK characters, emojis, and special symbols through the pipeline"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: process
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl_process
+      variables:
+        text: "start.text"
+
+  - id: verify
+    type: transform
+    config:
+      script: |
+        let output = processed;
+        let input = original;
+        let has_content = output.len() > 0;
+        let input_len = input.len();
+        let output_len = output.len();
+        #{
+          "input_length": input_len,
+          "output_length": output_len,
+          "has_content": has_content,
+          "processed_text": output
+        }
+      variables:
+        processed: "process.output"
+        original: "start.text"
+
+  - id: response
+    type: response
+    config:
+      output:
+        original_input: "start.text"
+        processed_output: "process.output"
+        input_length: "verify.input_length"
+        output_length: "verify.output_length"
+        has_content: "verify.has_content"
+
+edges:
+  - from: start
+    to: process
+  - from: process
+    to: verify
+  - from: verify
+    to: response
+
+templates:
+  tpl_process:
+    system_prompt: "You are a multilingual assistant. Always preserve and include non-ASCII characters in your responses."
+    user_prompt: |
+      Process and respond to the following multilingual text. Your response MUST include
+      characters from each language/script present in the input.
+
+      Input: {{text}}
+
+      Acknowledge each script/language you see, and include example characters from each in your response.
+    config:
+      temperature: 0.3
+      max_tokens: 300

@@ -1,0 +1,117 @@
+version: "1.0"
+name: "S14 Debate Simulator"
+description: "Simulate a debate with pro/con arguments and a judge, looping until resolved"
+
+nodes:
+- id: start
+  type: start
+
+- id: pro_argument
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: tpl_pro
+    variables:
+      topic: "start.topic"
+      previous_pro: "pro_argument[*].output"
+      previous_con: "con_argument[*].output"
+
+- id: con_argument
+  type: generate
+  config:
+    provider: qwen
+    model: qwen-flash
+    template: tpl_con
+    variables:
+      topic: "start.topic"
+      previous_pro: "pro_argument[*].output"
+      previous_con: "con_argument[*].output"
+      latest_pro: "pro_argument.output"
+
+- id: judge_progress
+  type: generate
+  config:
+    provider: openai
+    model: gpt-4o-mini
+    template: tpl_judge
+    variables:
+      topic: "start.topic"
+      all_pro: "pro_argument[*].output"
+      all_con: "con_argument[*].output"
+- id: response
+  type: response
+  config:
+    output:
+      all_pro_arguments: "pro_argument[*].output"
+      all_con_arguments: "con_argument[*].output"
+      verdict: "judge_progress.verdict"
+      is_resolved: "judge_progress.is_resolved"
+
+edges:
+- from: start
+  to: pro_argument
+- from: pro_argument
+  to: con_argument
+- from: con_argument
+  to: judge_progress
+- from: judge_progress
+  to: pro_argument
+  condition: judge_progress.is_resolved == false
+  max_iterations: 2
+- from: judge_progress
+  to: response
+  condition: judge_progress.is_resolved == true
+- from: judge_progress
+  to: response
+  is_default: true
+
+templates:
+  tpl_pro:
+    system_prompt: "You are a skilled debater arguing FOR the given position. Be persuasive and use evidence."
+    user_prompt: |
+      Debate topic: {{topic}}
+
+      Previous pro arguments: {{previous_pro}}
+      Previous con arguments: {{previous_con}}
+
+      Present your next argument FOR this position. Be concise (2-3 sentences). Build on or counter previous arguments if they exist.
+    config:
+      temperature: 0.7
+      max_tokens: 250
+
+  tpl_con:
+    system_prompt: "You are a skilled debater arguing AGAINST the given position. Be persuasive and use evidence."
+    user_prompt: |
+      Debate topic: {{topic}}
+
+      Previous pro arguments: {{previous_pro}}
+      Previous con arguments: {{previous_con}}
+      Latest pro argument: {{latest_pro}}
+
+      Present your next argument AGAINST this position. Be concise (2-3 sentences). Directly counter the latest pro argument.
+    config:
+      temperature: 0.7
+      max_tokens: 250
+
+  tpl_judge:
+    system_prompt: "You are an impartial debate judge. Evaluate the arguments presented by both sides."
+    user_prompt: |
+      Debate topic: {{topic}}
+
+      Pro arguments: {{all_pro}}
+      Con arguments: {{all_con}}
+
+      Evaluate the debate so far. Provide a verdict on which side is more compelling and whether the debate has reached a natural conclusion.
+      After 2 rounds, set is_resolved to true.
+    config:
+      temperature: 0.3
+      max_tokens: 300
+    output_schema:
+    - name: verdict
+      type: string
+      example: "The pro side has stronger empirical evidence"
+    - name: is_resolved
+      type: boolean
+      example: "false"
+

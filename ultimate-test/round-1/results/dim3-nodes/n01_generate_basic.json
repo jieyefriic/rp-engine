@@ -1,0 +1,84 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n01_generate_basic.yaml",
+    "elapsed_ms": 4048,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "Explain recursion in programming in 2 sentences."
+          },
+          "timestamp": 1776178070090
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_usage": {
+              "provider": "deepseek",
+              "model": "deepseek-chat",
+              "input_tokens": 13,
+              "output_tokens": 40
+            },
+            "output": "Recursion is a technique where a function solves a problem by calling itself on a smaller subproblem. It requires a base case to stop the calls and a recursive step that progresses toward that base case.",
+            "_actual_user_prompt": "Explain recursion in programming in 2 sentences.",
+            "_prompt": "Explain recursion in programming in 2 sentences."
+          },
+          "timestamp": 1776178074135
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "Recursion is a technique where a function solves a problem by calling itself on a smaller subproblem. It requires a base case to stop the calls and a recursive step that progresses toward that base case."
+          },
+          "timestamp": 1776178074135
+        }
+      ]
+    },
+    "output": {
+      "answer": "Recursion is a technique where a function solves a problem by calling itself on a smaller subproblem. It requires a base case to stop the calls and a recursive step that progresses toward that base case."
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 4045,
+      "per_node": {
+        "gen": 4045,
+        "start": 0,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 13,
+      "total_output_tokens": 40,
+      "per_node": {
+        "gen": [
+          13,
+          40
+        ]
+      }
+    }
+  }
+}

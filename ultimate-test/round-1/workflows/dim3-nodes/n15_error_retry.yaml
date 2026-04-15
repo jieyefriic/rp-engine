@@ -1,0 +1,38 @@
+version: "1.0"
+name: "N15 Error Handling - Retry + Continue"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen_flaky
+    type: generate
+    config:
+      provider: deepseek
+      model: nonexistent-model-xyz-404
+      template: tpl
+      variables:
+        query: "start.query"
+      error_handling:
+        retry: 2
+        retry_delay_ms: 500
+        on_exhausted: continue
+
+  - id: response
+    type: response
+    config:
+      output:
+        had_error: "gen_flaky._error"
+        error_message: "gen_flaky._error_message"
+
+edges:
+  - from: start
+    to: gen_flaky
+  - from: gen_flaky
+    to: response
+
+templates:
+  tpl:
+    user_prompt: "{{query}}"
+    config:
+      max_tokens: 100

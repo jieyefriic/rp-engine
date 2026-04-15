@@ -1,0 +1,85 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p06_r2_qwen_sysprompt.yaml",
+    "elapsed_ms": 5285,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "To find the **square root of 144**, we want to determine a number that, when multiplied by itself, equals 144.\n\nLet’s try some numbers:\n\n- $ 10 \\times 10 = 100 $\n- $ 11 \\times 11 = 121 $\n- $ 12 \\times 12 = 144 $\n\nYes!  \n$$\n12 \\times 12 = 144\n$$\n\nSo, the square root of 144 is:\n\n$$\n\\sqrt{144} = 12\n$$\n\n✅ Final Answer: **12**"
+          },
+          "timestamp": 1776176947708
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "What is the square root of 144?"
+          },
+          "timestamp": 1776176942425
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "output": "To find the **square root of 144**, we want to determine a number that, when multiplied by itself, equals 144.\n\nLet’s try some numbers:\n\n- $ 10 \\times 10 = 100 $\n- $ 11 \\times 11 = 121 $\n- $ 12 \\times 12 = 144 $\n\nYes!  \n$$\n12 \\times 12 = 144\n$$\n\nSo, the square root of 144 is:\n\n$$\n\\sqrt{144} = 12\n$$\n\n✅ Final Answer: **12**",
+            "_actual_user_prompt": "What is the square root of 144?",
+            "_usage": {
+              "provider": "qwen",
+              "model": "qwen-flash",
+              "input_tokens": 37,
+              "output_tokens": 141
+            },
+            "_prompt": "What is the square root of 144?",
+            "_actual_system_prompt": "You are a helpful math tutor. Always explain step by step."
+          },
+          "timestamp": 1776176947708
+        }
+      ]
+    },
+    "output": {
+      "answer": "To find the **square root of 144**, we want to determine a number that, when multiplied by itself, equals 144.\n\nLet’s try some numbers:\n\n- $ 10 \\times 10 = 100 $\n- $ 11 \\times 11 = 121 $\n- $ 12 \\times 12 = 144 $\n\nYes!  \n$$\n12 \\times 12 = 144\n$$\n\nSo, the square root of 144 is:\n\n$$\n\\sqrt{144} = 12\n$$\n\n✅ Final Answer: **12**"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 5283,
+      "per_node": {
+        "response": 0,
+        "start": 0,
+        "gen": 5282
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 37,
+      "total_output_tokens": 141,
+      "per_node": {
+        "gen": [
+          37,
+          141
+        ]
+      }
+    }
+  }
+}

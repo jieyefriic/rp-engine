@@ -1,0 +1,40 @@
+version: "1.0"
+name: "S30 Persistent Memory (Harness)"
+
+harness:
+  instructions: |
+    You are a helpful assistant with memory.
+    Always reference your instructions when answering.
+    Sign off with "— MemoryBot"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen
+    type: generate
+    config:
+      provider: deepseek
+      model: deepseek-chat
+      template: tpl
+      variables:
+        query: "start.query"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen.output"
+
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl:
+    user_prompt: "{{query}}"
+    config:
+      temperature: 0.5
+      max_tokens: 300

@@ -1,0 +1,111 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim4-scenarios/s07_redis_cache.yaml",
+    "elapsed_ms": 3607,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "compute": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "_usage": {
+              "provider": "qwen",
+              "model": "qwen-flash",
+              "input_tokens": 20,
+              "output_tokens": 60
+            },
+            "output": "Quantum computing is a type of computing that uses quantum-mechanical phenomena, such as superposition and entanglement, to perform operations on data. Unlike classical computers that use bits, quantum computers use qubits, which can represent multiple states simultaneously, enabling potentially exponential speedups for certain problems.",
+            "_prompt": "Write a concise 2-sentence summary of: quantum computing",
+            "_actual_user_prompt": "Write a concise 2-sentence summary of: quantum computing"
+          },
+          "timestamp": 1776178937070
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "topic": "quantum computing"
+          },
+          "timestamp": 1776178933470
+        }
+      ],
+      "response": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "cache_hit": false,
+            "cached_value": null,
+            "computed_value": "Quantum computing is a type of computing that uses quantum-mechanical phenomena, such as superposition and entanglement, to perform operations on data. Unlike classical computers that use bits, quantum computers use qubits, which can represent multiple states simultaneously, enabling potentially exponential speedups for certain problems."
+          },
+          "timestamp": 1776178937074
+        }
+      ],
+      "cache_store": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "ok": true
+          },
+          "timestamp": 1776178937074
+        }
+      ],
+      "cache_check": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "value": null,
+            "exists": false
+          },
+          "timestamp": 1776178933476
+        }
+      ]
+    },
+    "output": {
+      "cache_hit": false,
+      "cached_value": null,
+      "computed_value": "Quantum computing is a type of computing that uses quantum-mechanical phenomena, such as superposition and entanglement, to perform operations on data. Unlike classical computers that use bits, quantum computers use qubits, which can represent multiple states simultaneously, enabling potentially exponential speedups for certain problems."
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 3604,
+      "per_node": {
+        "cache_check": 6,
+        "start": 0,
+        "cache_store": 3,
+        "response": 0,
+        "compute": 3593
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 20,
+      "total_output_tokens": 60,
+      "per_node": {
+        "compute": [
+          20,
+          60
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p07_r5_zhipu_tools.yaml",
+    "elapsed_ms": 42316,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "What is the weather in Tokyo?"
+          },
+          "timestamp": 1776177284648
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "output": "I apologize, but it seems the weather function returned general tourist information about Tokyo rather than current weather conditions. The response provided details about Tokyo's neighborhoods, attractions, food scene, and practical travel tips, but didn't include any actual weather data like temperature, humidity, or current conditions.\n\nUnfortunately, I don't have access to real-time weather information for Tokyo right now. For current weather conditions, I'd recommend checking a dedicated weather service like:\n- Weather.com\n- AccuWeather\n- Your phone's built-in weather app\n- Local Japanese weather services\n\nIs there anything else about Tokyo you'd like to know, or would you like me to try getting weather information for a different city?",
+            "_prompt": "What's the weather like in Tokyo right now?",
+            "_usage": {
+              "provider": "zhipu",
+              "model": "glm-4.7",
+              "input_tokens": 1263,
+              "output_tokens": 2072
+            },
+            "_actual_user_prompt": "What's the weather like in Tokyo right now?"
+          },
+          "timestamp": 1776177326962
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "I apologize, but it seems the weather function returned general tourist information about Tokyo rather than current weather conditions. The response provided details about Tokyo's neighborhoods, attractions, food scene, and practical travel tips, but didn't include any actual weather data like temperature, humidity, or current conditions.\n\nUnfortunately, I don't have access to real-time weather information for Tokyo right now. For current weather conditions, I'd recommend checking a dedicated weather service like:\n- Weather.com\n- AccuWeather\n- Your phone's built-in weather app\n- Local Japanese weather services\n\nIs there anything else about Tokyo you'd like to know, or would you like me to try getting weather information for a different city?"
+          },
+          "timestamp": 1776177326962
+        }
+      ]
+    },
+    "output": {
+      "answer": "I apologize, but it seems the weather function returned general tourist information about Tokyo rather than current weather conditions. The response provided details about Tokyo's neighborhoods, attractions, food scene, and practical travel tips, but didn't include any actual weather data like temperature, humidity, or current conditions.\n\nUnfortunately, I don't have access to real-time weather information for Tokyo right now. For current weather conditions, I'd recommend checking a dedicated weather service like:\n- Weather.com\n- AccuWeather\n- Your phone's built-in weather app\n- Local Japanese weather services\n\nIs there anything else about Tokyo you'd like to know, or would you like me to try getting weather information for a different city?"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 42314,
+      "per_node": {
+        "gen": 42313,
+        "start": 0,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 1263,
+      "total_output_tokens": 2072,
+      "per_node": {
+        "gen": [
+          1263,
+          2072
+        ]
+      }
+    }
+  }
+}

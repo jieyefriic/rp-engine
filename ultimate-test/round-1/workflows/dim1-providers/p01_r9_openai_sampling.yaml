@@ -1,0 +1,35 @@
+version: "1.0"
+name: "P01_R9 OpenAI Temperature/TopP Sampling"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen
+    type: generate
+    config:
+      provider: openai
+      model: gpt-4o-mini
+      template: tpl_sampling
+      variables:
+        query: "start.query"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen.output"
+
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl_sampling:
+    user_prompt: "Write a creative one-sentence story about {{query}}"
+    config:
+      temperature: 1.5
+      top_p: 0.9
+      max_tokens: 100

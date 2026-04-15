@@ -1,0 +1,34 @@
+version: "1.0"
+name: "P01_R10 OpenAI Max Tokens Constraint"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen
+    type: generate
+    config:
+      provider: openai
+      model: gpt-4o-mini
+      template: tpl_maxtokens
+      variables:
+        query: "start.query"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen.output"
+
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl_maxtokens:
+    user_prompt: "Explain quantum computing in detail: {{query}}"
+    config:
+      max_tokens: 20
+      temperature: 0.3

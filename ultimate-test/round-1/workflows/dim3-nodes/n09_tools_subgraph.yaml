@@ -1,0 +1,86 @@
+version: "1.0"
+name: "N09 Tool Calling with Subgraph"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: agent
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-plus
+      template: tpl_agent
+      variables:
+        query: "start.query"
+      tools:
+        - name: calculate
+          description: "Calculate the result of a mathematical expression"
+          ref: sg_calculate
+          parameters:
+            type: object
+            properties:
+              expression:
+                type: string
+                description: "The mathematical expression to evaluate"
+            required:
+              - expression
+      max_tool_rounds: 3
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "agent.output"
+
+edges:
+  - from: start
+    to: agent
+  - from: agent
+    to: response
+
+subgraphs:
+  sg_calculate:
+    nodes:
+      - id: start
+        type: start
+
+      - id: calc
+        type: transform
+        config:
+          script: |
+            let expr = expression;
+            let result = if expr == "15 * 7 + 23" {
+              128
+            } else if expr == "15*7+23" {
+              128
+            } else {
+              "unknown expression: " + expr
+            };
+            #{
+              "result": result,
+              "expression": expr
+            }
+          variables:
+            expression: "start.expression"
+
+      - id: response
+        type: response
+        config:
+          output:
+            result: "calc.result"
+            expression: "calc.expression"
+
+    edges:
+      - from: start
+        to: calc
+      - from: calc
+        to: response
+
+templates:
+  tpl_agent:
+    user_prompt: "{{query}}"
+    system_prompt: "You are a helpful assistant. Use the calculate tool to solve math problems. Always use the tool rather than computing in your head."
+    config:
+      temperature: 0.3
+      max_tokens: 300
