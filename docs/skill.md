@@ -2841,6 +2841,8 @@ edges:
 
 > **Tip:** When designing error-fallback workflows, use the **multiple sources** variable binding pattern (as shown with `data:` above) to seamlessly read from whichever node succeeded. The response/downstream node uses `["primary.field", "fallback.field"]` so it picks up whichever path produced output.
 
+> **How on_error routing works:** When a node fails (with `on_error edges` present), the engine marks normal outgoing edges from that node as dead and activates the `on_error: true` edge instead. The fallback node executes, and downstream nodes (like `response`) wait for the fallback to complete before running. The `response` node can read outputs from both the failed node (`primary._error`, `primary._error_message`) and the fallback node (`fallback.output`). Both paths write to state and are accessible.
+
 ### Supervisor Exit Edges
 
 ```yaml
@@ -3025,11 +3027,35 @@ output_schema:
             type: number
 ```
 
-When `output_schema` is present, the engine:
+When `output_schema` is present **on the template**, the engine:
 1. Sends `response_format: json_object` to providers that support it
 2. Appends an example JSON structure to the user prompt
 3. Parses the response with robust extraction (handles markdown fences, prose wrapping, brace matching)
 4. Maps schema fields to node outputs with type-appropriate defaults for missing fields
+
+> **Important:** `output_schema` must be defined on the **template**, not under the generate node's `config` block. The `NodeConfig` struct does not have an `output_schema` field — if placed under `config`, it will be silently ignored by the YAML parser and the LLM will return unstructured text.
+>
+> ```yaml
+> # WRONG — output_schema under node config (silently ignored):
+> nodes:
+>   - id: gen
+>     type: generate
+>     config:
+>       template: my_tpl
+>       output_schema:        # ← IGNORED! NodeConfig drops unknown fields
+>         - name: title
+>           type: string
+>
+> # CORRECT — output_schema on the template:
+> templates:
+>   my_tpl:
+>     user_prompt: "Analyze: {{topic}}"
+>     output_schema:          # ← Works! Template has this field
+>       - name: title
+>         type: string
+>     config:
+>       temperature: 0.5
+> ```
 
 > **Reliability note:** Output schema works best with providers that have native JSON mode (`openai`, `gemini`, `qwen`, `anthropic`). Providers without native JSON mode (e.g., `huoshan` doubao models) rely on prompt-based JSON instruction + regex extraction, which may fail if the LLM returns pure prose. When JSON parsing fails, schema fields receive typed defaults (`""` for string, `0` for number, `false` for boolean, `[]` for arrays) and the raw LLM text is available as `gen.output`. Always test structured output with your specific provider/model combination. For multi-step workflows that depend on schema fields, consider adding fallback logic via transform nodes.
 
