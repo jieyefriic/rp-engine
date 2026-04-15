@@ -147,8 +147,8 @@
       "allowBothTempAndTopP": true
     },
     "models": [
-      { "id": "kimi-k2.5", "name": "Kimi K2.5", "modelType": "chat", "contextWindow": 256000, "maxTokens": 16000, "inputPrice": 0.56, "outputPrice": 2.92, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "modelNote": "多模态模型，支持图像/视频/文本。可选思考模式（通过 reasoning_content 返回）。阿里云百炼价格：¥4/M 输入，¥21/M 输出", "badge": "New" },
-      { "id": "kimi-k2-thinking", "name": "Kimi K2 Thinking", "modelType": "chat", "contextWindow": 256000, "maxTokens": 16000, "inputPrice": 0.56, "outputPrice": 2.22, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": false, "modelNote": "深度思考模型，不能关闭思考。思考内容通过 reasoning_content 返回" }
+      { "id": "kimi-k2.5", "name": "Kimi K2.5", "modelType": "chat", "contextWindow": 256000, "maxTokens": 16000, "inputPrice": 0.56, "outputPrice": 2.92, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "samplingOverride": { "maxTemperature": 1 }, "modelNote": "多模态模型。Temperature 固定为 1。可选思考模式（通过 reasoning_content 返回）", "badge": "New" },
+      { "id": "kimi-k2-thinking", "name": "Kimi K2 Thinking", "modelType": "chat", "contextWindow": 256000, "maxTokens": 16000, "inputPrice": 0.56, "outputPrice": 2.22, "thinking": "builtin", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": false, "samplingOverride": { "maxTemperature": 1 }, "modelNote": "深度思考模型。Temperature 固定为 1" }
     ]
   },
   {

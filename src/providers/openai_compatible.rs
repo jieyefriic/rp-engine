@@ -204,7 +204,6 @@ impl LLMProvider for OpenAICompatibleProvider {
         );
 
         let body = self.build_request_body(&messages, &options, false);
-        eprintln!("[DEBUG {}] body = {}", self.provider_name, serde_json::to_string(&body).unwrap_or_default());
 
         let response = self.client
             .post(&self.base_url)
