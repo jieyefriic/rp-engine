@@ -2,80 +2,72 @@ version: "1.0"
 name: "S13 Customer Support Router"
 
 nodes:
-  - id: start
-    type: start
+- id: start
+  type: start
 
-  - id: classify
-    type: generate
-    config:
-      provider: openai
-      model: gpt-4o-mini
-      template: tpl_classify
-      variables:
-        message: "start.message"
-      output_schema:
-        - name: intent
-          type: string
-          example: "billing"
-        - name: urgency
-          type: string
-          example: "medium"
+- id: classify
+  type: generate
+  config:
+    provider: openai
+    model: gpt-4o-mini
+    template: tpl_classify
+    variables:
+      message: "start.message"
+- id: billing_handler
+  type: generate
+  config:
+    provider: anthropic
+    model: claude-haiku-4-5-20251001
+    template: tpl_billing
+    variables:
+      message: "start.message"
 
-  - id: billing_handler
-    type: generate
-    config:
-      provider: anthropic
-      model: claude-haiku-4-5-20251001
-      template: tpl_billing
-      variables:
-        message: "start.message"
+- id: tech_handler
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: tpl_tech
+    variables:
+      message: "start.message"
 
-  - id: tech_handler
-    type: generate
-    config:
-      provider: deepseek
-      model: deepseek-chat
-      template: tpl_tech
-      variables:
-        message: "start.message"
+- id: general_handler
+  type: generate
+  config:
+    provider: qwen
+    model: qwen-flash
+    template: tpl_general
+    variables:
+      message: "start.message"
 
-  - id: general_handler
-    type: generate
-    config:
-      provider: qwen
-      model: qwen-flash
-      template: tpl_general
-      variables:
-        message: "start.message"
-
-  - id: response
-    type: response
-    config:
-      output:
-        intent: "classify.intent"
-        urgency: "classify.urgency"
-        billing_response: "billing_handler.output"
-        tech_response: "tech_handler.output"
-        general_response: "general_handler.output"
+- id: response
+  type: response
+  config:
+    output:
+      intent: "classify.intent"
+      urgency: "classify.urgency"
+      billing_response: "billing_handler.output"
+      tech_response: "tech_handler.output"
+      general_response: "general_handler.output"
 
 edges:
-  - from: start
-    to: classify
-  - from: classify
-    to: billing_handler
-    condition: classify.intent == 'billing'
-  - from: classify
-    to: tech_handler
-    condition: classify.intent == 'technical'
-  - from: classify
-    to: general_handler
-    is_default: true
-  - from: billing_handler
-    to: response
-  - from: tech_handler
-    to: response
-  - from: general_handler
-    to: response
+- from: start
+  to: classify
+- from: classify
+  to: billing_handler
+  condition: classify.intent == 'billing'
+- from: classify
+  to: tech_handler
+  condition: classify.intent == 'technical'
+- from: classify
+  to: general_handler
+  is_default: true
+- from: billing_handler
+  to: response
+- from: tech_handler
+  to: response
+- from: general_handler
+  to: response
 
 templates:
   tpl_classify:
@@ -84,6 +76,14 @@ templates:
     config:
       temperature: 0.1
       max_tokens: 100
+
+    output_schema:
+    - name: intent
+      type: string
+      example: "billing"
+    - name: urgency
+      type: string
+      example: "medium"
 
   tpl_billing:
     system_prompt: "You are a billing support specialist. Be helpful and precise about charges."

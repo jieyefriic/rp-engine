@@ -787,6 +787,17 @@ pub async fn execute_workflow(
 
     timing.total_ms = start_time.elapsed().as_millis() as u64;
 
+    // Warn if workflow completed but produced no output (response node likely didn't execute)
+    if final_output.is_empty() && !pending_nodes.is_empty() {
+        warn!(
+            workflow = %workflow.name,
+            pending_nodes = ?pending_nodes,
+            executed_nodes = executed.len(),
+            "Workflow completed with empty output — response node may not have executed. \
+             Check edge conditions and node wiring."
+        );
+    }
+
     info!(
         workflow = %workflow.name,
         total_ms = timing.total_ms,

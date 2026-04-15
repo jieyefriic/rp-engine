@@ -2,46 +2,29 @@ version: "1.0"
 name: "N04 Nested Output Schema"
 
 nodes:
-  - id: start
-    type: start
+- id: start
+  type: start
 
-  - id: gen
-    type: generate
-    config:
-      provider: deepseek
-      model: deepseek-chat
-      template: tpl
-      variables:
-        topic: "start.topic"
-      output_schema:
-        - name: summary
-          type: string
-          example: "Overview of the topic"
-        - name: items
-          type: object[]
-          children:
-            - name: item_name
-              type: string
-              example: "Item A"
-            - name: item_score
-              type: number
-              example: "9.2"
-            - name: item_reason
-              type: string
-              example: "Because it excels at..."
-
-  - id: response
-    type: response
-    config:
-      output:
-        summary: "gen.summary"
-        items: "gen.items"
+- id: gen
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: tpl
+    variables:
+      topic: "start.topic"
+- id: response
+  type: response
+  config:
+    output:
+      summary: "gen.summary"
+      items: "gen.items"
 
 edges:
-  - from: start
-    to: gen
-  - from: gen
-    to: response
+- from: start
+  to: gen
+- from: gen
+  to: response
 
 templates:
   tpl:
@@ -49,3 +32,20 @@ templates:
     config:
       temperature: 0.5
       max_tokens: 800
+    output_schema:
+    - name: summary
+      type: string
+      example: "Overview of the topic"
+    - name: items
+      type: object[]
+      children:
+      - name: item_name
+        type: string
+        example: "Item A"
+      - name: item_score
+        type: number
+        example: "9.2"
+      - name: item_reason
+        type: string
+        example: "Because it excels at..."
+

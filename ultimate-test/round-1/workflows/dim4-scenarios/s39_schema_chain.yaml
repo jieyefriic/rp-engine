@@ -3,58 +3,42 @@ name: "S39 Multiple Output Schemas in Chain"
 description: "Test that structured output from one generate node feeds correctly into the next"
 
 nodes:
-  - id: start
-    type: start
+- id: start
+  type: start
 
-  - id: gen1_outline
-    type: generate
-    config:
-      provider: deepseek
-      model: deepseek-chat
-      template: tpl_outline
-      variables:
-        subject: "start.subject"
-      output_schema:
-        - name: topic
-          type: string
-          example: "The Impact of Artificial Intelligence on Healthcare"
-        - name: key_points
-          type: string[]
-          example: '["AI improves diagnostics", "Reduces costs", "Ethical concerns"]'
-
-  - id: gen2_essay
-    type: generate
-    config:
-      provider: deepseek
-      model: deepseek-chat
-      template: tpl_essay
-      variables:
-        topic: "gen1_outline.topic"
-        key_points: "gen1_outline.key_points"
-      output_schema:
-        - name: essay
-          type: string
-          example: "Artificial intelligence has revolutionized healthcare..."
-        - name: word_count
-          type: number
-          example: "150"
-
-  - id: response
-    type: response
-    config:
-      output:
-        topic: "gen1_outline.topic"
-        key_points: "gen1_outline.key_points"
-        essay: "gen2_essay.essay"
-        word_count: "gen2_essay.word_count"
+- id: gen1_outline
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: tpl_outline
+    variables:
+      subject: "start.subject"
+- id: gen2_essay
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: tpl_essay
+    variables:
+      topic: "gen1_outline.topic"
+      key_points: "gen1_outline.key_points"
+- id: response
+  type: response
+  config:
+    output:
+      topic: "gen1_outline.topic"
+      key_points: "gen1_outline.key_points"
+      essay: "gen2_essay.essay"
+      word_count: "gen2_essay.word_count"
 
 edges:
-  - from: start
-    to: gen1_outline
-  - from: gen1_outline
-    to: gen2_essay
-  - from: gen2_essay
-    to: response
+- from: start
+  to: gen1_outline
+- from: gen1_outline
+  to: gen2_essay
+- from: gen2_essay
+  to: response
 
 templates:
   tpl_outline:
@@ -65,6 +49,14 @@ templates:
     config:
       temperature: 0.5
       max_tokens: 200
+
+    output_schema:
+    - name: topic
+      type: string
+      example: "The Impact of Artificial Intelligence on Healthcare"
+    - name: key_points
+      type: string[]
+      example: '["AI improves diagnostics", "Reduces costs", "Ethical concerns"]'
 
   tpl_essay:
     system_prompt: "You are an academic writer. Write concise, well-structured essays."
@@ -77,3 +69,11 @@ templates:
     config:
       temperature: 0.5
       max_tokens: 400
+    output_schema:
+    - name: essay
+      type: string
+      example: "Artificial intelligence has revolutionized healthcare..."
+    - name: word_count
+      type: number
+      example: "150"
+

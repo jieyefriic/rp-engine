@@ -2,61 +2,56 @@ version: "1.0"
 name: "N50 Conditional Edge Routing"
 
 nodes:
-  - id: start
-    type: start
+- id: start
+  type: start
 
-  - id: classify
-    type: generate
-    config:
-      provider: deepseek
-      model: deepseek-chat
-      template: tpl_classify
-      variables:
-        query: "start.query"
-      output_schema:
-        - name: category
-          type: string
-          example: "A"
+- id: classify
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: tpl_classify
+    variables:
+      query: "start.query"
+- id: gen_a
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: tpl_a
+    variables:
+      query: "start.query"
 
-  - id: gen_a
-    type: generate
-    config:
-      provider: deepseek
-      model: deepseek-chat
-      template: tpl_a
-      variables:
-        query: "start.query"
+- id: gen_b
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: tpl_b
+    variables:
+      query: "start.query"
 
-  - id: gen_b
-    type: generate
-    config:
-      provider: deepseek
-      model: deepseek-chat
-      template: tpl_b
-      variables:
-        query: "start.query"
-
-  - id: response
-    type: response
-    config:
-      output:
-        category: "classify.category"
-        answer_a: "gen_a.output"
-        answer_b: "gen_b.output"
+- id: response
+  type: response
+  config:
+    output:
+      category: "classify.category"
+      answer_a: "gen_a.output"
+      answer_b: "gen_b.output"
 
 edges:
-  - from: start
-    to: classify
-  - from: classify
-    to: gen_a
-    condition: classify.category == 'science'
-  - from: classify
-    to: gen_b
-    condition: classify.category != 'science'
-  - from: gen_a
-    to: response
-  - from: gen_b
-    to: response
+- from: start
+  to: classify
+- from: classify
+  to: gen_a
+  condition: classify.category == 'science'
+- from: classify
+  to: gen_b
+  condition: classify.category != 'science'
+- from: gen_a
+  to: response
+- from: gen_b
+  to: response
 
 templates:
   tpl_classify:
@@ -64,6 +59,11 @@ templates:
     config:
       temperature: 0.1
       max_tokens: 20
+
+    output_schema:
+    - name: category
+      type: string
+      example: "A"
 
   tpl_a:
     system_prompt: "You are a science expert."

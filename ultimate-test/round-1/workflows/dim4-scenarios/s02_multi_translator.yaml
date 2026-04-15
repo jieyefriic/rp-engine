@@ -2,94 +2,89 @@ version: "1.0"
 name: "S02 Multi-Language Translator"
 
 nodes:
-  - id: start
-    type: start
+- id: start
+  type: start
 
-  - id: detect_lang
-    type: generate
-    config:
-      provider: qwen
-      model: qwen-flash
-      template: tpl_detect
-      variables:
-        text: "start.text"
-      output_schema:
-        - name: source_language
-          type: string
-          example: "English"
+- id: detect_lang
+  type: generate
+  config:
+    provider: qwen
+    model: qwen-flash
+    template: tpl_detect
+    variables:
+      text: "start.text"
+- id: translate_zh
+  type: generate
+  config:
+    provider: qwen
+    model: qwen-flash
+    template: tpl_translate_zh
+    variables:
+      text: "start.text"
+      source_lang: "detect_lang.source_language"
 
-  - id: translate_zh
-    type: generate
-    config:
-      provider: qwen
-      model: qwen-flash
-      template: tpl_translate_zh
-      variables:
-        text: "start.text"
-        source_lang: "detect_lang.source_language"
+- id: translate_ja
+  type: generate
+  config:
+    provider: qwen
+    model: qwen-flash
+    template: tpl_translate_ja
+    variables:
+      text: "start.text"
+      source_lang: "detect_lang.source_language"
 
-  - id: translate_ja
-    type: generate
-    config:
-      provider: qwen
-      model: qwen-flash
-      template: tpl_translate_ja
-      variables:
-        text: "start.text"
-        source_lang: "detect_lang.source_language"
+- id: translate_fr
+  type: generate
+  config:
+    provider: qwen
+    model: qwen-flash
+    template: tpl_translate_fr
+    variables:
+      text: "start.text"
+      source_lang: "detect_lang.source_language"
 
-  - id: translate_fr
-    type: generate
-    config:
-      provider: qwen
-      model: qwen-flash
-      template: tpl_translate_fr
-      variables:
-        text: "start.text"
-        source_lang: "detect_lang.source_language"
-
-  - id: merge
-    type: transform
-    config:
-      script: |
-        #{
-          "source_language": source_lang,
-          "translations": #{
-            "chinese": zh,
-            "japanese": ja,
-            "french": fr
-          }
+- id: merge
+  type: transform
+  config:
+    script: |
+      #{
+        "source_language": source_lang,
+        "translations": #{
+          "chinese": zh,
+          "japanese": ja,
+          "french": fr
         }
-      variables:
-        source_lang: "detect_lang.source_language"
-        zh: "translate_zh.output"
-        ja: "translate_ja.output"
-        fr: "translate_fr.output"
+      }
+    variables:
+      source_lang: "detect_lang.source_language"
+      zh: "translate_zh.output"
+      ja: "translate_ja.output"
+      fr: "translate_fr.output"
 
-  - id: response
-    type: response
-    config:
-      output:
-        source_language: "merge.source_language"
-        translations: "merge.translations"
+- id: response
+  type: response
+  config:
+    output:
+      source_language: "merge.source_language"
+      translations: "merge.translations"
 
 edges:
-  - from: start
-    to: detect_lang
-  - from: detect_lang
-    to: translate_zh
-  - from: detect_lang
-    to: translate_ja
-  - from: detect_lang
-    to: translate_fr
-  - from: translate_zh
-    to: merge
-  - from: translate_ja
-    to: merge
-  - from: translate_fr
-    to: merge
-  - from: merge
-    to: response
+- from: start
+  to: detect_lang
+- from: detect_lang
+  to: translate_zh
+- from: detect_lang
+  to: translate_ja
+- from: detect_lang
+  to: translate_fr
+- from: translate_zh
+  to: merge
+- from: translate_ja
+  to: merge
+- from: translate_fr
+  to: merge
+- from: merge
+  to: response
 
 templates:
   tpl_detect:
@@ -97,6 +92,11 @@ templates:
     config:
       temperature: 0.1
       max_tokens: 50
+
+    output_schema:
+    - name: source_language
+      type: string
+      example: "English"
 
   tpl_translate_zh:
     user_prompt: "Translate the following {{source_lang}} text to Chinese (Simplified). Only output the translation:\n\n{{text}}"

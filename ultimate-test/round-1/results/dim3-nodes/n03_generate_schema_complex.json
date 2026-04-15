@@ -1,7 +1,7 @@
 {
   "_test_meta": {
     "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n03_generate_schema_complex.yaml",
-    "elapsed_ms": 21613,
+    "elapsed_ms": 7547,
     "providers_registered": [
       "openai",
       "anthropic",
@@ -19,22 +19,52 @@
   "result": {
     "status": "Success",
     "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "title": "Machine Learning: A Comprehensive Overview of AI's Core Discipline",
+            "tags": [
+              "artificial-intelligence",
+              "data-science",
+              "algorithms",
+              "automation",
+              "predictive-analytics"
+            ],
+            "details": "Machine learning is a transformative subfield of artificial intelligence focused on developing algorithms that enable computers to learn patterns and make decisions from data without explicit programming. It encompasses supervised learning (classification, regression), unsupervised learning (clustering, dimensionality reduction), and reinforcement learning. Key applications span healthcare diagnostics, financial forecasting, autonomous vehicles, natural language processing, and recommendation systems. The field faces challenges including data quality, model interpretability, ethical considerations, and computational requirements. Recent advancements in deep learning, transfer learning, and federated learning continue to expand its capabilities and societal impact.",
+            "is_valid": true,
+            "score": 9.2
+          },
+          "timestamp": 1776220359959
+        }
+      ],
       "gen": [
         {
           "short_id": "b",
           "execution_index": 0,
           "outputs": {
+            "score": 9.2,
+            "_prompt": "Analyze the following topic and provide a structured assessment: machine learning\n\nRespond in JSON format:\n{\n  \"title\": \"A descriptive title\",\n  \"score\": 8.5,\n  \"tags\": [\n    \"tag1\",\n    \"tag2\"\n  ],\n  \"is_valid\": true,\n  \"details\": \"Detailed explanation here\"\n}",
+            "details": "Machine learning is a transformative subfield of artificial intelligence focused on developing algorithms that enable computers to learn patterns and make decisions from data without explicit programming. It encompasses supervised learning (classification, regression), unsupervised learning (clustering, dimensionality reduction), and reinforcement learning. Key applications span healthcare diagnostics, financial forecasting, autonomous vehicles, natural language processing, and recommendation systems. The field faces challenges including data quality, model interpretability, ethical considerations, and computational requirements. Recent advancements in deep learning, transfer learning, and federated learning continue to expand its capabilities and societal impact.",
+            "title": "Machine Learning: A Comprehensive Overview of AI's Core Discipline",
+            "tags": [
+              "artificial-intelligence",
+              "data-science",
+              "algorithms",
+              "automation",
+              "predictive-analytics"
+            ],
+            "is_valid": true,
             "_usage": {
               "provider": "deepseek",
               "model": "deepseek-chat",
-              "input_tokens": 17,
-              "output_tokens": 500
+              "input_tokens": 96,
+              "output_tokens": 185
             },
-            "_prompt": "Analyze the following topic and provide a structured assessment: machine learning",
-            "output": "## **Structured Assessment: Machine Learning**\n\n### **1. Core Definition & Classification**\n**Machine Learning (ML)** is a subset of artificial intelligence (AI) focused on developing algorithms that enable computers to learn patterns from data and make predictions or decisions without explicit programming for each task.\n\n**Primary Paradigms:**\n- **Supervised Learning:** Models learn from labeled data (e.g., classification, regression).\n- **Unsupervised Learning:** Models identify patterns in unlabeled data (e.g., clustering, dimensionality reduction).\n- **Reinforcement Learning:** Agents learn through trial-and-error interactions with an environment to maximize rewards.\n- **Semi-supervised & Self-supervised Learning:** Hybrid approaches leveraging both labeled and unlabeled data.\n\n### **2. Key Technical Components**\n- **Data:** The foundational element; quality, quantity, and preprocessing critically impact outcomes.\n- **Algorithms:** Range from classical (linear regression, decision trees) to complex neural architectures (CNNs, transformers).\n- **Model Evaluation:** Metrics (accuracy, precision, F1-score, etc.) and validation techniques (cross-validation) to assess performance.\n- **Training & Optimization:** Use of loss functions, gradient descent, and regularization to improve generalization.\n\n### **3. Major Applications & Impact**\n- **Computer Vision:** Image recognition, medical imaging, autonomous vehicles.\n- **Natural Language Processing:** Translation, sentiment analysis, chatbots (e.g., GPT models).\n- **Scientific Research:** Drug discovery, climate modeling, genomics.\n- **Business & Industry:** Recommendation systems, fraud detection, predictive maintenance.\n- **Societal Systems:** Healthcare diagnostics, criminal justice risk assessment, financial forecasting.\n\n### **4. Strengths & Advantages**\n- **Automation & Efficiency:** Handles large-scale, repetitive analytical tasks beyond human capability.\n- **Pattern Recognition:** Identifies complex, non-linear relationships in high-dimensional data.\n- **Adaptability:** Models can be updated continuously with new data (e.g., online learning).\n- **Innovation Acceleration:** Enables new products and services (e.g., personalized medicine, smart assistants).\n\n### **5. Critical Challenges & Limitations**\n- **Data Dependency:** Requires large, representative datasets; prone to biases in training data.\n- **Interpretability:** \"Black-box\" models (e.g., deep neural networks) lack transparency, raising trust issues.\n- **Computational Costs:** Training state-of-the-art models demands significant energy and hardware resources.\n- **Overfitting & Generalization:**",
-            "_actual_user_prompt": "Analyze the following topic and provide a structured assessment: machine learning"
+            "_actual_user_prompt": "Analyze the following topic and provide a structured assessment: machine learning\n\nRespond in JSON format:\n{\n  \"title\": \"A descriptive title\",\n  \"score\": 8.5,\n  \"tags\": [\n    \"tag1\",\n    \"tag2\"\n  ],\n  \"is_valid\": true,\n  \"details\": \"Detailed explanation here\"\n}"
           },
-          "timestamp": 1776178099037
+          "timestamp": 1776220359959
         }
       ],
       "start": [
@@ -44,47 +74,39 @@
           "outputs": {
             "topic": "machine learning"
           },
-          "timestamp": 1776178077426
-        }
-      ],
-      "response": [
-        {
-          "short_id": "c",
-          "execution_index": 0,
-          "outputs": {
-            "score": null,
-            "is_valid": null,
-            "details": null,
-            "title": null,
-            "tags": null
-          },
-          "timestamp": 1776178099038
+          "timestamp": 1776220352414
         }
       ]
     },
     "output": {
-      "score": null,
-      "is_valid": null,
-      "details": null,
-      "title": null,
-      "tags": null
+      "title": "Machine Learning: A Comprehensive Overview of AI's Core Discipline",
+      "tags": [
+        "artificial-intelligence",
+        "data-science",
+        "algorithms",
+        "automation",
+        "predictive-analytics"
+      ],
+      "details": "Machine learning is a transformative subfield of artificial intelligence focused on developing algorithms that enable computers to learn patterns and make decisions from data without explicit programming. It encompasses supervised learning (classification, regression), unsupervised learning (clustering, dimensionality reduction), and reinforcement learning. Key applications span healthcare diagnostics, financial forecasting, autonomous vehicles, natural language processing, and recommendation systems. The field faces challenges including data quality, model interpretability, ethical considerations, and computational requirements. Recent advancements in deep learning, transfer learning, and federated learning continue to expand its capabilities and societal impact.",
+      "is_valid": true,
+      "score": 9.2
     },
     "error": null,
     "timing": {
-      "total_ms": 21611,
+      "total_ms": 7545,
       "per_node": {
         "start": 0,
-        "response": 0,
-        "gen": 21610
+        "gen": 7544,
+        "response": 0
       }
     },
     "token_usage": {
-      "total_input_tokens": 17,
-      "total_output_tokens": 500,
+      "total_input_tokens": 96,
+      "total_output_tokens": 185,
       "per_node": {
         "gen": [
-          17,
-          500
+          96,
+          185
         ]
       }
     }

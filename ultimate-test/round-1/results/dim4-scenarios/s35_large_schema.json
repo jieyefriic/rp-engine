@@ -1,7 +1,7 @@
 {
   "_test_meta": {
     "yaml_path": "ultimate-test/round-1/workflows/dim4-scenarios/s35_large_schema.yaml",
-    "elapsed_ms": 8848,
+    "elapsed_ms": 9482,
     "providers_registered": [
       "openai",
       "anthropic",
@@ -26,26 +26,7 @@
           "outputs": {
             "company": "Tesla"
           },
-          "timestamp": 1776179063847
-        }
-      ],
-      "response": [
-        {
-          "short_id": "c",
-          "execution_index": 0,
-          "outputs": {
-            "strengths": null,
-            "revenue_usd": null,
-            "company_name": null,
-            "competitors": null,
-            "employee_count": null,
-            "products": null,
-            "founded_year": null,
-            "weaknesses": null,
-            "industry": null,
-            "headquarters": null
-          },
-          "timestamp": 1776179072692
+          "timestamp": 1776219756709
         }
       ],
       "analyze_company": [
@@ -53,40 +34,59 @@
           "short_id": "b",
           "execution_index": 0,
           "outputs": {
+            "_actual_user_prompt": "Provide a comprehensive profile of Tesla.\nInclude the company name, industry, founding year, headquarters location,\napproximate annual revenue in USD, employee count, main products/services,\ntop competitors, key strengths, and notable weaknesses.\nBe factual and use approximate recent figures.\n",
             "_usage": {
               "provider": "openai",
               "model": "gpt-4o-mini",
               "input_tokens": 82,
               "output_tokens": 500
             },
-            "_actual_user_prompt": "Provide a comprehensive profile of Tesla.\nInclude the company name, industry, founding year, headquarters location,\napproximate annual revenue in USD, employee count, main products/services,\ntop competitors, key strengths, and notable weaknesses.\nBe factual and use approximate recent figures.\n",
-            "_prompt": "Provide a comprehensive profile of Tesla.\nInclude the company name, industry, founding year, headquarters location,\napproximate annual revenue in USD, employee count, main products/services,\ntop competitors, key strengths, and notable weaknesses.\nBe factual and use approximate recent figures.\n",
             "_actual_system_prompt": "You are a business analyst with deep knowledge of major companies worldwide. Provide accurate, factual information.",
-            "output": "### Tesla, Inc. Profile\n\n- **Company Name:** Tesla, Inc.\n- **Industry:** Automotive and Energy\n- **Founding Year:** 2003\n- **Headquarters Location:** Palo Alto, California, USA\n- **Approximate Annual Revenue:** As of 2022, Tesla reported approximately $81.5 billion in revenue. For 2023, estimates suggest revenue could be around $100 billion, but exact figures will depend on final reports.\n- **Employee Count:** As of 2023, Tesla employs approximately 127,000 people globally.\n  \n#### Main Products/Services:\n1. **Electric Vehicles (EVs):**\n   - Model S\n   - Model 3\n   - Model X\n   - Model Y\n   - Cybertruck (upcoming)\n   - Tesla Roadster (upcoming)\n\n2. **Energy Products:**\n   - Solar Roof\n   - Solar Panels\n   - Powerwall (home battery)\n   - Powerpack and Megapack (commercial energy storage solutions)\n\n3. **Software:**\n   - Autopilot and Full Self-Driving (FSD) capabilities\n   - Tesla App for vehicle management and energy products\n\n#### Top Competitors:\n- **Traditional Automakers:**\n  - Ford Motor Company\n  - General Motors (GM)\n  - Volkswagen AG\n  - BMW AG\n\n- **Electric Vehicle Startups:**\n  - Rivian\n  - Lucid Motors\n  - NIO Inc.\n  - BYD Company\n\n#### Key Strengths:\n- **Brand Recognition:** Tesla is synonymous with electric vehicles and is a leader in EV technology and innovation.\n- **Innovative Technology:** Strong focus on R&D, particularly in battery technology and autonomous driving.\n- **Vertical Integration:** Tesla manufactures many of its components in-house, which helps control costs and quality.\n- **Supercharger Network:** Extensive global network of fast-charging stations, enhancing the convenience of owning a Tesla.\n- **Sustainability Focus:** Strong commitment to renewable energy and sustainability, appealing to environmentally conscious consumers.\n\n#### Notable Weaknesses:\n- **Production Challenges:** Tesla has faced production delays and challenges in scaling manufacturing to meet demand.\n- **Quality Control Issues:** Reports of inconsistent build quality and reliability in some models.\n- **High Competition:** Increasing competition from both traditional automakers and new entrants in the EV market.\n- **Regulatory Scrutiny:** Facing scrutiny over safety and regulatory compliance, particularly regarding"
+            "output": "### Tesla, Inc. Profile\n\n- **Company Name**: Tesla, Inc.\n- **Industry**: Automotive, Energy\n- **Founding Year**: 2003\n- **Headquarters Location**: Palo Alto, California, USA\n- **Approximate Annual Revenue**: As of 2022, Tesla reported approximately $81.5 billion in revenue. For 2023, estimates suggest revenue could be around $100 billion, depending on production and sales growth.\n- **Employee Count**: As of late 2023, Tesla employs approximately 127,000 people globally.\n- **Main Products/Services**:\n  - Electric Vehicles (EVs): Models include Model S, Model 3, Model X, and Model Y.\n  - Energy Products: Solar panels, Solar Roof, and energy storage solutions like the Powerwall and Powerpack.\n  - Software: Autopilot and Full Self-Driving (FSD) software.\n  - Charging Infrastructure: Supercharger network for EVs.\n  \n- **Top Competitors**:\n  - General Motors (GM)\n  - Ford Motor Company\n  - Volkswagen Group\n  - Rivian Automotive\n  - Lucid Motors\n  - BYD (Build Your Dreams)\n\n- **Key Strengths**:\n  - **Brand Recognition**: Tesla is a leading name in the EV market, known for innovation and sustainability.\n  - **Technological Leadership**: Strong focus on battery technology and autonomous driving capabilities.\n  - **Vertical Integration**: Control over manufacturing processes, from battery production to vehicle assembly.\n  - **Supercharger Network**: Extensive and growing network of fast-charging stations, enhancing customer convenience.\n  - **Strong Market Position**: Leading sales in the EV segment, particularly in North America and Europe.\n\n- **Notable Weaknesses**:\n  - **Production Challenges**: Tesla has faced issues with scaling production to meet demand, leading to delivery delays.\n  - **Quality Control Issues**: Reports of inconsistent build quality and reliability concerns in some models.\n  - **High Competition**: Increasing competition from traditional automakers and new entrants in the EV space.\n  - **Regulatory Scrutiny**: Facing scrutiny over safety and regulatory compliance, particularly regarding its Autopilot system.\n  - **Market Volatility**: Stock price fluctuations and market perception can impact investor confidence and funding.\n\nThis profile provides a snapshot of Tesla as of late 2023, reflecting its position",
+            "_prompt": "Provide a comprehensive profile of Tesla.\nInclude the company name, industry, founding year, headquarters location,\napproximate annual revenue in USD, employee count, main products/services,\ntop competitors, key strengths, and notable weaknesses.\nBe factual and use approximate recent figures.\n"
           },
-          "timestamp": 1776179072691
+          "timestamp": 1776219766189
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "industry": null,
+            "competitors": null,
+            "weaknesses": null,
+            "founded_year": null,
+            "company_name": null,
+            "products": null,
+            "headquarters": null,
+            "revenue_usd": null,
+            "strengths": null,
+            "employee_count": null
+          },
+          "timestamp": 1776219766190
         }
       ]
     },
     "output": {
-      "strengths": null,
-      "revenue_usd": null,
-      "company_name": null,
-      "competitors": null,
-      "employee_count": null,
-      "products": null,
-      "founded_year": null,
-      "weaknesses": null,
       "industry": null,
-      "headquarters": null
+      "competitors": null,
+      "weaknesses": null,
+      "founded_year": null,
+      "company_name": null,
+      "products": null,
+      "headquarters": null,
+      "revenue_usd": null,
+      "strengths": null,
+      "employee_count": null
     },
     "error": null,
     "timing": {
-      "total_ms": 8845,
+      "total_ms": 9480,
       "per_node": {
-        "analyze_company": 8844,
-        "response": 0,
-        "start": 0
+        "start": 0,
+        "analyze_company": 9479,
+        "response": 0
       }
     },
     "token_usage": {

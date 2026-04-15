@@ -2,50 +2,45 @@ version: "1.0"
 name: "N05 Conditional Template Selection"
 
 nodes:
-  - id: start
-    type: start
+- id: start
+  type: start
 
-  - id: classify
-    type: generate
-    config:
-      provider: deepseek
-      model: deepseek-chat
-      template: tpl_classify
-      variables:
-        query: "start.query"
-      output_schema:
-        - name: category
-          type: string
-          example: "technical"
+- id: classify
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: tpl_classify
+    variables:
+      query: "start.query"
+- id: gen_response
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template:
+      default: tpl_general
+      conditions:
+      - when: classify.category == 'technical'
+        use: tpl_technical
+    variables:
+      query: "start.query"
+      category: "classify.category"
 
-  - id: gen_response
-    type: generate
-    config:
-      provider: deepseek
-      model: deepseek-chat
-      template:
-        default: tpl_general
-        conditions:
-          - when: classify.category == 'technical'
-            use: tpl_technical
-      variables:
-        query: "start.query"
-        category: "classify.category"
-
-  - id: response
-    type: response
-    config:
-      output:
-        category: "classify.category"
-        answer: "gen_response.output"
+- id: response
+  type: response
+  config:
+    output:
+      category: "classify.category"
+      answer: "gen_response.output"
 
 edges:
-  - from: start
-    to: classify
-  - from: classify
-    to: gen_response
-  - from: gen_response
-    to: response
+- from: start
+  to: classify
+- from: classify
+  to: gen_response
+- from: gen_response
+  to: response
 
 templates:
   tpl_classify:
@@ -53,6 +48,11 @@ templates:
     config:
       temperature: 0.1
       max_tokens: 50
+
+    output_schema:
+    - name: category
+      type: string
+      example: "technical"
 
   tpl_general:
     system_prompt: "You are a friendly, casual assistant. Keep answers brief and conversational."

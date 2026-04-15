@@ -3,76 +3,68 @@ name: "S14 Debate Simulator"
 description: "Simulate a debate with pro/con arguments and a judge, looping until resolved"
 
 nodes:
-  - id: start
-    type: start
+- id: start
+  type: start
 
-  - id: pro_argument
-    type: generate
-    config:
-      provider: deepseek
-      model: deepseek-chat
-      template: tpl_pro
-      variables:
-        topic: "start.topic"
-        previous_pro: "pro_argument[*].output"
-        previous_con: "con_argument[*].output"
+- id: pro_argument
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: tpl_pro
+    variables:
+      topic: "start.topic"
+      previous_pro: "pro_argument[*].output"
+      previous_con: "con_argument[*].output"
 
-  - id: con_argument
-    type: generate
-    config:
-      provider: qwen
-      model: qwen-flash
-      template: tpl_con
-      variables:
-        topic: "start.topic"
-        previous_pro: "pro_argument[*].output"
-        previous_con: "con_argument[*].output"
-        latest_pro: "pro_argument.output"
+- id: con_argument
+  type: generate
+  config:
+    provider: qwen
+    model: qwen-flash
+    template: tpl_con
+    variables:
+      topic: "start.topic"
+      previous_pro: "pro_argument[*].output"
+      previous_con: "con_argument[*].output"
+      latest_pro: "pro_argument.output"
 
-  - id: judge_progress
-    type: generate
-    config:
-      provider: openai
-      model: gpt-4o-mini
-      template: tpl_judge
-      variables:
-        topic: "start.topic"
-        all_pro: "pro_argument[*].output"
-        all_con: "con_argument[*].output"
-      output_schema:
-        - name: verdict
-          type: string
-          example: "The pro side has stronger empirical evidence"
-        - name: is_resolved
-          type: boolean
-          example: "false"
-
-  - id: response
-    type: response
-    config:
-      output:
-        all_pro_arguments: "pro_argument[*].output"
-        all_con_arguments: "con_argument[*].output"
-        verdict: "judge_progress.verdict"
-        is_resolved: "judge_progress.is_resolved"
+- id: judge_progress
+  type: generate
+  config:
+    provider: openai
+    model: gpt-4o-mini
+    template: tpl_judge
+    variables:
+      topic: "start.topic"
+      all_pro: "pro_argument[*].output"
+      all_con: "con_argument[*].output"
+- id: response
+  type: response
+  config:
+    output:
+      all_pro_arguments: "pro_argument[*].output"
+      all_con_arguments: "con_argument[*].output"
+      verdict: "judge_progress.verdict"
+      is_resolved: "judge_progress.is_resolved"
 
 edges:
-  - from: start
-    to: pro_argument
-  - from: pro_argument
-    to: con_argument
-  - from: con_argument
-    to: judge_progress
-  - from: judge_progress
-    to: pro_argument
-    condition: judge_progress.is_resolved == false
-    max_iterations: 2
-  - from: judge_progress
-    to: response
-    condition: judge_progress.is_resolved == true
-  - from: judge_progress
-    to: response
-    is_default: true
+- from: start
+  to: pro_argument
+- from: pro_argument
+  to: con_argument
+- from: con_argument
+  to: judge_progress
+- from: judge_progress
+  to: pro_argument
+  condition: judge_progress.is_resolved == false
+  max_iterations: 2
+- from: judge_progress
+  to: response
+  condition: judge_progress.is_resolved == true
+- from: judge_progress
+  to: response
+  is_default: true
 
 templates:
   tpl_pro:
@@ -115,3 +107,11 @@ templates:
     config:
       temperature: 0.3
       max_tokens: 300
+    output_schema:
+    - name: verdict
+      type: string
+      example: "The pro side has stronger empirical evidence"
+    - name: is_resolved
+      type: boolean
+      example: "false"
+

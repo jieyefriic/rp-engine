@@ -3,69 +3,37 @@ name: "S35 Large Output Schema (10+ Fields)"
 description: "Test structured output with a large schema containing 10 fields of various types"
 
 nodes:
-  - id: start
-    type: start
+- id: start
+  type: start
 
-  - id: analyze_company
-    type: generate
-    config:
-      provider: openai
-      model: gpt-4o-mini
-      template: tpl_analyze
-      variables:
-        company: "start.company"
-      output_schema:
-        - name: company_name
-          type: string
-          example: "Apple Inc."
-        - name: industry
-          type: string
-          example: "Technology"
-        - name: founded_year
-          type: number
-          example: "1976"
-        - name: headquarters
-          type: string
-          example: "Cupertino, California, USA"
-        - name: revenue_usd
-          type: number
-          example: "394000000000"
-        - name: employee_count
-          type: number
-          example: "164000"
-        - name: products
-          type: string[]
-          example: '["iPhone", "MacBook", "iPad"]'
-        - name: competitors
-          type: string[]
-          example: '["Samsung", "Google", "Microsoft"]'
-        - name: strengths
-          type: string
-          example: "Strong brand loyalty and ecosystem integration"
-        - name: weaknesses
-          type: string
-          example: "High price points and dependence on iPhone sales"
-
-  - id: response
-    type: response
-    config:
-      output:
-        company_name: "analyze_company.company_name"
-        industry: "analyze_company.industry"
-        founded_year: "analyze_company.founded_year"
-        headquarters: "analyze_company.headquarters"
-        revenue_usd: "analyze_company.revenue_usd"
-        employee_count: "analyze_company.employee_count"
-        products: "analyze_company.products"
-        competitors: "analyze_company.competitors"
-        strengths: "analyze_company.strengths"
-        weaknesses: "analyze_company.weaknesses"
+- id: analyze_company
+  type: generate
+  config:
+    provider: openai
+    model: gpt-4o-mini
+    template: tpl_analyze
+    variables:
+      company: "start.company"
+- id: response
+  type: response
+  config:
+    output:
+      company_name: "analyze_company.company_name"
+      industry: "analyze_company.industry"
+      founded_year: "analyze_company.founded_year"
+      headquarters: "analyze_company.headquarters"
+      revenue_usd: "analyze_company.revenue_usd"
+      employee_count: "analyze_company.employee_count"
+      products: "analyze_company.products"
+      competitors: "analyze_company.competitors"
+      strengths: "analyze_company.strengths"
+      weaknesses: "analyze_company.weaknesses"
 
 edges:
-  - from: start
-    to: analyze_company
-  - from: analyze_company
-    to: response
+- from: start
+  to: analyze_company
+- from: analyze_company
+  to: response
 
 templates:
   tpl_analyze:
@@ -79,3 +47,35 @@ templates:
     config:
       temperature: 0.2
       max_tokens: 500
+    output_schema:
+    - name: company_name
+      type: string
+      example: "Apple Inc."
+    - name: industry
+      type: string
+      example: "Technology"
+    - name: founded_year
+      type: number
+      example: "1976"
+    - name: headquarters
+      type: string
+      example: "Cupertino, California, USA"
+    - name: revenue_usd
+      type: number
+      example: "394000000000"
+    - name: employee_count
+      type: number
+      example: "164000"
+    - name: products
+      type: string[]
+      example: '["iPhone", "MacBook", "iPad"]'
+    - name: competitors
+      type: string[]
+      example: '["Samsung", "Google", "Microsoft"]'
+    - name: strengths
+      type: string
+      example: "Strong brand loyalty and ecosystem integration"
+    - name: weaknesses
+      type: string
+      example: "High price points and dependence on iPhone sales"
+

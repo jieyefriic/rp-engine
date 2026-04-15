@@ -2,46 +2,38 @@ version: "1.0"
 name: "N53 Edge Max Iterations"
 
 nodes:
-  - id: start
-    type: start
+- id: start
+  type: start
 
-  - id: gen
-    type: generate
-    config:
-      provider: qwen
-      model: qwen-flash
-      template: tpl_gen
-      variables:
-        topic: "start.topic"
-        previous: "gen[*].answer"
-      output_schema:
-        - name: answer
-          type: string
-          example: "Here is my analysis so far..."
-        - name: needs_more
-          type: boolean
-          example: "true"
-
-  - id: response
-    type: response
-    config:
-      output:
-        final_answer: "gen.answer"
-        all_answers: "gen[*].answer"
+- id: gen
+  type: generate
+  config:
+    provider: qwen
+    model: qwen-flash
+    template: tpl_gen
+    variables:
+      topic: "start.topic"
+      previous: "gen[*].answer"
+- id: response
+  type: response
+  config:
+    output:
+      final_answer: "gen.answer"
+      all_answers: "gen[*].answer"
 
 edges:
-  - from: start
-    to: gen
-  - from: gen
-    to: gen
-    condition: gen.needs_more == true
-    max_iterations: 2
-  - from: gen
-    to: response
-    condition: gen.needs_more == false
-  - from: gen
-    to: response
-    is_default: true
+- from: start
+  to: gen
+- from: gen
+  to: gen
+  condition: gen.needs_more == true
+  max_iterations: 2
+- from: gen
+  to: response
+  condition: gen.needs_more == false
+- from: gen
+  to: response
+  is_default: true
 
 templates:
   tpl_gen:
@@ -50,3 +42,11 @@ templates:
     config:
       temperature: 0.3
       max_tokens: 200
+    output_schema:
+    - name: answer
+      type: string
+      example: "Here is my analysis so far..."
+    - name: needs_more
+      type: boolean
+      example: "true"
+

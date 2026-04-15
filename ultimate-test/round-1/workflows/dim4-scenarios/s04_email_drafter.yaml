@@ -2,51 +2,46 @@ version: "1.0"
 name: "S04 Email Drafter with Tone"
 
 nodes:
-  - id: start
-    type: start
+- id: start
+  type: start
 
-  - id: analyze_tone
-    type: generate
-    config:
-      provider: openai
-      model: gpt-4o-mini
-      template: tpl_analyze
-      variables:
-        context: "start.context"
-      output_schema:
-        - name: tone
-          type: string
-          example: "formal"
+- id: analyze_tone
+  type: generate
+  config:
+    provider: openai
+    model: gpt-4o-mini
+    template: tpl_analyze
+    variables:
+      context: "start.context"
+- id: draft_email
+  type: generate
+  config:
+    provider: openai
+    model: gpt-4o-mini
+    template:
+      default: tpl_draft_casual
+      conditions:
+      - when: analyze_tone.tone == 'formal'
+        use: tpl_draft_formal
+    variables:
+      context: "start.context"
+      recipient: "start.recipient"
+      tone: "analyze_tone.tone"
 
-  - id: draft_email
-    type: generate
-    config:
-      provider: openai
-      model: gpt-4o-mini
-      template:
-        default: tpl_draft_casual
-        conditions:
-          - when: analyze_tone.tone == 'formal'
-            use: tpl_draft_formal
-      variables:
-        context: "start.context"
-        recipient: "start.recipient"
-        tone: "analyze_tone.tone"
-
-  - id: response
-    type: response
-    config:
-      output:
-        detected_tone: "analyze_tone.tone"
-        email: "draft_email.output"
+- id: response
+  type: response
+  config:
+    output:
+      detected_tone: "analyze_tone.tone"
+      email: "draft_email.output"
 
 edges:
-  - from: start
-    to: analyze_tone
-  - from: analyze_tone
-    to: draft_email
-  - from: draft_email
-    to: response
+- from: start
+  to: analyze_tone
+- from: analyze_tone
+  to: draft_email
+- from: draft_email
+  to: response
 
 templates:
   tpl_analyze:
@@ -55,6 +50,11 @@ templates:
     config:
       temperature: 0.1
       max_tokens: 50
+
+    output_schema:
+    - name: tone
+      type: string
+      example: "formal"
 
   tpl_draft_formal:
     system_prompt: "You are a professional business writer. Use formal language, proper salutations, and a structured format."

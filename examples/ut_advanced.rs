@@ -253,7 +253,7 @@ nodes:
       template: tpl_evaluate
       variables:
         question: "gen_question.output"
-        user_answer: "pause.user_answer"
+        user_answer: "input.user_answer"
   - id: response
     type: response
     config:

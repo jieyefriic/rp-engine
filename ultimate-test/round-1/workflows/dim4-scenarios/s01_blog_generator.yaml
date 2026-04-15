@@ -3,102 +3,94 @@ name: "S01 Blog Post Generator"
 description: "Generate a structured blog post with outline, sections, and compilation"
 
 nodes:
-  - id: start
-    type: start
+- id: start
+  type: start
 
-  - id: outline
-    type: generate
-    config:
-      provider: deepseek
-      model: deepseek-chat
-      template: tpl_outline
-      variables:
-        topic: "start.topic"
-      output_schema:
-        - name: title
-          type: string
-          example: "A compelling blog title"
-        - name: sections
-          type: string[]
-          example: '["Introduction", "Main Point 1", "Conclusion"]'
+- id: outline
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: tpl_outline
+    variables:
+      topic: "start.topic"
+- id: create_section_list
+  type: transform
+  config:
+    script: |
+      let sections = sections;
+      let title = title;
+      let items = [];
+      for s in sections {
+        items.push(#{"section_title": s, "blog_title": title});
+      }
+      #{"items": items, "title": title}
+    variables:
+      sections: "outline.sections"
+      title: "outline.title"
 
-  - id: create_section_list
-    type: transform
-    config:
-      script: |
-        let sections = sections;
-        let title = title;
-        let items = [];
-        for s in sections {
-          items.push(#{"section_title": s, "blog_title": title});
-        }
-        #{"items": items, "title": title}
-      variables:
-        sections: "outline.sections"
-        title: "outline.title"
+- id: write_sections
+  type: iterator
+  config:
+    items: "create_section_list.items"
+    subgraph_ref: "sg_write_section"
+    item_var: "section_info"
+    parallel: true
+    max_concurrency: 3
 
-  - id: write_sections
-    type: iterator
-    config:
-      items: "create_section_list.items"
-      subgraph_ref: "sg_write_section"
-      item_var: "section_info"
-      parallel: true
-      max_concurrency: 3
+- id: compile
+  type: generate
+  config:
+    provider: deepseek
+    model: deepseek-chat
+    template: tpl_compile
+    variables:
+      title: "create_section_list.title"
+      section_contents: "write_sections.results"
 
-  - id: compile
-    type: generate
-    config:
-      provider: deepseek
-      model: deepseek-chat
-      template: tpl_compile
-      variables:
-        title: "create_section_list.title"
-        section_contents: "write_sections.results"
-
-  - id: response
-    type: response
-    config:
-      output:
-        title: "create_section_list.title"
-        sections_written: "write_sections.count"
-        blog_post: "compile.output"
+- id: response
+  type: response
+  config:
+    output:
+      title: "create_section_list.title"
+      sections_written: "write_sections.count"
+      blog_post: "compile.output"
 
 edges:
-  - from: start
-    to: outline
-  - from: outline
-    to: create_section_list
-  - from: create_section_list
-    to: write_sections
-  - from: write_sections
-    to: compile
-  - from: compile
-    to: response
+- from: start
+  to: outline
+- from: outline
+  to: create_section_list
+- from: create_section_list
+  to: write_sections
+- from: write_sections
+  to: compile
+- from: compile
+  to: response
 
 subgraphs:
   sg_write_section:
     nodes:
-      - id: sg_start
-        type: start
-      - id: sg_write
-        type: generate
-        config:
-          provider: deepseek
-          model: deepseek-chat
-          template: sg_tpl_write
-          variables:
-            section_info: "sg_start.section_info"
-      - id: sg_response
-        type: response
-        config:
-          output:
-            content: "sg_write.output"
+    - id: sg_start
+      type: start
+    - id: sg_write
+      type: generate
+      config:
+        provider: deepseek
+        model: deepseek-chat
+        template: sg_tpl_write
+        variables:
+          section_info: "sg_start.section_info"
+    - id: sg_response
+      type: response
+      config:
+        output:
+          content: "sg_write.output"
     edges:
-      - from: sg_start
-        to: sg_write
-      - from: sg_write
-        to: sg_response
+    - from: sg_start
+      to: sg_write
+    - from: sg_write
+      to: sg_response
 
 templates:
   tpl_outline:
@@ -107,6 +99,14 @@ templates:
     config:
       temperature: 0.7
       max_tokens: 300
+
+    output_schema:
+    - name: title
+      type: string
+      example: "A compelling blog title"
+    - name: sections
+      type: string[]
+      example: '["Introduction", "Main Point 1", "Conclusion"]'
 
   sg_tpl_write:
     user_prompt: "Write a 2-3 paragraph blog section based on: {{section_info}}. Be engaging and informative."
@@ -120,7 +120,7 @@ templates:
       Compile the following sections into a polished blog post.
       Title: {{title}}
       Sections: {{section_contents}}
-      
+
       Produce a complete, well-formatted blog post with smooth transitions.
     config:
       temperature: 0.5

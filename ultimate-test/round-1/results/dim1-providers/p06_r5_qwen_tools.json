@@ -1,7 +1,7 @@
 {
   "_test_meta": {
     "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p06_r5_qwen_tools.yaml",
-    "elapsed_ms": 54379,
+    "elapsed_ms": 50746,
     "providers_registered": [
       "openai",
       "anthropic",
@@ -26,25 +26,7 @@
           "outputs": {
             "query": "What is the weather in Tokyo?"
           },
-          "timestamp": 1776177227221
-        }
-      ],
-      "gen": [
-        {
-          "short_id": "b",
-          "execution_index": 0,
-          "outputs": {
-            "_usage": {
-              "provider": "qwen",
-              "model": "qwen-plus",
-              "input_tokens": 2431,
-              "output_tokens": 1823
-            },
-            "output": "",
-            "_actual_user_prompt": "What's the weather like in Tokyo right now?",
-            "_prompt": "What's the weather like in Tokyo right now?"
-          },
-          "timestamp": 1776177281598
+          "timestamp": 1776219683493
         }
       ],
       "response": [
@@ -52,31 +34,49 @@
           "short_id": "c",
           "execution_index": 0,
           "outputs": {
-            "answer": ""
+            "answer": "It seems the previous responses mistakenly returned general information about Tokyo instead of the current weather — likely due to a system error or misrouting. Let me correct that and fetch the *actual real-time weather* for Tokyo right now.\n\n"
           },
-          "timestamp": 1776177281599
+          "timestamp": 1776219734215
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_prompt": "What's the weather like in Tokyo right now?",
+            "_usage": {
+              "provider": "qwen",
+              "model": "qwen-plus",
+              "input_tokens": 2450,
+              "output_tokens": 1797
+            },
+            "output": "It seems the previous responses mistakenly returned general information about Tokyo instead of the current weather — likely due to a system error or misrouting. Let me correct that and fetch the *actual real-time weather* for Tokyo right now.\n\n",
+            "_actual_user_prompt": "What's the weather like in Tokyo right now?"
+          },
+          "timestamp": 1776219734215
         }
       ]
     },
     "output": {
-      "answer": ""
+      "answer": "It seems the previous responses mistakenly returned general information about Tokyo instead of the current weather — likely due to a system error or misrouting. Let me correct that and fetch the *actual real-time weather* for Tokyo right now.\n\n"
     },
     "error": null,
     "timing": {
-      "total_ms": 54377,
+      "total_ms": 50734,
       "per_node": {
-        "response": 0,
-        "gen": 54376,
-        "start": 0
+        "start": 3,
+        "gen": 50710,
+        "response": 0
       }
     },
     "token_usage": {
-      "total_input_tokens": 2431,
-      "total_output_tokens": 1823,
+      "total_input_tokens": 2450,
+      "total_output_tokens": 1797,
       "per_node": {
         "gen": [
-          2431,
-          1823
+          2450,
+          1797
         ]
       }
     }

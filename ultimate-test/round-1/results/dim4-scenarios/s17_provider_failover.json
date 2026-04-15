@@ -1,7 +1,7 @@
 {
   "_test_meta": {
     "yaml_path": "ultimate-test/round-1/workflows/dim4-scenarios/s17_provider_failover.yaml",
-    "elapsed_ms": 5827,
+    "elapsed_ms": 6569,
     "providers_registered": [
       "openai",
       "anthropic",
@@ -19,33 +19,28 @@
   "result": {
     "status": "Success",
     "executions": {
-      "fallback": [
-        {
-          "short_id": "d",
-          "execution_index": 0,
-          "outputs": {
-            "_usage": {
-              "provider": "qwen",
-              "model": "qwen-flash",
-              "input_tokens": 16,
-              "output_tokens": 200
-            },
-            "_prompt": "Explain what a black hole is.",
-            "output": "A **black hole** is a region in space where the gravitational pull is so strong that nothing—no matter, energy, or even light—can escape once it crosses a certain boundary called the **event horizon**. This extreme gravity results from a massive amount of matter being compressed into an incredibly small space, often due to the collapse of a large star at the end of its life.\n\nHere are some key points to understand black holes:\n\n1. **Formation**: Most black holes form when massive stars (typically more than 20 times the mass of our Sun) run out of fuel and collapse under their own gravity. This collapse causes the star’s core to implode, forming a black hole.\n\n2. **Event Horizon**: This is the \"point of no return.\" Once anything crosses this boundary, it cannot escape the black hole's gravity, not even light. That’s why black holes appear \"black\"—they don’t emit or reflect light.\n\n3. **Singularity**: At the center",
-            "_actual_user_prompt": "Explain what a black hole is."
-          },
-          "timestamp": 1776218188021
-        }
-      ],
       "primary": [
         {
           "short_id": "b",
           "execution_index": 0,
           "outputs": {
-            "_error_message": "Provider error: API error: 400 - Model Not Exist",
-            "_error": true
+            "_error": true,
+            "_error_message": "Provider error: API error: 400 - Model Not Exist"
           },
-          "timestamp": 1776218183941
+          "timestamp": 1776220344489
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "primary_error": "Provider error: API error: 400 - Model Not Exist",
+            "used_fallback": "A **black hole** is one of the most fascinating and extreme objects in the universe. It's a region of space where gravity is so intense that nothing—not even light—can escape once it crosses a certain boundary called the **event horizon**.\n\n### How Do Black Holes Form?\nBlack holes typically form from the remnants of massive stars. Here’s how:\n\n1. **Massive Star Life Cycle**: Stars much more massive than our Sun (typically over 20 times the mass of the Sun) burn through their nuclear fuel quickly.\n2. **Core Collapse**: When the star runs out of fuel, it can no longer produce the outward pressure needed to counteract gravity. The core collapses under its own weight.\n3. **Supernova Explosion**: The outer layers of the star explode in a supernova, while the core collapses into a black hole if it’s massive enough.\n\nThere are also **supermassive black holes**, which reside at the centers of most galaxies (including our",
+            "answer": "A **black hole** is one of the most fascinating and extreme objects in the universe. It's a region of space where gravity is so intense that nothing—not even light—can escape once it crosses a certain boundary called the **event horizon**.\n\n### How Do Black Holes Form?\nBlack holes typically form from the remnants of massive stars. Here’s how:\n\n1. **Massive Star Life Cycle**: Stars much more massive than our Sun (typically over 20 times the mass of the Sun) burn through their nuclear fuel quickly.\n2. **Core Collapse**: When the star runs out of fuel, it can no longer produce the outward pressure needed to counteract gravity. The core collapses under its own weight.\n3. **Supernova Explosion**: The outer layers of the star explode in a supernova, while the core collapses into a black hole if it’s massive enough.\n\nThere are also **supermassive black holes**, which reside at the centers of most galaxies (including our",
+            "primary_failed": true
+          },
+          "timestamp": 1776220349666
         }
       ],
       "start": [
@@ -53,47 +48,52 @@
           "short_id": "a",
           "execution_index": 0,
           "outputs": {
-            "query": "Explain what a black hole is."
+            "query": "Explain black holes."
           },
-          "timestamp": 1776218182196
+          "timestamp": 1776220343099
         }
       ],
-      "response": [
+      "fallback": [
         {
           "short_id": "c",
           "execution_index": 0,
           "outputs": {
-            "primary_failed": true,
-            "used_fallback": null,
-            "answer": null,
-            "primary_error": "Provider error: API error: 400 - Model Not Exist"
+            "output": "A **black hole** is one of the most fascinating and extreme objects in the universe. It's a region of space where gravity is so intense that nothing—not even light—can escape once it crosses a certain boundary called the **event horizon**.\n\n### How Do Black Holes Form?\nBlack holes typically form from the remnants of massive stars. Here’s how:\n\n1. **Massive Star Life Cycle**: Stars much more massive than our Sun (typically over 20 times the mass of the Sun) burn through their nuclear fuel quickly.\n2. **Core Collapse**: When the star runs out of fuel, it can no longer produce the outward pressure needed to counteract gravity. The core collapses under its own weight.\n3. **Supernova Explosion**: The outer layers of the star explode in a supernova, while the core collapses into a black hole if it’s massive enough.\n\nThere are also **supermassive black holes**, which reside at the centers of most galaxies (including our",
+            "_usage": {
+              "provider": "qwen",
+              "model": "qwen-flash",
+              "input_tokens": 13,
+              "output_tokens": 200
+            },
+            "_actual_user_prompt": "Explain black holes.",
+            "_prompt": "Explain black holes."
           },
-          "timestamp": 1776218188021
+          "timestamp": 1776220349666
         }
       ]
     },
     "output": {
-      "primary_failed": true,
-      "used_fallback": null,
-      "answer": null,
-      "primary_error": "Provider error: API error: 400 - Model Not Exist"
+      "primary_error": "Provider error: API error: 400 - Model Not Exist",
+      "used_fallback": "A **black hole** is one of the most fascinating and extreme objects in the universe. It's a region of space where gravity is so intense that nothing—not even light—can escape once it crosses a certain boundary called the **event horizon**.\n\n### How Do Black Holes Form?\nBlack holes typically form from the remnants of massive stars. Here’s how:\n\n1. **Massive Star Life Cycle**: Stars much more massive than our Sun (typically over 20 times the mass of the Sun) burn through their nuclear fuel quickly.\n2. **Core Collapse**: When the star runs out of fuel, it can no longer produce the outward pressure needed to counteract gravity. The core collapses under its own weight.\n3. **Supernova Explosion**: The outer layers of the star explode in a supernova, while the core collapses into a black hole if it’s massive enough.\n\nThere are also **supermassive black holes**, which reside at the centers of most galaxies (including our",
+      "answer": "A **black hole** is one of the most fascinating and extreme objects in the universe. It's a region of space where gravity is so intense that nothing—not even light—can escape once it crosses a certain boundary called the **event horizon**.\n\n### How Do Black Holes Form?\nBlack holes typically form from the remnants of massive stars. Here’s how:\n\n1. **Massive Star Life Cycle**: Stars much more massive than our Sun (typically over 20 times the mass of the Sun) burn through their nuclear fuel quickly.\n2. **Core Collapse**: When the star runs out of fuel, it can no longer produce the outward pressure needed to counteract gravity. The core collapses under its own weight.\n3. **Supernova Explosion**: The outer layers of the star explode in a supernova, while the core collapses into a black hole if it’s massive enough.\n\nThere are also **supermassive black holes**, which reside at the centers of most galaxies (including our",
+      "primary_failed": true
     },
     "error": null,
     "timing": {
-      "total_ms": 5825,
+      "total_ms": 6567,
       "per_node": {
-        "response": 0,
-        "fallback": 4079,
+        "fallback": 5176,
         "start": 0,
-        "primary": 1744
+        "response": 0,
+        "primary": 1390
       }
     },
     "token_usage": {
-      "total_input_tokens": 16,
+      "total_input_tokens": 13,
       "total_output_tokens": 200,
       "per_node": {
         "fallback": [
-          16,
+          13,
           200
         ]
       }

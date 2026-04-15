@@ -1,7 +1,7 @@
 {
   "_test_meta": {
     "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n52_edge_on_error.yaml",
-    "elapsed_ms": 4187,
+    "elapsed_ms": 3659,
     "providers_registered": [
       "openai",
       "anthropic",
@@ -19,6 +19,29 @@
   "result": {
     "status": "Success",
     "executions": {
+      "gen_risky": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_error_message": "Provider error: API error: 400 - Model Not Exist",
+            "_error": true
+          },
+          "timestamp": 1776220337870
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "The speed of light in a vacuum is approximately **299,792,458 meters per second** (or about **186,282 miles per second**). This is a fundamental constant in physics, often denoted by the letter **c**.",
+            "had_error": true,
+            "original_error": "Provider error: API error: 400 - Model Not Exist"
+          },
+          "timestamp": 1776220340555
+        }
+      ],
       "start": [
         {
           "short_id": "a",
@@ -26,74 +49,51 @@
           "outputs": {
             "query": "What is the speed of light?"
           },
-          "timestamp": 1776218159582
-        }
-      ],
-      "gen_risky": [
-        {
-          "short_id": "b",
-          "execution_index": 0,
-          "outputs": {
-            "_error": true,
-            "_error_message": "Provider error: API error: 400 - Model Not Exist"
-          },
-          "timestamp": 1776218160749
-        }
-      ],
-      "response": [
-        {
-          "short_id": "c",
-          "execution_index": 0,
-          "outputs": {
-            "original_error": "Provider error: API error: 400 - Model Not Exist",
-            "answer": null,
-            "had_error": true
-          },
-          "timestamp": 1776218163745
+          "timestamp": 1776220336898
         }
       ],
       "gen_fallback": [
         {
-          "short_id": "d",
+          "short_id": "c",
           "execution_index": 0,
           "outputs": {
-            "output": "The speed of light in a vacuum is approximately **299,792,458 meters per second** (about 186,282 miles per second). This is a fundamental constant in physics, often denoted by the letter **c**.",
             "_prompt": "Original question: What is the speed of light?\nError from primary: Provider error: API error: 400 - Model Not Exist",
+            "output": "The speed of light in a vacuum is approximately **299,792,458 meters per second** (or about **186,282 miles per second**). This is a fundamental constant in physics, often denoted by the letter **c**.",
             "_usage": {
               "provider": "deepseek",
               "model": "deepseek-chat",
               "input_tokens": 41,
-              "output_tokens": 45
+              "output_tokens": 47
             },
-            "_actual_user_prompt": "Original question: What is the speed of light?\nError from primary: Provider error: API error: 400 - Model Not Exist",
-            "_actual_system_prompt": "The primary model failed. Provide a helpful answer anyway."
+            "_actual_system_prompt": "The primary model failed. Provide a helpful answer anyway.",
+            "_actual_user_prompt": "Original question: What is the speed of light?\nError from primary: Provider error: API error: 400 - Model Not Exist"
           },
-          "timestamp": 1776218163745
+          "timestamp": 1776220340555
         }
       ]
     },
     "output": {
-      "original_error": "Provider error: API error: 400 - Model Not Exist",
-      "answer": null,
-      "had_error": true
+      "answer": "The speed of light in a vacuum is approximately **299,792,458 meters per second** (or about **186,282 miles per second**). This is a fundamental constant in physics, often denoted by the letter **c**.",
+      "had_error": true,
+      "original_error": "Provider error: API error: 400 - Model Not Exist"
     },
     "error": null,
     "timing": {
-      "total_ms": 4174,
+      "total_ms": 3657,
       "per_node": {
-        "gen_fallback": 2994,
+        "gen_fallback": 2685,
         "response": 0,
-        "start": 4,
-        "gen_risky": 1157
+        "gen_risky": 971,
+        "start": 0
       }
     },
     "token_usage": {
       "total_input_tokens": 41,
-      "total_output_tokens": 45,
+      "total_output_tokens": 47,
       "per_node": {
         "gen_fallback": [
           41,
-          45
+          47
         ]
       }
     }
