@@ -1,7 +1,8 @@
 //! Zhipu (智谱) GLM provider implementation
 //!
-//! Zhipu API is compatible with OpenAI API format via Dashscope.
-//! API: https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
+//! Native Zhipu API — OpenAI-compatible format.
+//! API: https://open.bigmodel.cn/api/paas/v4/chat/completions
+//! Docs: https://docs.bigmodel.cn/
 
 use async_trait::async_trait;
 
@@ -11,7 +12,7 @@ use super::{
     OpenAICompatibleProvider,
 };
 
-const ZHIPU_API_URL: &str = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
+const ZHIPU_API_URL: &str = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
 const DEFAULT_MODEL: &str = "glm-4.7";
 
 /// Zhipu (智谱) GLM provider

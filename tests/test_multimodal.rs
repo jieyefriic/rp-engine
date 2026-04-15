@@ -12,6 +12,10 @@ use serde_json::json;
 use std::path::Path;
 use tempfile::tempdir;
 
+fn env_key(name: &str) -> String {
+    std::env::var(name).unwrap_or_else(|_| panic!("{} env var must be set", name))
+}
+
 /// Helper: read image file and return base64 string
 fn read_image_base64(path: &str) -> String {
     let bytes = std::fs::read(path).expect("Failed to read image file");
@@ -115,7 +119,7 @@ async fn run_vl_test(
 
 #[tokio::test]
 async fn test_openai_base64() {
-    let api_key = "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";
+    let api_key = env_key("OPENAI_API_KEY");
     let b64 = read_image_base64("/Users/jieye/Downloads/IMG_0C360C6B7B8A-1.jpeg");
 
     println!("\n=== OpenAI (gpt-4o-mini) — raw base64 ===");
@@ -130,7 +134,7 @@ async fn test_openai_base64() {
 
 #[tokio::test]
 async fn test_openai_data_uri() {
-    let api_key = "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";
+    let api_key = env_key("OPENAI_API_KEY");
     let b64 = read_image_base64("/Users/jieye/Downloads/IMG_0C360C6B7B8A-1.jpeg");
     let data_uri = format!("data:image/jpeg;base64,{}", b64);
 
@@ -146,7 +150,7 @@ async fn test_openai_data_uri() {
 
 #[tokio::test]
 async fn test_anthropic_base64() {
-    let api_key = "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";
+    let api_key = env_key("ANTHROPIC_API_KEY");
     let b64 = read_image_base64("/Users/jieye/Downloads/IMG_0C360C6B7B8A-1.jpeg");
 
     println!("\n=== Anthropic (claude-sonnet-4-20250514) — raw base64 ===");
@@ -161,7 +165,7 @@ async fn test_anthropic_base64() {
 
 #[tokio::test]
 async fn test_anthropic_url() {
-    let api_key = "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";
+    let api_key = env_key("ANTHROPIC_API_KEY");
     // Use a well-known public image URL
     let url = "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png";
 
@@ -177,7 +181,7 @@ async fn test_anthropic_url() {
 
 #[tokio::test]
 async fn test_gemini_base64() {
-    let api_key = "REDACTED_GEMINI_KEY";
+    let api_key = env_key("GEMINI_API_KEY");
     let b64 = read_image_base64("/Users/jieye/Downloads/IMG_0C360C6B7B8A-1.jpeg");
 
     println!("\n=== Gemini (gemini-2.0-flash) — raw base64 ===");
@@ -192,7 +196,7 @@ async fn test_gemini_base64() {
 
 #[tokio::test]
 async fn test_qwen_base64() {
-    let api_key = "REDACTED_DASHSCOPE_KEY";
+    let api_key = env_key("QWEN_API_KEY");
     let b64 = read_image_base64("/Users/jieye/Downloads/IMG_0C360C6B7B8A-1.jpeg");
 
     println!("\n=== Qwen (qwen-vl-plus) — raw base64 ===");
@@ -207,7 +211,7 @@ async fn test_qwen_base64() {
 
 #[tokio::test]
 async fn test_qwen_url() {
-    let api_key = "REDACTED_DASHSCOPE_KEY";
+    let api_key = env_key("QWEN_API_KEY");
     let url = "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png";
 
     println!("\n=== Qwen (qwen-vl-plus) — URL ===");

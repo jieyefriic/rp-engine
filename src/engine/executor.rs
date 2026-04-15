@@ -787,6 +787,17 @@ pub async fn execute_workflow(
 
     timing.total_ms = start_time.elapsed().as_millis() as u64;
 
+    // Warn if workflow completed but produced no output (response node likely didn't execute)
+    if final_output.is_empty() && !pending_nodes.is_empty() {
+        warn!(
+            workflow = %workflow.name,
+            pending_nodes = ?pending_nodes,
+            executed_nodes = executed.len(),
+            "Workflow completed with empty output — response node may not have executed. \
+             Check edge conditions and node wiring."
+        );
+    }
+
     info!(
         workflow = %workflow.name,
         total_ms = timing.total_ms,
@@ -1050,13 +1061,10 @@ async fn execute_single_node(
         };
 
         // Execute the node (with optional timeout)
-        let exec_result = execute_node_once(&node, &state_snapshot, &config, workflow_name).await;
-
-        // Apply timeout if configured
         let exec_result = if let Some(ms) = timeout_ms {
             match tokio::time::timeout(
                 tokio::time::Duration::from_millis(ms),
-                async { exec_result },
+                execute_node_once(&node, &state_snapshot, &config, workflow_name),
             ).await {
                 Ok(r) => r,
                 Err(_) => Err(EngineError::NodeExecutionFailed(
@@ -1064,7 +1072,7 @@ async fn execute_single_node(
                 )),
             }
         } else {
-            exec_result
+            execute_node_once(&node, &state_snapshot, &config, workflow_name).await
         };
 
         match exec_result {
@@ -1361,9 +1369,12 @@ fn propagate_dead_paths(
                 continue;
             }
 
-            // Check if ALL incoming edges are inactive
+            // Check if ALL incoming edges are inactive.
+            // An edge is considered active if it has been traversed (edge_count > 0),
+            // even if it came from an on_error routing path.
             let all_inactive = incoming.iter().all(|edge| {
-                state.is_dead(&edge.from) || state.is_edge_dead(&edge.from, &edge.to)
+                let traversed = state.get_edge_count(&edge.from, &edge.to) > 0;
+                !traversed && (state.is_dead(&edge.from) || state.is_edge_dead(&edge.from, &edge.to))
             });
 
             if all_inactive {

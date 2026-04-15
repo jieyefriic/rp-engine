@@ -332,6 +332,18 @@ pub async fn execute(
         "json_append" => execute_json_append(&mut conn, operation, ctx.variables).await,
         "json_merge" => execute_json_merge(&mut conn, operation, ctx.variables).await,
         "json_delete" => execute_json_delete(&mut conn, operation, ctx.variables).await,
+        // Hash operations
+        "hset" => execute_hset(&mut conn, operation, ctx.variables).await,
+        "hget" => execute_hget(&mut conn, operation, ctx.variables).await,
+        "hgetall" => execute_hgetall(&mut conn, operation, ctx.variables).await,
+        "hdel" => execute_hdel(&mut conn, operation, ctx.variables).await,
+        // List operations
+        "lpush" => execute_lpush(&mut conn, operation, ctx.variables).await,
+        "rpush" => execute_rpush(&mut conn, operation, ctx.variables).await,
+        "lpop" => execute_lpop(&mut conn, operation, ctx.variables).await,
+        "rpop" => execute_rpop(&mut conn, operation, ctx.variables).await,
+        "lrange" => execute_lrange(&mut conn, operation, ctx.variables).await,
+        "llen" => execute_llen(&mut conn, operation, ctx.variables).await,
         _ => {
             error!(operation = %op_type, "Unknown Redis operation type");
             Err(EngineError::InvalidOperation(format!("Unknown Redis operation: {}", op_type)))
@@ -522,6 +534,271 @@ async fn execute_json_delete(
     let mut outputs = HashMap::new();
     outputs.insert("ok".to_string(), Value::Bool(true));
     outputs.insert("deleted".to_string(), Value::Number(deleted.into()));
+    Ok(outputs)
+}
+
+// ─── Hash Operations ───────────────────────────────────────────────────────
+
+/// HSET — set fields in a hash
+async fn execute_hset(
+    conn: &mut redis::aio::ConnectionManager,
+    operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let key = get_key(operation, variables)?;
+
+    // Read field-value pairs from the `value` object
+    let fields_value = operation.get("value")
+        .ok_or_else(|| EngineError::MissingField("value (hash fields)".to_string()))?;
+
+    let field_map = fields_value.as_object()
+        .ok_or_else(|| EngineError::MissingField("value must be an object for hset".to_string()))?;
+
+    let mut set_count: i64 = 0;
+    for (field, val) in field_map {
+        // Resolve {varName} references in string values
+        let val_str = match val {
+            Value::String(s) if s.starts_with('{') && s.ends_with('}') => {
+                let var_name = &s[1..s.len()-1];
+                match variables.get(var_name) {
+                    Some(Value::String(resolved)) => resolved.clone(),
+                    Some(other) => serde_json::to_string(other).unwrap_or_default(),
+                    None => s.clone(),
+                }
+            }
+            Value::String(s) => s.clone(),
+            _ => serde_json::to_string(&val).unwrap_or_default(),
+        };
+        let added: i64 = redis::cmd("HSET")
+            .arg(&key).arg(field).arg(&val_str)
+            .query_async(conn).await
+            .map_err(|e| EngineError::RedisError(e.to_string()))?;
+        set_count += added;
+    }
+
+    let mut outputs = HashMap::new();
+    outputs.insert("ok".to_string(), Value::Bool(true));
+    outputs.insert("fields_set".to_string(), Value::Number(set_count.into()));
+    Ok(outputs)
+}
+
+/// HGET — get a single field from a hash
+async fn execute_hget(
+    conn: &mut redis::aio::ConnectionManager,
+    operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let key = get_key(operation, variables)?;
+    let field = operation.get("field")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| EngineError::MissingField("field".to_string()))?;
+
+    let result: Option<String> = redis::cmd("HGET")
+        .arg(&key).arg(field)
+        .query_async(conn).await
+        .map_err(|e| EngineError::RedisError(e.to_string()))?;
+
+    let mut outputs = HashMap::new();
+    match result {
+        Some(val) => {
+            let parsed = serde_json::from_str::<Value>(&val).unwrap_or(Value::String(val));
+            outputs.insert("value".to_string(), parsed);
+            outputs.insert("exists".to_string(), Value::Bool(true));
+        }
+        None => {
+            outputs.insert("value".to_string(), Value::Null);
+            outputs.insert("exists".to_string(), Value::Bool(false));
+        }
+    }
+    Ok(outputs)
+}
+
+/// HGETALL — get all fields and values from a hash
+async fn execute_hgetall(
+    conn: &mut redis::aio::ConnectionManager,
+    operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let key = get_key(operation, variables)?;
+
+    let result: Vec<(String, String)> = redis::cmd("HGETALL")
+        .arg(&key)
+        .query_async(conn).await
+        .map_err(|e| EngineError::RedisError(e.to_string()))?;
+
+    let mut map = serde_json::Map::new();
+    for (field, val) in &result {
+        let parsed = serde_json::from_str::<Value>(val).unwrap_or(Value::String(val.clone()));
+        map.insert(field.clone(), parsed);
+    }
+
+    let mut outputs = HashMap::new();
+    outputs.insert("value".to_string(), Value::Object(map));
+    outputs.insert("exists".to_string(), Value::Bool(!result.is_empty()));
+    outputs.insert("field_count".to_string(), Value::Number((result.len() as i64).into()));
+    Ok(outputs)
+}
+
+/// HDEL — delete fields from a hash
+async fn execute_hdel(
+    conn: &mut redis::aio::ConnectionManager,
+    operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let key = get_key(operation, variables)?;
+    let field = operation.get("field")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| EngineError::MissingField("field".to_string()))?;
+
+    let deleted: i64 = redis::cmd("HDEL")
+        .arg(&key).arg(field)
+        .query_async(conn).await
+        .map_err(|e| EngineError::RedisError(e.to_string()))?;
+
+    let mut outputs = HashMap::new();
+    outputs.insert("ok".to_string(), Value::Bool(deleted > 0));
+    outputs.insert("deleted".to_string(), Value::Number(deleted.into()));
+    Ok(outputs)
+}
+
+// ─── List Operations ───────────────────────────────────────────────────────
+
+/// LPUSH — push value(s) to the head of a list
+async fn execute_lpush(
+    conn: &mut redis::aio::ConnectionManager,
+    operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let key = get_key(operation, variables)?;
+    let value = get_value(operation, variables)?;
+
+    let length: i64 = redis::cmd("LPUSH")
+        .arg(&key).arg(&value)
+        .query_async(conn).await
+        .map_err(|e| EngineError::RedisError(e.to_string()))?;
+
+    let mut outputs = HashMap::new();
+    outputs.insert("ok".to_string(), Value::Bool(true));
+    outputs.insert("length".to_string(), Value::Number(length.into()));
+    Ok(outputs)
+}
+
+/// RPUSH — push value(s) to the tail of a list
+async fn execute_rpush(
+    conn: &mut redis::aio::ConnectionManager,
+    operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let key = get_key(operation, variables)?;
+    let value = get_value(operation, variables)?;
+
+    let length: i64 = redis::cmd("RPUSH")
+        .arg(&key).arg(&value)
+        .query_async(conn).await
+        .map_err(|e| EngineError::RedisError(e.to_string()))?;
+
+    let mut outputs = HashMap::new();
+    outputs.insert("ok".to_string(), Value::Bool(true));
+    outputs.insert("length".to_string(), Value::Number(length.into()));
+    Ok(outputs)
+}
+
+/// LPOP — remove and return value from the head of a list
+async fn execute_lpop(
+    conn: &mut redis::aio::ConnectionManager,
+    operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let key = get_key(operation, variables)?;
+
+    let result: Option<String> = redis::cmd("LPOP")
+        .arg(&key)
+        .query_async(conn).await
+        .map_err(|e| EngineError::RedisError(e.to_string()))?;
+
+    let mut outputs = HashMap::new();
+    match result {
+        Some(val) => {
+            let parsed = serde_json::from_str::<Value>(&val).unwrap_or(Value::String(val));
+            outputs.insert("value".to_string(), parsed);
+            outputs.insert("exists".to_string(), Value::Bool(true));
+        }
+        None => {
+            outputs.insert("value".to_string(), Value::Null);
+            outputs.insert("exists".to_string(), Value::Bool(false));
+        }
+    }
+    Ok(outputs)
+}
+
+/// RPOP — remove and return value from the tail of a list
+async fn execute_rpop(
+    conn: &mut redis::aio::ConnectionManager,
+    operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let key = get_key(operation, variables)?;
+
+    let result: Option<String> = redis::cmd("RPOP")
+        .arg(&key)
+        .query_async(conn).await
+        .map_err(|e| EngineError::RedisError(e.to_string()))?;
+
+    let mut outputs = HashMap::new();
+    match result {
+        Some(val) => {
+            let parsed = serde_json::from_str::<Value>(&val).unwrap_or(Value::String(val));
+            outputs.insert("value".to_string(), parsed);
+            outputs.insert("exists".to_string(), Value::Bool(true));
+        }
+        None => {
+            outputs.insert("value".to_string(), Value::Null);
+            outputs.insert("exists".to_string(), Value::Bool(false));
+        }
+    }
+    Ok(outputs)
+}
+
+/// LRANGE — get elements from a list by index range
+async fn execute_lrange(
+    conn: &mut redis::aio::ConnectionManager,
+    operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let key = get_key(operation, variables)?;
+    let start = operation.get("start").and_then(|v| v.as_i64()).unwrap_or(0);
+    let stop = operation.get("stop").and_then(|v| v.as_i64()).unwrap_or(-1);
+
+    let result: Vec<String> = redis::cmd("LRANGE")
+        .arg(&key).arg(start).arg(stop)
+        .query_async(conn).await
+        .map_err(|e| EngineError::RedisError(e.to_string()))?;
+
+    let values: Vec<Value> = result.iter()
+        .map(|v| serde_json::from_str::<Value>(v).unwrap_or(Value::String(v.clone())))
+        .collect();
+
+    let mut outputs = HashMap::new();
+    outputs.insert("value".to_string(), Value::Array(values));
+    outputs.insert("length".to_string(), Value::Number((result.len() as i64).into()));
+    Ok(outputs)
+}
+
+/// LLEN — get the length of a list
+async fn execute_llen(
+    conn: &mut redis::aio::ConnectionManager,
+    operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
+) -> Result<HashMap<String, Value>, EngineError> {
+    let key = get_key(operation, variables)?;
+
+    let length: i64 = redis::cmd("LLEN")
+        .arg(&key)
+        .query_async(conn).await
+        .map_err(|e| EngineError::RedisError(e.to_string()))?;
+
+    let mut outputs = HashMap::new();
+    outputs.insert("length".to_string(), Value::Number(length.into()));
     Ok(outputs)
 }
 
