@@ -1,7 +1,7 @@
 {
   "_test_meta": {
     "yaml_path": "ultimate-test/round-1/workflows/dim4-scenarios/s17_provider_failover.yaml",
-    "elapsed_ms": 1512,
+    "elapsed_ms": 5827,
     "providers_registered": [
       "openai",
       "anthropic",
@@ -14,8 +14,89 @@
       "minimax",
       "huoshan"
     ],
-    "status": "Error"
+    "status": "Success"
   },
-  "_error": "Provider error: API error: 503 - DNS cache overflow",
-  "_error_debug": "ProviderError(ApiError { status: 503, message: \"DNS cache overflow\" })"
+  "result": {
+    "status": "Success",
+    "executions": {
+      "fallback": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "_usage": {
+              "provider": "qwen",
+              "model": "qwen-flash",
+              "input_tokens": 16,
+              "output_tokens": 200
+            },
+            "_prompt": "Explain what a black hole is.",
+            "output": "A **black hole** is a region in space where the gravitational pull is so strong that nothing—no matter, energy, or even light—can escape once it crosses a certain boundary called the **event horizon**. This extreme gravity results from a massive amount of matter being compressed into an incredibly small space, often due to the collapse of a large star at the end of its life.\n\nHere are some key points to understand black holes:\n\n1. **Formation**: Most black holes form when massive stars (typically more than 20 times the mass of our Sun) run out of fuel and collapse under their own gravity. This collapse causes the star’s core to implode, forming a black hole.\n\n2. **Event Horizon**: This is the \"point of no return.\" Once anything crosses this boundary, it cannot escape the black hole's gravity, not even light. That’s why black holes appear \"black\"—they don’t emit or reflect light.\n\n3. **Singularity**: At the center",
+            "_actual_user_prompt": "Explain what a black hole is."
+          },
+          "timestamp": 1776218188021
+        }
+      ],
+      "primary": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_error_message": "Provider error: API error: 400 - Model Not Exist",
+            "_error": true
+          },
+          "timestamp": 1776218183941
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "Explain what a black hole is."
+          },
+          "timestamp": 1776218182196
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "primary_failed": true,
+            "used_fallback": null,
+            "answer": null,
+            "primary_error": "Provider error: API error: 400 - Model Not Exist"
+          },
+          "timestamp": 1776218188021
+        }
+      ]
+    },
+    "output": {
+      "primary_failed": true,
+      "used_fallback": null,
+      "answer": null,
+      "primary_error": "Provider error: API error: 400 - Model Not Exist"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 5825,
+      "per_node": {
+        "response": 0,
+        "fallback": 4079,
+        "start": 0,
+        "primary": 1744
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 16,
+      "total_output_tokens": 200,
+      "per_node": {
+        "fallback": [
+          16,
+          200
+        ]
+      }
+    }
+  }
 }

@@ -1,7 +1,7 @@
 {
   "_test_meta": {
     "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n52_edge_on_error.yaml",
-    "elapsed_ms": 677,
+    "elapsed_ms": 4187,
     "providers_registered": [
       "openai",
       "anthropic",
@@ -14,8 +14,88 @@
       "minimax",
       "huoshan"
     ],
-    "status": "Error"
+    "status": "Success"
   },
-  "_error": "Provider error: API error: 503 - DNS cache overflow",
-  "_error_debug": "ProviderError(ApiError { status: 503, message: \"DNS cache overflow\" })"
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "What is the speed of light?"
+          },
+          "timestamp": 1776218159582
+        }
+      ],
+      "gen_risky": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_error": true,
+            "_error_message": "Provider error: API error: 400 - Model Not Exist"
+          },
+          "timestamp": 1776218160749
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "original_error": "Provider error: API error: 400 - Model Not Exist",
+            "answer": null,
+            "had_error": true
+          },
+          "timestamp": 1776218163745
+        }
+      ],
+      "gen_fallback": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "output": "The speed of light in a vacuum is approximately **299,792,458 meters per second** (about 186,282 miles per second). This is a fundamental constant in physics, often denoted by the letter **c**.",
+            "_prompt": "Original question: What is the speed of light?\nError from primary: Provider error: API error: 400 - Model Not Exist",
+            "_usage": {
+              "provider": "deepseek",
+              "model": "deepseek-chat",
+              "input_tokens": 41,
+              "output_tokens": 45
+            },
+            "_actual_user_prompt": "Original question: What is the speed of light?\nError from primary: Provider error: API error: 400 - Model Not Exist",
+            "_actual_system_prompt": "The primary model failed. Provide a helpful answer anyway."
+          },
+          "timestamp": 1776218163745
+        }
+      ]
+    },
+    "output": {
+      "original_error": "Provider error: API error: 400 - Model Not Exist",
+      "answer": null,
+      "had_error": true
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 4174,
+      "per_node": {
+        "gen_fallback": 2994,
+        "response": 0,
+        "start": 4,
+        "gen_risky": 1157
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 41,
+      "total_output_tokens": 45,
+      "per_node": {
+        "gen_fallback": [
+          41,
+          45
+        ]
+      }
+    }
+  }
 }
