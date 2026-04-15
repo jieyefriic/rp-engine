@@ -137,3 +137,40 @@
 | S38 | Long Context | PASS | ~2000 char input summarized |
 | S39 | Schema Chain | PASS | Post-fix: schema fields flow between nodes |
 | S40 | Conditional + Loop | FAIL | YAML wiring issue |
+
+---
+
+## Untested Dimensions — Deferred to Round 2
+
+The following areas were NOT tested in Round 1 due to environment or infrastructure constraints.
+
+### Database Connectors (need remote instances)
+| Connector | Reason Not Tested |
+|-----------|-------------------|
+| **MySQL / MariaDB** | apt install failed (network too slow in sandbox) |
+| **MongoDB** | apt install failed (no official repo connectivity) |
+| **S3 / MinIO** | Docker image pull failed (no bridge networking) |
+| **Qdrant** | Docker image pull failed |
+| **GraphQL** | No available GraphQL endpoint in sandbox |
+
+### Provider Features
+| Feature | Reason Not Tested |
+|---------|-------------------|
+| **Vision / Multimodal** | Need image files; sandbox has no test images |
+| **OpenAI Compatible (custom endpoint)** | Need a local LLM server (vLLM/Ollama) |
+| **Provider-level streaming verification** | Streaming tested at workflow level (N11) but not per-provider token-by-token validation |
+| **Thinking/Reasoning mode** | Tested implicitly (Zhipu GLM-4.7, Huoshan doubao return reasoning_content) but no dedicated thinking_budget test |
+
+### Node Capabilities
+| Capability | Reason Not Tested |
+|------------|-------------------|
+| **MCP integration** | Need a reachable MCP server; DeepWiki endpoint used in existing tests but not in ultimate-test suite |
+| **Harness memory_file + writeback** | Tested harness.instructions (N18, S30) but NOT the memory_file persistence + writeback LLM call |
+| **Embedding nodes** | No embedding-specific workflow tests |
+
+### Workflow Patterns
+| Pattern | Reason Not Tested |
+|---------|-------------------|
+| **Concurrent workflow execution** | Multiple workflows on same Engine instance simultaneously |
+| **Very large workflows** | 20+ node deep graphs with complex fan-out/fan-in |
+| **Production load testing** | Concurrent users, rate limiting, backpressure |

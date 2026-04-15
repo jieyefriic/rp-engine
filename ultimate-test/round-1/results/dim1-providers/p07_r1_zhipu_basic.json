@@ -1,7 +1,7 @@
 {
   "_test_meta": {
     "yaml_path": "ultimate-test/round-1/workflows/dim1-providers/p07_r1_zhipu_basic.yaml",
-    "elapsed_ms": 5248,
+    "elapsed_ms": 4372,
     "providers_registered": [
       "openai",
       "anthropic",
@@ -26,7 +26,7 @@
           "outputs": {
             "query": "Hi"
           },
-          "timestamp": 1776222201916
+          "timestamp": 1776222609657
         }
       ],
       "response": [
@@ -34,9 +34,9 @@
           "short_id": "c",
           "execution_index": 0,
           "outputs": {
-            "answer": "Hello! 👋 How can I assist you today? Feel free to ask any questions or share what's on your mind."
+            "answer": ""
           },
-          "timestamp": 1776222207163
+          "timestamp": 1776222614026
         }
       ],
       "gen": [
@@ -44,39 +44,39 @@
           "short_id": "b",
           "execution_index": 0,
           "outputs": {
-            "_actual_user_prompt": "Hi",
-            "_prompt": "Hi",
-            "output": "Hello! 👋 How can I assist you today? Feel free to ask any questions or share what's on your mind.",
             "_usage": {
               "provider": "zhipu",
               "model": "glm-4.7",
               "input_tokens": 6,
-              "output_tokens": 193
-            }
+              "output_tokens": 200
+            },
+            "output": "",
+            "_prompt": "Hi",
+            "_actual_user_prompt": "Hi"
           },
-          "timestamp": 1776222207162
+          "timestamp": 1776222614026
         }
       ]
     },
     "output": {
-      "answer": "Hello! 👋 How can I assist you today? Feel free to ask any questions or share what's on your mind."
+      "answer": ""
     },
     "error": null,
     "timing": {
-      "total_ms": 5246,
+      "total_ms": 4369,
       "per_node": {
         "start": 0,
-        "response": 0,
-        "gen": 5245
+        "gen": 4368,
+        "response": 0
       }
     },
     "token_usage": {
       "total_input_tokens": 6,
-      "total_output_tokens": 193,
+      "total_output_tokens": 200,
       "per_node": {
         "gen": [
           6,
-          193
+          200
         ]
       }
     }
