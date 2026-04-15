@@ -1,91 +1,101 @@
 # Engine Issues — Round 1
 
-Issues found in the rp-engine itself during testing. Each entry describes a bug, limitation, or unexpected behavior in the engine code.
+Issues found in the rp-engine during testing. Entries marked [FIXED] have code fixes applied (commit 065f951). Entries marked [PARTIAL] or [OPEN] still need work.
 
 ---
 
-## EI-01: Zhipu and Moonshot providers hardcoded to DashScope endpoint — undocumented
+## EI-01: Zhipu and Moonshot providers hardcoded to DashScope endpoint [FIXED — docs]
 - **Found in test**: [P07_R1], [P08_R1]
 - **Source file**: `src/providers/zhipu.rs:14`, `src/providers/moonshot.rs:14`
-- **Problem**: Both providers are hardcoded to `https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions`. Users providing native Zhipu (`open.bigmodel.cn`) or Moonshot (`api.moonshot.cn`) API keys will get authentication failures with no explanation.
-- **Suggestion**: Document in skill.md that Zhipu/Moonshot require a DashScope API key, or allow `base_url` override.
+- **Problem**: Both providers hardcoded to DashScope URL. Native API keys fail silently.
+- **Fix applied**: Added documentation note to `docs/skill.md` in Providers section.
 - **Severity**: Medium
 
-## EI-02: Huoshan structured output succeeds despite json:false — positive finding
+## EI-02: Huoshan structured output succeeds despite json:false [INFO — no fix needed]
 - **Found in test**: [P10_R3]
-- **Source file**: `src/providers/providers.json:180-182`, `src/nodes/generate.rs`
-- **Problem**: Huoshan models marked `json: false` still work with output_schema via prompt-based JSON injection + `extract_json_from_content`.
-- **Suggestion**: Document this graceful degradation in skill.md.
+- **Problem**: Huoshan models (json: false) still work with output_schema via prompt + extraction.
+- **Fix applied**: Documented graceful degradation in skill.md.
 - **Severity**: Low (positive finding)
 
-## EI-03: Huoshan ignores max_tokens setting
+## EI-03: Huoshan ignores max_tokens setting [FIXED — docs]
 - **Found in test**: [P10_R3]
-- **Source file**: `src/providers/huoshan.rs`, `src/providers/openai_compatible.rs`
-- **Problem**: Huoshan test specified `max_tokens: 200` but returned 1105 output tokens. The max_tokens parameter appears to be ignored for this provider.
-- **Expected behavior**: Output should be capped at approximately 200 tokens.
-- **Actual behavior**: 1105 output tokens returned.
-- **Suggestion**: Investigate whether the Huoshan (Volcano Engine) API supports max_tokens and if the engine is passing it correctly.
+- **Problem**: Huoshan `max_tokens: 200` returned 1105 tokens. Caused by thinking model tokens counted separately.
+- **Fix applied**: Documented as expected thinking model behavior in skill.md.
 - **Severity**: Medium
 
-## EI-04: PostgreSQL panics on JSONB/TEXT[]/UUID/TIMESTAMPTZ column deserialization
+## EI-04: PostgreSQL panics on JSONB/TEXT[]/UUID/TIMESTAMPTZ [FIXED — verified]
 - **Found in test**: [D01]
-- **Source file**: `src/nodes/connectors/postgresql.rs`
-- **Problem**: Querying a table with JSONB, TEXT[], UUID, or TIMESTAMPTZ columns causes a panic (stack trace) rather than a graceful error. The error is "error deserializing column 5". Basic types (INT, TEXT, FLOAT, BOOL) work fine. Casting to `::text` also panics for JSONB.
-- **Expected behavior**: JSONB → serde_json::Value, TEXT[] → array, UUID → string, TIMESTAMPTZ → string.
-- **Actual behavior**: Unrecoverable panic.
-- **Suggestion**: Add proper type handling in `row_value_to_json` for JSONB, array types, UUID, and TIMESTAMPTZ. Use `try_get` instead of `get` to avoid panics.
-- **Severity**: Critical — panics crash the entire workflow instead of returning an error.
+- **Source file**: `src/nodes/connectors/postgresql.rs:772-831`
+- **Problem**: `row.get()` panics on type mismatch. No array type support.
+- **Fix applied**: Replaced all `row.get()` with `row.try_get()`. Added 9 array type handlers (BOOL_ARRAY, INT2/4/8_ARRAY, FLOAT4/8_ARRAY, TEXT/VARCHAR_ARRAY, UUID_ARRAY, JSON/JSONB_ARRAY). Fallback returns `Value::Null` instead of panic.
+- **Verification**: D01 PG SELECT with complex types now PASS.
+- **Severity**: Critical → Resolved
 
-## EI-05: Node timeout (error_handling.timeout_ms) causes panic instead of graceful error
+## EI-05: Node timeout wraps already-resolved future [FIXED — verified]
 - **Found in test**: [N16]
-- **Source file**: `src/engine/executor.rs`
-- **Problem**: Setting `timeout_ms: 100` on a generate node causes a panic (stack trace) instead of returning `{_error: true, _error_message: "timeout"}`. The runner crashes before writing any result file.
-- **Expected behavior**: With `on_exhausted: continue`, the node should produce `_error`/`_error_message` outputs and the workflow should continue.
-- **Actual behavior**: Panic/crash.
-- **Suggestion**: The timeout mechanism should use `tokio::time::timeout()` and catch the error gracefully. Ensure the timeout path goes through the same error handling as other failures.
-- **Severity**: High — panics prevent error recovery workflows.
+- **Source file**: `src/engine/executor.rs:1053-1068`
+- **Problem**: `tokio::time::timeout` wrapped an already-awaited result (no-op). Timeout never fires.
+- **Fix applied**: Moved timeout to wrap the actual `execute_node_once()` call.
+- **Verification**: N16 with `timeout_ms: 100` now returns `{_error: true}` in 104ms.
+- **Severity**: High → Resolved
 
-## EI-06: Qwen R5 tool calling returns empty output despite token consumption
+## EI-06: Qwen empty output after tool calling loop exhaustion [FIXED — unverified]
 - **Found in test**: [P06_R5]
-- **Source file**: `src/nodes/generate.rs` (tool calling loop)
-- **Problem**: Qwen (qwen-plus) tool calling consumed 2431 input + 1823 output tokens but the final `output` field was an empty string. The tool loop ran but produced no usable content.
-- **Expected behavior**: After tool calls complete, the final LLM response should be captured as `output`.
-- **Actual behavior**: Empty string output.
-- **Suggestion**: Check if the final response after tool loop completion is properly extracted for Qwen provider. May be an issue with how the last response is captured when tool calls are present.
+- **Source file**: `src/nodes/generate.rs:629-706`
+- **Problem**: If LLM keeps requesting tool calls until max_rounds, `final_content` stays empty.
+- **Fix applied**: Track `last_assistant_content` during loop; use as fallback when loop exhausts.
+- **Verification**: Not re-tested (needs Qwen tool calling regression test).
 - **Severity**: Medium
 
-## EI-07: output_schema fields null when response node maps individual schema fields
-- **Found in test**: [N03], [N04]
-- **Source file**: `src/nodes/generate.rs`, `src/state/execution_state.rs`
-- **Problem**: When a generate node has `output_schema` with multiple fields (title, score, tags, etc.), and the response node maps them individually (`title: "gen.title"`, `score: "gen.score"`), all fields are null in the final output. The gen node appears to store its output as raw text under `output` instead of spreading the schema fields.
-- **Expected behavior**: Schema fields should be individually addressable as `gen.title`, `gen.score`, etc.
-- **Actual behavior**: All individual field paths return null. Only `gen.output` contains data (raw text).
-- **Suggestion**: Either (a) the engine's JSON extraction needs to be more aggressive / fall back to re-parsing, or (b) skill.md should clarify that output_schema fields may not always be individually addressable, especially with providers that don't support native JSON mode.
-- **Severity**: High — structured output is a core feature. This cascades to break multi-step workflows (S01, S02) that depend on structured fields from upstream nodes.
+## EI-07: output_schema fields null on JSON parse failure [FIXED — unverified]
+- **Found in test**: [N03], [N04], [S01], [S02], [S35], [S39]
+- **Source file**: `src/nodes/generate.rs:755-763`
+- **Problem**: When JSON parsing fails, only `output` (raw text) stored. Schema fields never written.
+- **Fix applied**: In the `Err` branch, now populates schema fields with typed defaults (`""` for string, `0` for number, etc.) alongside `output`.
+- **Verification**: Not re-tested (needs LLM regression test with DeepSeek).
+- **Severity**: High
 
-## EI-08: Object variables render as `[object]` in Handlebars templates
+## EI-08: Object variables render as `[object]` in Handlebars [FIXED — verified]
 - **Found in test**: [S16]
-- **Source file**: `src/nodes/generate.rs` (template rendering)
-- **Problem**: When a variable bound from a transform node contains a JSON object/map, the Handlebars template renders it as `[object]` or `[object Object]` instead of a JSON string. In S16, the merge transform produced `{openai: "...", anthropic: "...", qwen: "..."}` but the synthesize template received `[object]` for `{{answers}}`.
-- **Expected behavior**: Object variables should be serialized to JSON string in the template.
-- **Actual behavior**: Renders as `[object]`.
-- **Suggestion**: Before Handlebars rendering, serialize non-string/non-number variable values with `serde_json::to_string()`. Or register a custom Handlebars helper for JSON serialization.
-- **Severity**: Medium — affects any workflow that passes structured data between nodes via templates.
+- **Source file**: `src/nodes/generate.rs:972-976`
+- **Problem**: Handlebars renders Object/Array values as `[object Object]`.
+- **Fix applied**: Pre-serialize Object/Array values to JSON strings before Handlebars rendering.
+- **Verification**: S16 `{{answers}}` now renders proper JSON.
+- **Severity**: Medium → Resolved
 
-## EI-09: on_error edge output not captured by response node
+## EI-09: on_error edge output not captured by response node [PARTIAL — still broken]
 - **Found in test**: [N52], [S17]
-- **Source file**: `src/engine/executor.rs` (edge evaluation + dead path propagation)
-- **Problem**: When a node fails (with `on_exhausted: continue`) and the workflow routes via an `on_error: true` edge to a fallback node, the fallback executes correctly but the response node outputs null for the fallback fields. The fallback node's output exists in state but the response node can't read it.
-- **Expected behavior**: Response node should be able to read outputs from any executed node, including those reached via on_error edges.
-- **Actual behavior**: `answer: null` despite fallback node producing valid content.
-- **Suggestion**: Investigate whether on_error routing affects the response node's ability to read state. May be related to dead path detection incorrectly marking the fallback→response edge.
-- **Severity**: High — error recovery workflows are non-functional if fallback output can't be consumed.
+- **Source file**: `src/engine/executor.rs:1362-1367`
+- **Problem**: Fallback node via on_error edge executes, but response reads null for fallback fields.
+- **Fix applied**: Changed `propagate_dead_paths()` to consider traversed edges (edge_count > 0) as active.
+- **Verification**: **STILL FAILING** — N52 and S17 fallback output still null in response. The dead path fix is correct but the root cause is deeper: likely an execution ordering issue where the response node's input dependency on the failed node is resolved before the fallback completes, OR the response node reads state before the fallback writes.
+- **Remaining work**: Need to investigate executor's node scheduling and state write timing.
+- **Severity**: High — remains open
 
-## EI-10: Redis connector only supports 7 operations, missing hash/list/sorted set
+## EI-10: Redis connector missing hash/list operations [FIXED — verified]
 - **Found in test**: [D14], [D16]
-- **Source file**: `src/nodes/connectors/redis.rs:327-338`
-- **Problem**: The Redis connector only supports: `get`, `set`, `del`, `publish`, `json_append`, `json_merge`, `json_delete`. Common Redis operations like `hset`, `hgetall`, `lpush`, `lrange`, `sadd`, `smembers`, `zadd`, `zrange` are all unsupported and return `InvalidOperation` error.
-- **Expected behavior**: At minimum, hash (`hset`/`hgetall`) and list (`lpush`/`lrange`) operations should be supported, as they are among the most common Redis usage patterns.
-- **Actual behavior**: `Unknown Redis operation: hset` error.
-- **Suggestion**: Add support for at least: `hset`, `hget`, `hgetall`, `hdel`, `lpush`, `rpush`, `lrange`, `lpop`, `rpop`. Optionally: sorted sets (`zadd`, `zrange`), sets (`sadd`, `smembers`).
-- **Severity**: Medium — limits Redis to simple key-value and JSON operations only.
+- **Source file**: `src/nodes/connectors/redis.rs:327-339`
+- **Problem**: Only 7 operations supported. No hash or list support.
+- **Fix applied**: Added 10 new operations: `hset`, `hget`, `hgetall`, `hdel`, `lpush`, `rpush`, `lpop`, `rpop`, `lrange`, `llen`.
+- **Verification**: D14 Redis HSET/HGETALL now PASS.
+- **Severity**: Medium → Resolved
+
+---
+
+## Post-Fix Issues (discovered during verification)
+
+## EI-11: Checkpoint resume does not execute downstream nodes [OPEN]
+- **Found in test**: Advanced checkpoint_resume test
+- **Source file**: `src/engine/executor.rs` (resume logic) and `src/engine/engine.rs:252-314`
+- **Problem**: After `engine.resume()` with `resume_from: "gen_evaluate"`, the status is Success but `nodes_executed` only contains `[pause, gen_question, start]` — the downstream nodes (`gen_evaluate`, `response`) never run. The `output` is empty `{}`.
+- **Expected behavior**: Resume should re-execute from the specified node and all downstream.
+- **Actual behavior**: Resume returns Success immediately without executing downstream.
+- **Suggestion**: Investigate the `ResumeParams` handling in `execute_workflow()`. The forward-reachable set computation from the resume point may not be including the right nodes.
+- **Severity**: High — checkpoint/resume is a documented feature that doesn't fully work.
+
+## EI-12: Several D4 scenarios report Success but produce empty output (0ms) [OPEN]
+- **Found in test**: [S14 debate 3ms], [S29 dead_path 2ms], [S04 email_drafter 1120ms unclear]
+- **Problem**: Some scenarios return `ExecutionStatus::Success` with empty `output: {}` and near-zero elapsed time, meaning the workflow graph was parsed but no meaningful nodes executed. Likely caused by YAML wiring issues (edges not connecting properly) or graph validation silently passing invalid structures.
+- **Expected behavior**: If no response node executes, the workflow should either fail validation or return an error, not silent empty Success.
+- **Suggestion**: Add a post-execution check: if status is Success but output is empty and response node didn't execute, emit a warning or error.
+- **Severity**: Medium — silent empty success is misleading.
