@@ -1,7 +1,7 @@
 {
   "_test_meta": {
     "yaml_path": "ultimate-test/round-1/workflows/dim4-scenarios/s40_conditional_loop.yaml",
-    "elapsed_ms": 11909,
+    "elapsed_ms": 6516,
     "providers_registered": [
       "openai",
       "anthropic",
@@ -19,23 +19,54 @@
   "result": {
     "status": "Success",
     "executions": {
+      "classify_difficulty": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_usage": {
+              "provider": "openai",
+              "model": "gpt-4o-mini",
+              "input_tokens": 88,
+              "output_tokens": 9
+            },
+            "_prompt": "Classify this problem as either 'easy' or 'hard':\n\nWhat is the integral of x^2 * sin(x) dx?\n\nEasy = can be answered directly in one step.\nHard = requires multi-step reasoning or analysis.\nReturn exactly 'easy' or 'hard'.\n\n\nRespond in JSON format:\n{\n  \"difficulty\": \"easy\"\n}",
+            "_actual_system_prompt": "You are a problem difficulty classifier.",
+            "difficulty": "hard",
+            "_actual_user_prompt": "Classify this problem as either 'easy' or 'hard':\n\nWhat is the integral of x^2 * sin(x) dx?\n\nEasy = can be answered directly in one step.\nHard = requires multi-step reasoning or analysis.\nReturn exactly 'easy' or 'hard'.\n\n\nRespond in JSON format:\n{\n  \"difficulty\": \"easy\"\n}"
+          },
+          "timestamp": 1776308531433
+        }
+      ],
       "think": [
         {
           "short_id": "c",
           "execution_index": 0,
           "outputs": {
+            "is_done": false,
+            "_actual_user_prompt": "Problem: What is the integral of x^2 * sin(x) dx?\n\nPrevious reasoning steps: \n\nProvide your next reasoning step. If you have enough information to give a final answer, set is_done to true.\nAfter 2-3 steps, you should set is_done to true.\n\n\nRespond in JSON format:\n{\n  \"reasoning\": \"First, I need to consider...\",\n  \"is_done\": false\n}",
+            "reasoning": "I recognize this as an integration by parts problem. Let u = x^2 and dv = sin(x) dx. Then du = 2x dx and v = -cos(x). Applying integration by parts formula ∫u dv = uv - ∫v du gives: ∫x^2 sin(x) dx = -x^2 cos(x) - ∫(-cos(x) * 2x dx) = -x^2 cos(x) + 2∫x cos(x) dx.",
+            "_actual_system_prompt": "You are a careful step-by-step reasoner. Work through the problem incrementally.",
+            "_prompt": "Problem: What is the integral of x^2 * sin(x) dx?\n\nPrevious reasoning steps: \n\nProvide your next reasoning step. If you have enough information to give a final answer, set is_done to true.\nAfter 2-3 steps, you should set is_done to true.\n\n\nRespond in JSON format:\n{\n  \"reasoning\": \"First, I need to consider...\",\n  \"is_done\": false\n}",
             "_usage": {
               "provider": "deepseek",
               "model": "deepseek-chat",
-              "input_tokens": 82,
-              "output_tokens": 300
-            },
-            "_actual_user_prompt": "Problem: What is the integral of x^2 * sin(x) dx?\n\nPrevious reasoning steps: \n\nProvide your next reasoning step. If you have enough information to give a final answer, set is_done to true.\nAfter 2-3 steps, you should set is_done to true.\n",
-            "_actual_system_prompt": "You are a careful step-by-step reasoner. Work through the problem incrementally.",
-            "output": "We need to integrate \\( \\int x^2 \\sin(x) \\, dx \\).  \n\nThis is a product of a polynomial \\( x^2 \\) and a trigonometric function \\( \\sin(x) \\), so integration by parts is appropriate.  \n\nRecall the formula:  \n\\[\n\\int u \\, dv = uv - \\int v \\, du\n\\]  \n\nLet’s choose:  \n\\( u = x^2 \\) (polynomial, reduces power when differentiated)  \n\\( dv = \\sin(x) \\, dx \\)  \n\nThen:  \n\\( du = 2x \\, dx \\)  \n\\( v = -\\cos(x) \\)  \n\nApplying integration by parts:  \n\\[\n\\int x^2 \\sin(x) \\, dx = x^2 \\cdot (-\\cos(x)) - \\int (-\\cos(x)) \\cdot 2x \\, dx\n\\]  \n\\[\n= -x^2 \\cos(x) + \\int 2x \\cos(x) \\, dx\n\\]  \n\nNow we need to compute \\( \\int 2x \\cos(x) \\, dx \\).  \n\n---\n\n**Next step:**  \nWe apply integration by parts again to \\( \\int 2x \\cos(x) \\, dx \\).  \n\nLet \\( u = 2x \\), \\( dv = \\cos(x) \\, dx \\).  \nThen \\( du = 2 \\, dx \\), \\( v = \\sin(x) \\).  \n\nSo:  \n\\[\n\\int 2x \\",
-            "_prompt": "Problem: What is the integral of x^2 * sin(x) dx?\n\nPrevious reasoning steps: \n\nProvide your next reasoning step. If you have enough information to give a final answer, set is_done to true.\nAfter 2-3 steps, you should set is_done to true.\n"
+              "input_tokens": 131,
+              "output_tokens": 120
+            }
           },
-          "timestamp": 1776179087948
+          "timestamp": 1776308537109
+        }
+      ],
+      "check_done": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "should_continue": true,
+            "reasoning": "I recognize this as an integration by parts problem. Let u = x^2 and dv = sin(x) dx. Then du = 2x dx and v = -cos(x). Applying integration by parts formula ∫u dv = uv - ∫v du gives: ∫x^2 sin(x) dx = -x^2 cos(x) - ∫(-cos(x) * 2x dx) = -x^2 cos(x) + 2∫x cos(x) dx."
+          },
+          "timestamp": 1776308537119
         }
       ],
       "start": [
@@ -45,50 +76,32 @@
           "outputs": {
             "problem": "What is the integral of x^2 * sin(x) dx?"
           },
-          "timestamp": 1776179076042
-        }
-      ],
-      "classify_difficulty": [
-        {
-          "short_id": "b",
-          "execution_index": 0,
-          "outputs": {
-            "_prompt": "Classify this problem as either 'easy' or 'hard':\n\nWhat is the integral of x^2 * sin(x) dx?\n\nEasy = can be answered directly in one step.\nHard = requires multi-step reasoning or analysis.\nReturn exactly 'easy' or 'hard'.\n",
-            "_actual_system_prompt": "You are a problem difficulty classifier.",
-            "_actual_user_prompt": "Classify this problem as either 'easy' or 'hard':\n\nWhat is the integral of x^2 * sin(x) dx?\n\nEasy = can be answered directly in one step.\nHard = requires multi-step reasoning or analysis.\nReturn exactly 'easy' or 'hard'.\n",
-            "output": "hard",
-            "_usage": {
-              "provider": "openai",
-              "model": "gpt-4o-mini",
-              "input_tokens": 73,
-              "output_tokens": 1
-            }
-          },
-          "timestamp": 1776179076802
+          "timestamp": 1776308530610
         }
       ]
     },
     "output": {},
     "error": null,
     "timing": {
-      "total_ms": 11906,
+      "total_ms": 6511,
       "per_node": {
-        "classify_difficulty": 759,
-        "think": 11145,
-        "start": 0
+        "start": 0,
+        "classify_difficulty": 822,
+        "check_done": 9,
+        "think": 5675
       }
     },
     "token_usage": {
-      "total_input_tokens": 155,
-      "total_output_tokens": 301,
+      "total_input_tokens": 219,
+      "total_output_tokens": 129,
       "per_node": {
-        "think": [
-          82,
-          300
-        ],
         "classify_difficulty": [
-          73,
-          1
+          88,
+          9
+        ],
+        "think": [
+          131,
+          120
         ]
       }
     }

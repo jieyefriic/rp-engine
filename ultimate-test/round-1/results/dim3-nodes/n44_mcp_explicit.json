@@ -1,0 +1,76 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n44_mcp_explicit.yaml",
+    "elapsed_ms": 2420,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "mcp_call": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_timing_ms": 2416,
+            "result": "Available pages for anthropics/anthropic-cookbook:\n\n- 1 Overview\n  - 1.1 Repository Structure\n  - 1.2 Getting Started\n- 2 Development Guide\n  - 2.1 Project Configuration\n  - 2.2 Contributing Guidelines\n  - 2.3 Testing Framework\n  - 2.4 CI/CD Pipeline\n- 3 Skills System\n  - 3.1 Skills Overview and Architecture\n  - 3.2 Built-in Skills\n  - 3.3 Custom Skills Development\n- 4 Tool Use and Memory Systems\n  - 4.1 Tool Definition and Integration\n  - 4.2 Memory Systems for Agents\n  - 4.3 Context Management\n  - 4.4 Advanced Tool Use Patterns\n- 5 Retrieval Augmented Generation\n  - 5.1 Basic RAG Pipeline\n  - 5.2 Vector Database Integrations\n  - 5.3 Advanced RAG with LlamaIndex\n- 6 Multimodal Capabilities\n  - 6.1 Vision and Image Processing\n  - 6.2 Voice Assistant with Audio Processing\n- 7 Advanced API Features\n  - 7.1 Prompt Caching\n  - 7.2 Batch Processing\n  - 7.3 Metaprompt Generation\n  - 7.4 Model Finetuning on Bedrock\n- 8 Quality Assurance System\n  - 8.1 Automated Validation Workflows\n  - 8.2 Claude Code Slash Commands\n  - 8.3 Cookbook Audit System"
+          },
+          "timestamp": 1776308365468
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "timing": 2416,
+            "had_error": null,
+            "result": "Available pages for anthropics/anthropic-cookbook:\n\n- 1 Overview\n  - 1.1 Repository Structure\n  - 1.2 Getting Started\n- 2 Development Guide\n  - 2.1 Project Configuration\n  - 2.2 Contributing Guidelines\n  - 2.3 Testing Framework\n  - 2.4 CI/CD Pipeline\n- 3 Skills System\n  - 3.1 Skills Overview and Architecture\n  - 3.2 Built-in Skills\n  - 3.3 Custom Skills Development\n- 4 Tool Use and Memory Systems\n  - 4.1 Tool Definition and Integration\n  - 4.2 Memory Systems for Agents\n  - 4.3 Context Management\n  - 4.4 Advanced Tool Use Patterns\n- 5 Retrieval Augmented Generation\n  - 5.1 Basic RAG Pipeline\n  - 5.2 Vector Database Integrations\n  - 5.3 Advanced RAG with LlamaIndex\n- 6 Multimodal Capabilities\n  - 6.1 Vision and Image Processing\n  - 6.2 Voice Assistant with Audio Processing\n- 7 Advanced API Features\n  - 7.1 Prompt Caching\n  - 7.2 Batch Processing\n  - 7.3 Metaprompt Generation\n  - 7.4 Model Finetuning on Bedrock\n- 8 Quality Assurance System\n  - 8.1 Automated Validation Workflows\n  - 8.2 Claude Code Slash Commands\n  - 8.3 Cookbook Audit System"
+          },
+          "timestamp": 1776308365469
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "repo": "anthropics/anthropic-cookbook"
+          },
+          "timestamp": 1776308363051
+        }
+      ]
+    },
+    "output": {
+      "timing": 2416,
+      "had_error": null,
+      "result": "Available pages for anthropics/anthropic-cookbook:\n\n- 1 Overview\n  - 1.1 Repository Structure\n  - 1.2 Getting Started\n- 2 Development Guide\n  - 2.1 Project Configuration\n  - 2.2 Contributing Guidelines\n  - 2.3 Testing Framework\n  - 2.4 CI/CD Pipeline\n- 3 Skills System\n  - 3.1 Skills Overview and Architecture\n  - 3.2 Built-in Skills\n  - 3.3 Custom Skills Development\n- 4 Tool Use and Memory Systems\n  - 4.1 Tool Definition and Integration\n  - 4.2 Memory Systems for Agents\n  - 4.3 Context Management\n  - 4.4 Advanced Tool Use Patterns\n- 5 Retrieval Augmented Generation\n  - 5.1 Basic RAG Pipeline\n  - 5.2 Vector Database Integrations\n  - 5.3 Advanced RAG with LlamaIndex\n- 6 Multimodal Capabilities\n  - 6.1 Vision and Image Processing\n  - 6.2 Voice Assistant with Audio Processing\n- 7 Advanced API Features\n  - 7.1 Prompt Caching\n  - 7.2 Batch Processing\n  - 7.3 Metaprompt Generation\n  - 7.4 Model Finetuning on Bedrock\n- 8 Quality Assurance System\n  - 8.1 Automated Validation Workflows\n  - 8.2 Claude Code Slash Commands\n  - 8.3 Cookbook Audit System"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 2418,
+      "per_node": {
+        "response": 0,
+        "start": 0,
+        "mcp_call": 2416
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

@@ -1,0 +1,32 @@
+version: "1.0"
+name: "N44 MCP Explicit Tool Call"
+
+mcp_servers:
+  deepwiki:
+    url: "https://mcp.deepwiki.com/mcp"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: mcp_call
+    type: mcp
+    config:
+      server: deepwiki
+      tool: read_wiki_structure
+      variables:
+        repoName: "start.repo"
+
+  - id: response
+    type: response
+    config:
+      output:
+        result: "mcp_call.result"
+        timing: "mcp_call._timing_ms"
+        had_error: "mcp_call._error"
+
+edges:
+  - from: start
+    to: mcp_call
+  - from: mcp_call
+    to: response

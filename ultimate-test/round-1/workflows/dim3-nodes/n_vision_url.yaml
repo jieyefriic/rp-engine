@@ -1,0 +1,36 @@
+version: "1.0"
+name: "N Vision URL Test"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: describe
+    type: generate
+    config:
+      provider: openai
+      model: gpt-4o-mini
+      template: tpl
+      variables:
+        question: "start.question"
+      images:
+        - "start.image_url"
+
+  - id: response
+    type: response
+    config:
+      output:
+        description: "describe.output"
+
+edges:
+  - from: start
+    to: describe
+  - from: describe
+    to: response
+
+templates:
+  tpl:
+    user_prompt: "{{question}}"
+    config:
+      temperature: 0.3
+      max_tokens: 200

@@ -1,0 +1,85 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n18b_harness_writeback.yaml",
+    "elapsed_ms": 4275,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "query": "Remember that I also like dark mode. What do you know about me?"
+          },
+          "timestamp": 1776308382157
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "answer": "你好，Alice！根据我们的对话，我了解到：\n\n- 你偏好用中文交流。\n- 你喜欢使用深色模式（dark mode）。\n- 你是我的用户，名字叫 Alice。\n\n我会记住这些偏好，为你提供更贴心的服务。有什么我可以帮你的吗？ 😊"
+          },
+          "timestamp": 1776308385554
+        }
+      ],
+      "gen": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_usage": {
+              "provider": "qwen",
+              "model": "qwen-flash",
+              "input_tokens": 53,
+              "output_tokens": 60
+            },
+            "_actual_user_prompt": "Remember that I also like dark mode. What do you know about me?",
+            "_actual_system_prompt": "You are a helpful assistant that remembers user preferences.\n\n---\n\n## Memory\nUser prefers Chinese responses. User's name is Alice.\n",
+            "_prompt": "Remember that I also like dark mode. What do you know about me?",
+            "output": "你好，Alice！根据我们的对话，我了解到：\n\n- 你偏好用中文交流。\n- 你喜欢使用深色模式（dark mode）。\n- 你是我的用户，名字叫 Alice。\n\n我会记住这些偏好，为你提供更贴心的服务。有什么我可以帮你的吗？ 😊"
+          },
+          "timestamp": 1776308385554
+        }
+      ]
+    },
+    "output": {
+      "answer": "你好，Alice！根据我们的对话，我了解到：\n\n- 你偏好用中文交流。\n- 你喜欢使用深色模式（dark mode）。\n- 你是我的用户，名字叫 Alice。\n\n我会记住这些偏好，为你提供更贴心的服务。有什么我可以帮你的吗？ 😊"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 3398,
+      "per_node": {
+        "start": 0,
+        "response": 0,
+        "gen": 3397
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 53,
+      "total_output_tokens": 60,
+      "per_node": {
+        "gen": [
+          53,
+          60
+        ]
+      }
+    }
+  }
+}

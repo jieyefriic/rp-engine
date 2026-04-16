@@ -1,0 +1,85 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n_vision_url.yaml",
+    "elapsed_ms": 2135,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "description": "The image features the colorful logo of Google, displaying the word \"Google\" in a playful font with blue, red, yellow, and green colors."
+          },
+          "timestamp": 1776308459484
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "question": "What do you see in this image? Describe in one sentence.",
+            "image_url": "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png"
+          },
+          "timestamp": 1776308457353
+        }
+      ],
+      "describe": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_prompt": "What do you see in this image? Describe in one sentence.",
+            "output": "The image features the colorful logo of Google, displaying the word \"Google\" in a playful font with blue, red, yellow, and green colors.",
+            "_usage": {
+              "provider": "openai",
+              "model": "gpt-4o-mini",
+              "input_tokens": 14187,
+              "output_tokens": 30
+            },
+            "_actual_user_prompt": "What do you see in this image? Describe in one sentence."
+          },
+          "timestamp": 1776308459483
+        }
+      ]
+    },
+    "output": {
+      "description": "The image features the colorful logo of Google, displaying the word \"Google\" in a playful font with blue, red, yellow, and green colors."
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 2131,
+      "per_node": {
+        "response": 0,
+        "start": 0,
+        "describe": 2129
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 14187,
+      "total_output_tokens": 30,
+      "per_node": {
+        "describe": [
+          14187,
+          30
+        ]
+      }
+    }
+  }
+}

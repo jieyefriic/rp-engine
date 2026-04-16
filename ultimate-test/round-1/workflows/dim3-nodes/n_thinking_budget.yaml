@@ -1,0 +1,36 @@
+version: "1.0"
+name: "N Thinking Budget Test"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen
+    type: generate
+    config:
+      provider: anthropic
+      model: claude-haiku-4-5-20251001
+      template: tpl
+      variables:
+        problem: "start.problem"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen.output"
+        thinking: "gen._thinking"
+
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl:
+    user_prompt: "Solve step by step: {{problem}}"
+    config:
+      temperature: 1.0
+      max_tokens: 500
+      thinking_budget: 2048

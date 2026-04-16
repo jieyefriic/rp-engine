@@ -1,7 +1,7 @@
 {
   "_test_meta": {
     "yaml_path": "ultimate-test/round-1/workflows/dim4-scenarios/s14_debate.yaml",
-    "elapsed_ms": 3,
+    "elapsed_ms": 10211,
     "providers_registered": [
       "openai",
       "anthropic",
@@ -19,6 +19,44 @@
   "result": {
     "status": "Success",
     "executions": {
+      "con_argument": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "_actual_system_prompt": "You are a skilled debater arguing AGAINST the given position. Be persuasive and use evidence.",
+            "_prompt": "Debate topic: Should AI be used to make hiring decisions?\n\nPrevious pro arguments: \nPrevious con arguments: \nLatest pro argument: AI can significantly reduce unconscious bias in hiring by evaluating candidates based on objective data and skills, rather than subjective human impressions. This leads to fairer outcomes and a more diverse workforce.\n\nPresent your next argument AGAINST this position. Be concise (2-3 sentences). Directly counter the latest pro argument.\n",
+            "_actual_user_prompt": "Debate topic: Should AI be used to make hiring decisions?\n\nPrevious pro arguments: \nPrevious con arguments: \nLatest pro argument: AI can significantly reduce unconscious bias in hiring by evaluating candidates based on objective data and skills, rather than subjective human impressions. This leads to fairer outcomes and a more diverse workforce.\n\nPresent your next argument AGAINST this position. Be concise (2-3 sentences). Directly counter the latest pro argument.\n",
+            "output": "While AI may appear to reduce bias, it often amplifies existing inequalities because it learns from historical hiring data that reflects past discriminatory practices. If past decisions favored certain demographics, AI will perpetuate those biases under the guise of objectivity, making discrimination harder to detect and correct.",
+            "_usage": {
+              "provider": "qwen",
+              "model": "qwen-flash",
+              "input_tokens": 120,
+              "output_tokens": 55
+            }
+          },
+          "timestamp": 1776308656692
+        }
+      ],
+      "pro_argument": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_usage": {
+              "provider": "deepseek",
+              "model": "deepseek-chat",
+              "input_tokens": 73,
+              "output_tokens": 36
+            },
+            "_actual_system_prompt": "You are a skilled debater arguing FOR the given position. Be persuasive and use evidence.",
+            "output": "AI can significantly reduce unconscious bias in hiring by evaluating candidates based on objective data and skills, rather than subjective human impressions. This leads to fairer outcomes and a more diverse workforce.",
+            "_actual_user_prompt": "Debate topic: Should AI be used to make hiring decisions?\n\nPrevious pro arguments: None yet\nPrevious con arguments: \n\nPresent your next argument FOR this position. Be concise (2-3 sentences). Build on or counter previous arguments if they exist.\n",
+            "_prompt": "Debate topic: Should AI be used to make hiring decisions?\n\nPrevious pro arguments: None yet\nPrevious con arguments: \n\nPresent your next argument FOR this position. Be concise (2-3 sentences). Build on or counter previous arguments if they exist.\n"
+          },
+          "timestamp": 1776308653685
+        }
+      ],
       "start": [
         {
           "short_id": "a",
@@ -26,22 +64,58 @@
           "outputs": {
             "topic": "Should AI be used to make hiring decisions?"
           },
-          "timestamp": 1776179043094
+          "timestamp": 1776308649926
+        }
+      ],
+      "judge_progress": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "verdict": "The con side presents a stronger case because it highlights the potential for AI to perpetuate existing biases rather than eliminate them. While the pro side argues for the objectivity of AI, the con side effectively points out that AI systems are only as unbiased as the data they are trained on, which can reflect historical inequalities. This raises significant concerns about the fairness of AI in hiring decisions, suggesting that the risks of discrimination may outweigh the benefits of reduced bias. Therefore, the debate has not reached a natural conclusion as the con side presents a compelling argument that warrants further discussion.",
+            "_prompt": "Debate topic: Should AI be used to make hiring decisions?\n\nPro arguments: [&quot;AI can significantly reduce unconscious bias in hiring by evaluating candidates based on objective data and skills, rather than subjective human impressions. This leads to fairer outcomes and a more diverse workforce.&quot;]\nCon arguments: [&quot;While AI may appear to reduce bias, it often amplifies existing inequalities because it learns from historical hiring data that reflects past discriminatory practices. If past decisions favored certain demographics, AI will perpetuate those biases under the guise of objectivity, making discrimination harder to detect and correct.&quot;]\n\nEvaluate the debate so far. Provide a verdict on which side is more compelling and whether the debate has reached a natural conclusion.\nAfter 2 rounds, set is_resolved to true.\n\n\nRespond in JSON format:\n{\n  \"verdict\": \"The pro side presents a stronger case because...\",\n  \"is_resolved\": false\n}",
+            "_actual_user_prompt": "Debate topic: Should AI be used to make hiring decisions?\n\nPro arguments: [&quot;AI can significantly reduce unconscious bias in hiring by evaluating candidates based on objective data and skills, rather than subjective human impressions. This leads to fairer outcomes and a more diverse workforce.&quot;]\nCon arguments: [&quot;While AI may appear to reduce bias, it often amplifies existing inequalities because it learns from historical hiring data that reflects past discriminatory practices. If past decisions favored certain demographics, AI will perpetuate those biases under the guise of objectivity, making discrimination harder to detect and correct.&quot;]\n\nEvaluate the debate so far. Provide a verdict on which side is more compelling and whether the debate has reached a natural conclusion.\nAfter 2 rounds, set is_resolved to true.\n\n\nRespond in JSON format:\n{\n  \"verdict\": \"The pro side presents a stronger case because...\",\n  \"is_resolved\": false\n}",
+            "_actual_system_prompt": "You are an impartial debate judge. Evaluate the arguments presented by both sides.",
+            "is_resolved": false,
+            "_usage": {
+              "provider": "openai",
+              "model": "gpt-4o-mini",
+              "input_tokens": 215,
+              "output_tokens": 129
+            }
+          },
+          "timestamp": 1776308660133
         }
       ]
     },
     "output": {},
     "error": null,
     "timing": {
-      "total_ms": 0,
+      "total_ms": 10208,
       "per_node": {
-        "start": 0
+        "judge_progress": 3441,
+        "start": 0,
+        "con_argument": 3005,
+        "pro_argument": 3759
       }
     },
     "token_usage": {
-      "total_input_tokens": 0,
-      "total_output_tokens": 0,
-      "per_node": {}
+      "total_input_tokens": 408,
+      "total_output_tokens": 220,
+      "per_node": {
+        "judge_progress": [
+          215,
+          129
+        ],
+        "pro_argument": [
+          73,
+          36
+        ],
+        "con_argument": [
+          120,
+          55
+        ]
+      }
     }
   }
 }

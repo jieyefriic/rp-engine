@@ -14,8 +14,9 @@ nodes:
     template: tpl_pro
     variables:
       topic: "start.topic"
-      previous_pro: "pro_argument[*].output"
-      previous_con: "con_argument[*].output"
+      previous_pro:
+        from: "pro_argument[*].output"
+        default: "None yet"
 
 - id: con_argument
   type: generate
@@ -25,8 +26,6 @@ nodes:
     template: tpl_con
     variables:
       topic: "start.topic"
-      previous_pro: "pro_argument[*].output"
-      previous_con: "con_argument[*].output"
       latest_pro: "pro_argument.output"
 
 - id: judge_progress
@@ -110,7 +109,7 @@ templates:
     output_schema:
     - name: verdict
       type: string
-      example: "The pro side has stronger empirical evidence"
+      example: "The pro side presents a stronger case because..."
     - name: is_resolved
       type: boolean
       example: "false"

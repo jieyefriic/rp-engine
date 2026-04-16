@@ -1,0 +1,29 @@
+version: "1.0"
+name: "N45 MCP Tool Discovery"
+
+mcp_servers:
+  deepwiki:
+    url: "https://mcp.deepwiki.com/mcp"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: discover
+    type: mcp_tools
+    config:
+      server: deepwiki
+
+  - id: response
+    type: response
+    config:
+      output:
+        tools: "discover.tools"
+        tool_count: "discover._tool_count"
+        server: "discover.server"
+
+edges:
+  - from: start
+    to: discover
+  - from: discover
+    to: response

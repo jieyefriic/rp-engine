@@ -1,0 +1,408 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-1/workflows/dim3-nodes/n45_mcp_discovery.yaml",
+    "elapsed_ms": 430,
+    "providers_registered": [
+      "openai",
+      "anthropic",
+      "gemini",
+      "xai",
+      "deepseek",
+      "qwen",
+      "zhipu",
+      "moonshot",
+      "minimax",
+      "huoshan"
+    ],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "discover": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "_tool_count": 3,
+            "server": "deepwiki",
+            "tools": [
+              {
+                "name": "read_wiki_structure",
+                "description": "Get a list of documentation topics for a GitHub repository.\n\nArgs:\n    repoName: GitHub repository in owner/repo format (e.g. \"facebook/react\")",
+                "inputSchema": {
+                  "properties": {
+                    "repoName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "repoName"
+                  ],
+                  "type": "object"
+                },
+                "outputSchema": {
+                  "properties": {
+                    "result": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "type": "object",
+                  "x-fastmcp-wrap-result": true
+                },
+                "_meta": {
+                  "_fastmcp": {
+                    "tags": []
+                  }
+                }
+              },
+              {
+                "name": "read_wiki_contents",
+                "description": "View documentation about a GitHub repository.\n\nArgs:\n    repoName: GitHub repository in owner/repo format (e.g. \"facebook/react\")",
+                "inputSchema": {
+                  "properties": {
+                    "repoName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "repoName"
+                  ],
+                  "type": "object"
+                },
+                "outputSchema": {
+                  "properties": {
+                    "result": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "type": "object",
+                  "x-fastmcp-wrap-result": true
+                },
+                "_meta": {
+                  "_fastmcp": {
+                    "tags": []
+                  }
+                }
+              },
+              {
+                "name": "ask_question",
+                "description": "Ask any question about a GitHub repository and get an AI-powered, context-grounded response.\n\nArgs:\n    repoName: GitHub repository or list of repositories (max 10) in owner/repo format\n    question: The question to ask about the repository",
+                "inputSchema": {
+                  "properties": {
+                    "repoName": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        }
+                      ]
+                    },
+                    "question": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "repoName",
+                    "question"
+                  ],
+                  "type": "object"
+                },
+                "outputSchema": {
+                  "properties": {
+                    "result": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "type": "object",
+                  "x-fastmcp-wrap-result": true
+                },
+                "_meta": {
+                  "_fastmcp": {
+                    "tags": []
+                  }
+                }
+              }
+            ]
+          },
+          "timestamp": 1776308369475
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "server": "deepwiki",
+            "tool_count": 3,
+            "tools": [
+              {
+                "name": "read_wiki_structure",
+                "description": "Get a list of documentation topics for a GitHub repository.\n\nArgs:\n    repoName: GitHub repository in owner/repo format (e.g. \"facebook/react\")",
+                "inputSchema": {
+                  "properties": {
+                    "repoName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "repoName"
+                  ],
+                  "type": "object"
+                },
+                "outputSchema": {
+                  "properties": {
+                    "result": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "type": "object",
+                  "x-fastmcp-wrap-result": true
+                },
+                "_meta": {
+                  "_fastmcp": {
+                    "tags": []
+                  }
+                }
+              },
+              {
+                "name": "read_wiki_contents",
+                "description": "View documentation about a GitHub repository.\n\nArgs:\n    repoName: GitHub repository in owner/repo format (e.g. \"facebook/react\")",
+                "inputSchema": {
+                  "properties": {
+                    "repoName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "repoName"
+                  ],
+                  "type": "object"
+                },
+                "outputSchema": {
+                  "properties": {
+                    "result": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "type": "object",
+                  "x-fastmcp-wrap-result": true
+                },
+                "_meta": {
+                  "_fastmcp": {
+                    "tags": []
+                  }
+                }
+              },
+              {
+                "name": "ask_question",
+                "description": "Ask any question about a GitHub repository and get an AI-powered, context-grounded response.\n\nArgs:\n    repoName: GitHub repository or list of repositories (max 10) in owner/repo format\n    question: The question to ask about the repository",
+                "inputSchema": {
+                  "properties": {
+                    "repoName": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        }
+                      ]
+                    },
+                    "question": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "repoName",
+                    "question"
+                  ],
+                  "type": "object"
+                },
+                "outputSchema": {
+                  "properties": {
+                    "result": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "type": "object",
+                  "x-fastmcp-wrap-result": true
+                },
+                "_meta": {
+                  "_fastmcp": {
+                    "tags": []
+                  }
+                }
+              }
+            ]
+          },
+          "timestamp": 1776308369475
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776308369048
+        }
+      ]
+    },
+    "output": {
+      "server": "deepwiki",
+      "tool_count": 3,
+      "tools": [
+        {
+          "name": "read_wiki_structure",
+          "description": "Get a list of documentation topics for a GitHub repository.\n\nArgs:\n    repoName: GitHub repository in owner/repo format (e.g. \"facebook/react\")",
+          "inputSchema": {
+            "properties": {
+              "repoName": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "repoName"
+            ],
+            "type": "object"
+          },
+          "outputSchema": {
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "result"
+            ],
+            "type": "object",
+            "x-fastmcp-wrap-result": true
+          },
+          "_meta": {
+            "_fastmcp": {
+              "tags": []
+            }
+          }
+        },
+        {
+          "name": "read_wiki_contents",
+          "description": "View documentation about a GitHub repository.\n\nArgs:\n    repoName: GitHub repository in owner/repo format (e.g. \"facebook/react\")",
+          "inputSchema": {
+            "properties": {
+              "repoName": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "repoName"
+            ],
+            "type": "object"
+          },
+          "outputSchema": {
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "result"
+            ],
+            "type": "object",
+            "x-fastmcp-wrap-result": true
+          },
+          "_meta": {
+            "_fastmcp": {
+              "tags": []
+            }
+          }
+        },
+        {
+          "name": "ask_question",
+          "description": "Ask any question about a GitHub repository and get an AI-powered, context-grounded response.\n\nArgs:\n    repoName: GitHub repository or list of repositories (max 10) in owner/repo format\n    question: The question to ask about the repository",
+          "inputSchema": {
+            "properties": {
+              "repoName": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                ]
+              },
+              "question": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "repoName",
+              "question"
+            ],
+            "type": "object"
+          },
+          "outputSchema": {
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "result"
+            ],
+            "type": "object",
+            "x-fastmcp-wrap-result": true
+          },
+          "_meta": {
+            "_fastmcp": {
+              "tags": []
+            }
+          }
+        }
+      ]
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 428,
+      "per_node": {
+        "start": 0,
+        "response": 0,
+        "discover": 427
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

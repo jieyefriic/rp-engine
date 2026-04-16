@@ -1,0 +1,42 @@
+version: "1.0"
+name: "N18b Harness Memory Writeback"
+
+harness:
+  instructions: "You are a helpful assistant that remembers user preferences."
+  memory_file: "/tmp/ut_memory_test.md"
+  writeback:
+    provider: qwen
+    model: qwen-flash
+    memory_char_limit: 500
+
+nodes:
+  - id: start
+    type: start
+
+  - id: gen
+    type: generate
+    config:
+      provider: qwen
+      model: qwen-flash
+      template: tpl
+      variables:
+        query: "start.query"
+
+  - id: response
+    type: response
+    config:
+      output:
+        answer: "gen.output"
+
+edges:
+  - from: start
+    to: gen
+  - from: gen
+    to: response
+
+templates:
+  tpl:
+    user_prompt: "{{query}}"
+    config:
+      temperature: 0.5
+      max_tokens: 200
