@@ -1,0 +1,79 @@
+version: "1.0"
+name: "G07 MongoDB Update Many"
+
+data_sources:
+  mongo_test:
+    name: "Test MongoDB"
+    kind: mongodb
+    config:
+      url: "mongodb://localhost:17017"
+      database: "ut_testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: seed
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: insert_many
+        collection: "g07_products"
+        data:
+          - name: "P1"
+            category: "A"
+            price: 10
+            in_stock: true
+          - name: "P2"
+            category: "A"
+            price: 20
+            in_stock: true
+          - name: "P3"
+            category: "B"
+            price: 30
+            in_stock: true
+          - name: "P4"
+            category: "A"
+            price: 40
+            in_stock: true
+
+  - id: update_many
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: update_many
+        collection: "g07_products"
+        filter:
+          category: "A"
+        update:
+          in_stock: false
+
+  - id: verify
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: find
+        collection: "g07_products"
+        sort:
+          name: 1
+
+  - id: response
+    type: response
+    config:
+      output:
+        matched: "update_many.matched_count"
+        modified: "update_many.modified_count"
+        all_products: "verify.rows"
+
+edges:
+  - from: start
+    to: seed
+  - from: seed
+    to: update_many
+  - from: update_many
+    to: verify
+  - from: verify
+    to: response

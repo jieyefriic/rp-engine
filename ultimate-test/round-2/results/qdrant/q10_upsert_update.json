@@ -1,0 +1,134 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/qdrant/q10_upsert_update.yaml",
+    "elapsed_ms": 33,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "upsert_updated": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "success": true,
+            "count": 1
+          },
+          "timestamp": 1776302775390
+        }
+      ],
+      "verify": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "points": [
+              {
+                "id": 300,
+                "payload": {
+                  "text": "updated content",
+                  "version": 2,
+                  "new_field": "added"
+                },
+                "vectors": [
+                  0.730296790599823,
+                  0.5477226376533508,
+                  0.3651483952999115,
+                  0.18257419764995575
+                ]
+              }
+            ],
+            "count": 1
+          },
+          "timestamp": 1776302775398
+        }
+      ],
+      "upsert_original": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "count": 1,
+            "success": true
+          },
+          "timestamp": 1776302775383
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302775368
+        }
+      ],
+      "response": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "original_ok": true,
+            "updated_ok": true,
+            "final_points": [
+              {
+                "id": 300,
+                "payload": {
+                  "text": "updated content",
+                  "version": 2,
+                  "new_field": "added"
+                },
+                "vectors": [
+                  0.730296790599823,
+                  0.5477226376533508,
+                  0.3651483952999115,
+                  0.18257419764995575
+                ]
+              }
+            ],
+            "final_count": 1
+          },
+          "timestamp": 1776302775398
+        }
+      ]
+    },
+    "output": {
+      "original_ok": true,
+      "updated_ok": true,
+      "final_points": [
+        {
+          "id": 300,
+          "payload": {
+            "text": "updated content",
+            "version": 2,
+            "new_field": "added"
+          },
+          "vectors": [
+            0.730296790599823,
+            0.5477226376533508,
+            0.3651483952999115,
+            0.18257419764995575
+          ]
+        }
+      ],
+      "final_count": 1
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 31,
+      "per_node": {
+        "start": 0,
+        "upsert_updated": 6,
+        "response": 0,
+        "verify": 8,
+        "upsert_original": 14
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/qdrant/q03_search.yaml",
+    "elapsed_ms": 13,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "search": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "count": 3,
+            "results": [
+              {
+                "id": 1,
+                "score": 0.9938837289810181,
+                "payload": {
+                  "category": "greeting",
+                  "text": "hello world",
+                  "priority": 1
+                }
+              },
+              {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "score": 0.9801022410392761,
+                "payload": {
+                  "category": "uuid_test",
+                  "text": "uuid point alpha"
+                }
+              },
+              {
+                "id": 300,
+                "score": 0.78631591796875,
+                "payload": {
+                  "text": "updated content",
+                  "version": 2,
+                  "new_field": "added"
+                }
+              }
+            ]
+          },
+          "timestamp": 1776302764276
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "results": [
+              {
+                "id": 1,
+                "score": 0.9938837289810181,
+                "payload": {
+                  "category": "greeting",
+                  "text": "hello world",
+                  "priority": 1
+                }
+              },
+              {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "score": 0.9801022410392761,
+                "payload": {
+                  "category": "uuid_test",
+                  "text": "uuid point alpha"
+                }
+              },
+              {
+                "id": 300,
+                "score": 0.78631591796875,
+                "payload": {
+                  "text": "updated content",
+                  "version": 2,
+                  "new_field": "added"
+                }
+              }
+            ],
+            "count": 3
+          },
+          "timestamp": 1776302764276
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302764266
+        }
+      ]
+    },
+    "output": {
+      "results": [
+        {
+          "id": 1,
+          "score": 0.9938837289810181,
+          "payload": {
+            "category": "greeting",
+            "text": "hello world",
+            "priority": 1
+          }
+        },
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "score": 0.9801022410392761,
+          "payload": {
+            "category": "uuid_test",
+            "text": "uuid point alpha"
+          }
+        },
+        {
+          "id": 300,
+          "score": 0.78631591796875,
+          "payload": {
+            "text": "updated content",
+            "version": 2,
+            "new_field": "added"
+          }
+        }
+      ],
+      "count": 3
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 11,
+      "per_node": {
+        "start": 0,
+        "search": 9,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

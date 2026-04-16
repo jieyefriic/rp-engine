@@ -1,0 +1,91 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/s3/s04_delete_object.yaml",
+    "elapsed_ms": 223,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "verify": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "size": 0,
+            "last_modified": "",
+            "exists": false,
+            "content_type": ""
+          },
+          "timestamp": 1776302727800
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "data": "dGVzdA=="
+          },
+          "timestamp": 1776302727580
+        }
+      ],
+      "delete": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "deleted": true
+          },
+          "timestamp": 1776302727794
+        }
+      ],
+      "response": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "uploaded_key": "deltest/a8f44a23-388d-4567-8325-001a8dd1660a.bin",
+            "deleted": true,
+            "still_exists": false
+          },
+          "timestamp": 1776302727800
+        }
+      ],
+      "put": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "key": "deltest/a8f44a23-388d-4567-8325-001a8dd1660a.bin",
+            "bucket": "ut-delete-bucket",
+            "url": "http://127.0.0.1:19000/ut-delete-bucket/deltest/a8f44a23-388d-4567-8325-001a8dd1660a.bin"
+          },
+          "timestamp": 1776302727787
+        }
+      ]
+    },
+    "output": {
+      "uploaded_key": "deltest/a8f44a23-388d-4567-8325-001a8dd1660a.bin",
+      "deleted": true,
+      "still_exists": false
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 221,
+      "per_node": {
+        "response": 0,
+        "put": 206,
+        "start": 0,
+        "delete": 7,
+        "verify": 6
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

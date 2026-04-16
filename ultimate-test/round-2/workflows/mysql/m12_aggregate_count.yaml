@@ -1,0 +1,50 @@
+version: "1.0"
+name: "M12 MySQL Aggregate + COUNT"
+
+data_sources:
+  mysql_test:
+    name: "Test MySQL"
+    kind: mysql
+    config:
+      host: "localhost"
+      port: 13306
+      username: "test"
+      password: "test"
+      database: "testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: count_all
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: query
+        sql: "SELECT COUNT(*) as total, AVG(score) as avg_score, MAX(score) as max_score, MIN(score) as min_score FROM ut_types"
+
+  - id: count_active
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: query
+        sql: "SELECT is_active, COUNT(*) as cnt, AVG(score) as avg_score FROM ut_types GROUP BY is_active ORDER BY is_active DESC"
+
+  - id: response
+    type: response
+    config:
+      output:
+        totals: "count_all.rows"
+        by_active: "count_active.rows"
+
+edges:
+  - from: start
+    to: count_all
+  - from: start
+    to: count_active
+  - from: count_all
+    to: response
+  - from: count_active
+    to: response

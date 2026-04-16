@@ -1,0 +1,55 @@
+version: "1.0"
+name: "S01 S3 Put + Get Text"
+
+data_sources:
+  minio_test:
+    name: "Test MinIO"
+    kind: s3
+    config:
+      endpoint: "http://127.0.0.1:19000"
+      access_key: "minioadmin"
+      secret_key: "minioadmin"
+      region: "us-east-1"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: put
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: put_object
+        bucket: "ut-test-bucket"
+        prefix: "text-tests"
+        content_type: "text/plain"
+      variables:
+        data: "start.data"
+
+  - id: get
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: get_object
+        bucket: "ut-test-bucket"
+        key: "{{put.key}}"
+
+  - id: response
+    type: response
+    config:
+      output:
+        uploaded_key: "put.key"
+        uploaded_url: "put.url"
+        downloaded_data: "get.data"
+        content_type: "get.content_type"
+        size: "get.size"
+
+edges:
+  - from: start
+    to: put
+  - from: put
+    to: get
+  - from: get
+    to: response

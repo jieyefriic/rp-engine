@@ -1,0 +1,151 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mysql/m02_select.yaml",
+    "elapsed_ms": 24,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "select_order_limit": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "rows": [
+              {
+                "name": "Alice",
+                "score": 95.5
+              },
+              {
+                "name": "Diana",
+                "score": 91.0
+              },
+              {
+                "name": "Diana",
+                "score": 91.0
+              }
+            ],
+            "count": 3
+          },
+          "timestamp": 1776302576273
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "top_scores": [
+              {
+                "name": "Alice",
+                "score": 95.5
+              },
+              {
+                "name": "Diana",
+                "score": 91.0
+              },
+              {
+                "name": "Diana",
+                "score": 91.0
+              }
+            ],
+            "top_count": 3,
+            "by_name_count": 2,
+            "by_name": [
+              {
+                "name": "Alice",
+                "score": 99.9,
+                "is_active": 1
+              },
+              {
+                "name": "Alice",
+                "score": 95.5,
+                "is_active": 1
+              }
+            ]
+          },
+          "timestamp": 1776302576273
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "name": "Alice"
+          },
+          "timestamp": 1776302576252
+        }
+      ],
+      "select_where": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "rows": [
+              {
+                "name": "Alice",
+                "score": 99.9,
+                "is_active": 1
+              },
+              {
+                "name": "Alice",
+                "score": 95.5,
+                "is_active": 1
+              }
+            ],
+            "count": 2
+          },
+          "timestamp": 1776302576273
+        }
+      ]
+    },
+    "output": {
+      "top_scores": [
+        {
+          "name": "Alice",
+          "score": 95.5
+        },
+        {
+          "name": "Diana",
+          "score": 91.0
+        },
+        {
+          "name": "Diana",
+          "score": 91.0
+        }
+      ],
+      "top_count": 3,
+      "by_name_count": 2,
+      "by_name": [
+        {
+          "name": "Alice",
+          "score": 99.9,
+          "is_active": 1
+        },
+        {
+          "name": "Alice",
+          "score": 95.5,
+          "is_active": 1
+        }
+      ]
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 22,
+      "per_node": {
+        "response": 0,
+        "select_where": 18,
+        "select_order_limit": 20,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

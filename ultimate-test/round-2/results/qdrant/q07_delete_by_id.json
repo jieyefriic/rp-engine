@@ -1,0 +1,88 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/qdrant/q07_delete_by_id.yaml",
+    "elapsed_ms": 34,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "remaining_count": 0,
+            "upsert_success": true,
+            "delete_success": true,
+            "remaining_points": []
+          },
+          "timestamp": 1776302770127
+        }
+      ],
+      "delete": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "success": true
+          },
+          "timestamp": 1776302770120
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302770096
+        }
+      ],
+      "upsert_temp": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "count": 1,
+            "success": true
+          },
+          "timestamp": 1776302770110
+        }
+      ],
+      "verify": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "count": 0,
+            "points": []
+          },
+          "timestamp": 1776302770127
+        }
+      ]
+    },
+    "output": {
+      "remaining_count": 0,
+      "upsert_success": true,
+      "delete_success": true,
+      "remaining_points": []
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 31,
+      "per_node": {
+        "verify": 6,
+        "upsert_temp": 13,
+        "start": 0,
+        "delete": 9,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

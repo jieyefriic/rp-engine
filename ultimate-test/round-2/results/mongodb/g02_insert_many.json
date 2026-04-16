@@ -1,0 +1,92 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mongodb/g02_insert_many.yaml",
+    "elapsed_ms": 37,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "verify": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "count": 10
+          },
+          "timestamp": 1776302674842
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "total_count": 10,
+            "inserted_ids": [
+              "69e03a52a3791269da15073f",
+              "69e03a52a3791269da15073b",
+              "69e03a52a3791269da15073d",
+              "69e03a52a3791269da15073c",
+              "69e03a52a3791269da15073e"
+            ],
+            "insert_count": 5
+          },
+          "timestamp": 1776302674842
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302674809
+        }
+      ],
+      "insert_many": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "count": 5,
+            "inserted_ids": [
+              "69e03a52a3791269da15073f",
+              "69e03a52a3791269da15073b",
+              "69e03a52a3791269da15073d",
+              "69e03a52a3791269da15073c",
+              "69e03a52a3791269da15073e"
+            ]
+          },
+          "timestamp": 1776302674832
+        }
+      ]
+    },
+    "output": {
+      "total_count": 10,
+      "inserted_ids": [
+        "69e03a52a3791269da15073f",
+        "69e03a52a3791269da15073b",
+        "69e03a52a3791269da15073d",
+        "69e03a52a3791269da15073c",
+        "69e03a52a3791269da15073e"
+      ],
+      "insert_count": 5
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 34,
+      "per_node": {
+        "verify": 9,
+        "start": 0,
+        "response": 0,
+        "insert_many": 22
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

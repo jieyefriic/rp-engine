@@ -1,0 +1,446 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mysql/m01_setup_query.yaml",
+    "elapsed_ms": 57,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "seed_data": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "count": 0,
+            "rows": []
+          },
+          "timestamp": 1776302574823
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302574783
+        }
+      ],
+      "response": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "count": 13,
+            "rows": [
+              {
+                "id": 1,
+                "name": "Alice",
+                "score": 99.9,
+                "is_active": 1,
+                "description": "First user",
+                "metadata": "{\"role\": \"admin\", \"level\": 5}",
+                "created_at": "2026-04-15 13:45:46"
+              },
+              {
+                "id": 2,
+                "name": "Bob",
+                "score": 82.3,
+                "is_active": 1,
+                "description": "Second user",
+                "metadata": "{\"role\": \"user\", \"level\": 3}",
+                "created_at": "2026-04-15 13:45:46"
+              },
+              {
+                "id": 3,
+                "name": "Charlie",
+                "score": 67.8,
+                "is_active": 0,
+                "description": "Third user",
+                "metadata": "{\"role\": \"user\", \"level\": 1}",
+                "created_at": "2026-04-15 13:45:46"
+              },
+              {
+                "id": 4,
+                "name": "Diana",
+                "score": 91.0,
+                "is_active": 1,
+                "description": "Fourth user",
+                "metadata": "{\"role\": \"mod\", \"level\": 4}",
+                "created_at": "2026-04-15 13:45:46"
+              },
+              {
+                "id": 5,
+                "name": "Eve",
+                "score": 45.2,
+                "is_active": 0,
+                "description": "Fifth user",
+                "metadata": null,
+                "created_at": "2026-04-15 13:45:46"
+              },
+              {
+                "id": 6,
+                "name": "NewUser_M04",
+                "score": 88.5,
+                "is_active": 1,
+                "description": "Inserted via M04 test",
+                "metadata": null,
+                "created_at": "2026-04-15 13:46:17"
+              },
+              {
+                "id": 8,
+                "name": "NullTest_M07",
+                "score": null,
+                "is_active": null,
+                "description": null,
+                "metadata": null,
+                "created_at": "2026-04-15 13:46:30"
+              },
+              {
+                "id": 9,
+                "name": "测试用户_M09",
+                "score": 50.0,
+                "is_active": 1,
+                "description": "Unicode CJK 中文 日本語 한국어 emoji 🎉🚀",
+                "metadata": null,
+                "created_at": "2026-04-15 13:46:34"
+              },
+              {
+                "id": 10,
+                "name": "Alice",
+                "score": 95.5,
+                "is_active": 1,
+                "description": "First user",
+                "metadata": "{\"role\": \"admin\", \"level\": 5}",
+                "created_at": "2026-04-16 01:22:54"
+              },
+              {
+                "id": 11,
+                "name": "Bob",
+                "score": 82.3,
+                "is_active": 1,
+                "description": "Second user",
+                "metadata": "{\"role\": \"user\", \"level\": 3}",
+                "created_at": "2026-04-16 01:22:54"
+              },
+              {
+                "id": 12,
+                "name": "Charlie",
+                "score": 67.8,
+                "is_active": 0,
+                "description": "Third user",
+                "metadata": "{\"role\": \"user\", \"level\": 1}",
+                "created_at": "2026-04-16 01:22:54"
+              },
+              {
+                "id": 13,
+                "name": "Diana",
+                "score": 91.0,
+                "is_active": 1,
+                "description": "Fourth user",
+                "metadata": "{\"role\": \"mod\", \"level\": 4}",
+                "created_at": "2026-04-16 01:22:54"
+              },
+              {
+                "id": 14,
+                "name": "Eve",
+                "score": 45.2,
+                "is_active": 0,
+                "description": "Fifth user",
+                "metadata": null,
+                "created_at": "2026-04-16 01:22:54"
+              }
+            ]
+          },
+          "timestamp": 1776302574837
+        }
+      ],
+      "create_table": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "count": 0,
+            "rows": []
+          },
+          "timestamp": 1776302574814
+        }
+      ],
+      "verify_query": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "is_active": 1,
+            "metadata": "{\"role\": \"admin\", \"level\": 5}",
+            "created_at": "2026-04-15 13:45:46",
+            "rows": [
+              {
+                "id": 1,
+                "name": "Alice",
+                "score": 99.9,
+                "is_active": 1,
+                "description": "First user",
+                "metadata": "{\"role\": \"admin\", \"level\": 5}",
+                "created_at": "2026-04-15 13:45:46"
+              },
+              {
+                "id": 2,
+                "name": "Bob",
+                "score": 82.3,
+                "is_active": 1,
+                "description": "Second user",
+                "metadata": "{\"role\": \"user\", \"level\": 3}",
+                "created_at": "2026-04-15 13:45:46"
+              },
+              {
+                "id": 3,
+                "name": "Charlie",
+                "score": 67.8,
+                "is_active": 0,
+                "description": "Third user",
+                "metadata": "{\"role\": \"user\", \"level\": 1}",
+                "created_at": "2026-04-15 13:45:46"
+              },
+              {
+                "id": 4,
+                "name": "Diana",
+                "score": 91.0,
+                "is_active": 1,
+                "description": "Fourth user",
+                "metadata": "{\"role\": \"mod\", \"level\": 4}",
+                "created_at": "2026-04-15 13:45:46"
+              },
+              {
+                "id": 5,
+                "name": "Eve",
+                "score": 45.2,
+                "is_active": 0,
+                "description": "Fifth user",
+                "metadata": null,
+                "created_at": "2026-04-15 13:45:46"
+              },
+              {
+                "id": 6,
+                "name": "NewUser_M04",
+                "score": 88.5,
+                "is_active": 1,
+                "description": "Inserted via M04 test",
+                "metadata": null,
+                "created_at": "2026-04-15 13:46:17"
+              },
+              {
+                "id": 8,
+                "name": "NullTest_M07",
+                "score": null,
+                "is_active": null,
+                "description": null,
+                "metadata": null,
+                "created_at": "2026-04-15 13:46:30"
+              },
+              {
+                "id": 9,
+                "name": "测试用户_M09",
+                "score": 50.0,
+                "is_active": 1,
+                "description": "Unicode CJK 中文 日本語 한국어 emoji 🎉🚀",
+                "metadata": null,
+                "created_at": "2026-04-15 13:46:34"
+              },
+              {
+                "id": 10,
+                "name": "Alice",
+                "score": 95.5,
+                "is_active": 1,
+                "description": "First user",
+                "metadata": "{\"role\": \"admin\", \"level\": 5}",
+                "created_at": "2026-04-16 01:22:54"
+              },
+              {
+                "id": 11,
+                "name": "Bob",
+                "score": 82.3,
+                "is_active": 1,
+                "description": "Second user",
+                "metadata": "{\"role\": \"user\", \"level\": 3}",
+                "created_at": "2026-04-16 01:22:54"
+              },
+              {
+                "id": 12,
+                "name": "Charlie",
+                "score": 67.8,
+                "is_active": 0,
+                "description": "Third user",
+                "metadata": "{\"role\": \"user\", \"level\": 1}",
+                "created_at": "2026-04-16 01:22:54"
+              },
+              {
+                "id": 13,
+                "name": "Diana",
+                "score": 91.0,
+                "is_active": 1,
+                "description": "Fourth user",
+                "metadata": "{\"role\": \"mod\", \"level\": 4}",
+                "created_at": "2026-04-16 01:22:54"
+              },
+              {
+                "id": 14,
+                "name": "Eve",
+                "score": 45.2,
+                "is_active": 0,
+                "description": "Fifth user",
+                "metadata": null,
+                "created_at": "2026-04-16 01:22:54"
+              }
+            ],
+            "count": 13,
+            "id": 1,
+            "name": "Alice",
+            "score": 99.9,
+            "description": "First user"
+          },
+          "timestamp": 1776302574837
+        }
+      ]
+    },
+    "output": {
+      "count": 13,
+      "rows": [
+        {
+          "id": 1,
+          "name": "Alice",
+          "score": 99.9,
+          "is_active": 1,
+          "description": "First user",
+          "metadata": "{\"role\": \"admin\", \"level\": 5}",
+          "created_at": "2026-04-15 13:45:46"
+        },
+        {
+          "id": 2,
+          "name": "Bob",
+          "score": 82.3,
+          "is_active": 1,
+          "description": "Second user",
+          "metadata": "{\"role\": \"user\", \"level\": 3}",
+          "created_at": "2026-04-15 13:45:46"
+        },
+        {
+          "id": 3,
+          "name": "Charlie",
+          "score": 67.8,
+          "is_active": 0,
+          "description": "Third user",
+          "metadata": "{\"role\": \"user\", \"level\": 1}",
+          "created_at": "2026-04-15 13:45:46"
+        },
+        {
+          "id": 4,
+          "name": "Diana",
+          "score": 91.0,
+          "is_active": 1,
+          "description": "Fourth user",
+          "metadata": "{\"role\": \"mod\", \"level\": 4}",
+          "created_at": "2026-04-15 13:45:46"
+        },
+        {
+          "id": 5,
+          "name": "Eve",
+          "score": 45.2,
+          "is_active": 0,
+          "description": "Fifth user",
+          "metadata": null,
+          "created_at": "2026-04-15 13:45:46"
+        },
+        {
+          "id": 6,
+          "name": "NewUser_M04",
+          "score": 88.5,
+          "is_active": 1,
+          "description": "Inserted via M04 test",
+          "metadata": null,
+          "created_at": "2026-04-15 13:46:17"
+        },
+        {
+          "id": 8,
+          "name": "NullTest_M07",
+          "score": null,
+          "is_active": null,
+          "description": null,
+          "metadata": null,
+          "created_at": "2026-04-15 13:46:30"
+        },
+        {
+          "id": 9,
+          "name": "测试用户_M09",
+          "score": 50.0,
+          "is_active": 1,
+          "description": "Unicode CJK 中文 日本語 한국어 emoji 🎉🚀",
+          "metadata": null,
+          "created_at": "2026-04-15 13:46:34"
+        },
+        {
+          "id": 10,
+          "name": "Alice",
+          "score": 95.5,
+          "is_active": 1,
+          "description": "First user",
+          "metadata": "{\"role\": \"admin\", \"level\": 5}",
+          "created_at": "2026-04-16 01:22:54"
+        },
+        {
+          "id": 11,
+          "name": "Bob",
+          "score": 82.3,
+          "is_active": 1,
+          "description": "Second user",
+          "metadata": "{\"role\": \"user\", \"level\": 3}",
+          "created_at": "2026-04-16 01:22:54"
+        },
+        {
+          "id": 12,
+          "name": "Charlie",
+          "score": 67.8,
+          "is_active": 0,
+          "description": "Third user",
+          "metadata": "{\"role\": \"user\", \"level\": 1}",
+          "created_at": "2026-04-16 01:22:54"
+        },
+        {
+          "id": 13,
+          "name": "Diana",
+          "score": 91.0,
+          "is_active": 1,
+          "description": "Fourth user",
+          "metadata": "{\"role\": \"mod\", \"level\": 4}",
+          "created_at": "2026-04-16 01:22:54"
+        },
+        {
+          "id": 14,
+          "name": "Eve",
+          "score": 45.2,
+          "is_active": 0,
+          "description": "Fifth user",
+          "metadata": null,
+          "created_at": "2026-04-16 01:22:54"
+        }
+      ]
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 54,
+      "per_node": {
+        "start": 0,
+        "create_table": 30,
+        "response": 0,
+        "verify_query": 14,
+        "seed_data": 8
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

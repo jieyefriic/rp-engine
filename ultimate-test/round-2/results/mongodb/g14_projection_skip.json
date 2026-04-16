@@ -1,0 +1,110 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mongodb/g14_projection_skip.yaml",
+    "elapsed_ms": 38,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302694297
+        }
+      ],
+      "find_projected": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "count": 2,
+            "name": "R2",
+            "value": 200,
+            "rows": [
+              {
+                "name": "R2",
+                "value": 200
+              },
+              {
+                "name": "R2",
+                "value": 200
+              }
+            ]
+          },
+          "timestamp": 1776302694331
+        }
+      ],
+      "seed": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "inserted_ids": [
+              "69e03a66451b31caa0451f5d",
+              "69e03a66451b31caa0451f5e",
+              "69e03a66451b31caa0451f5a",
+              "69e03a66451b31caa0451f5c",
+              "69e03a66451b31caa0451f5b"
+            ],
+            "count": 5
+          },
+          "timestamp": 1776302694316
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "seed_count": 5,
+            "results": [
+              {
+                "name": "R2",
+                "value": 200
+              },
+              {
+                "name": "R2",
+                "value": 200
+              }
+            ],
+            "result_count": 2
+          },
+          "timestamp": 1776302694331
+        }
+      ]
+    },
+    "output": {
+      "seed_count": 5,
+      "results": [
+        {
+          "name": "R2",
+          "value": 200
+        },
+        {
+          "name": "R2",
+          "value": 200
+        }
+      ],
+      "result_count": 2
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 35,
+      "per_node": {
+        "start": 0,
+        "response": 0,
+        "find_projected": 14,
+        "seed": 19
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

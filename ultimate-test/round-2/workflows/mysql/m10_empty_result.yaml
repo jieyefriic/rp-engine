@@ -1,0 +1,40 @@
+version: "1.0"
+name: "M10 MySQL Empty Result Set"
+
+data_sources:
+  mysql_test:
+    name: "Test MySQL"
+    kind: mysql
+    config:
+      host: "localhost"
+      port: 13306
+      username: "test"
+      password: "test"
+      database: "testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: empty_select
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: select
+        table: ut_types
+        where:
+          name: "ABSOLUTELY_NONEXISTENT_NAME_12345"
+
+  - id: response
+    type: response
+    config:
+      output:
+        rows: "empty_select.rows"
+        count: "empty_select.count"
+
+edges:
+  - from: start
+    to: empty_select
+  - from: empty_select
+    to: response

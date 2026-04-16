@@ -1,0 +1,84 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/s3/s01_put_get_text.yaml",
+    "elapsed_ms": 226,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "data": "SGVsbG8gZnJvbSBycC1lbmdpbmUgUzMgdGVzdCE="
+          },
+          "timestamp": 1776302721710
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "downloaded_data": "Hello from rp-engine S3 test!",
+            "uploaded_key": "text-tests/8bb40855-1f6d-4dca-9809-d082401b46af.bin",
+            "content_type": "text/plain",
+            "size": 29,
+            "uploaded_url": "http://127.0.0.1:19000/ut-test-bucket/text-tests/8bb40855-1f6d-4dca-9809-d082401b46af.bin"
+          },
+          "timestamp": 1776302721934
+        }
+      ],
+      "get": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "last_modified": "2026-04-16T01:25:21Z",
+            "data": "Hello from rp-engine S3 test!",
+            "size": 29,
+            "content_type": "text/plain"
+          },
+          "timestamp": 1776302721934
+        }
+      ],
+      "put": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "url": "http://127.0.0.1:19000/ut-test-bucket/text-tests/8bb40855-1f6d-4dca-9809-d082401b46af.bin",
+            "key": "text-tests/8bb40855-1f6d-4dca-9809-d082401b46af.bin",
+            "bucket": "ut-test-bucket"
+          },
+          "timestamp": 1776302721924
+        }
+      ]
+    },
+    "output": {
+      "downloaded_data": "Hello from rp-engine S3 test!",
+      "uploaded_key": "text-tests/8bb40855-1f6d-4dca-9809-d082401b46af.bin",
+      "content_type": "text/plain",
+      "size": 29,
+      "uploaded_url": "http://127.0.0.1:19000/ut-test-bucket/text-tests/8bb40855-1f6d-4dca-9809-d082401b46af.bin"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 224,
+      "per_node": {
+        "response": 0,
+        "start": 0,
+        "get": 9,
+        "put": 213
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

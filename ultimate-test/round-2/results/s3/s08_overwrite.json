@@ -1,0 +1,110 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/s3/s08_overwrite.yaml",
+    "elapsed_ms": 245,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "data_v2": "dmVyc2lvbiAy",
+            "data_v1": "dmVyc2lvbiAx"
+          },
+          "timestamp": 1776302734210
+        }
+      ],
+      "response": [
+        {
+          "short_id": "f",
+          "execution_index": 0,
+          "outputs": {
+            "v2_data": "version 2",
+            "v2_key": "overwrite/60a68bbf-b3bc-4daf-ac3c-a74e7e519bf1.bin",
+            "v1_data": "version 1",
+            "v1_key": "overwrite/3cbbb81a-cf34-4d0a-ba3e-2dd88bf97268.bin"
+          },
+          "timestamp": 1776302734452
+        }
+      ],
+      "get_v2": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "last_modified": "2026-04-16T01:25:34Z",
+            "content_type": "text/plain",
+            "size": 9,
+            "data": "version 2"
+          },
+          "timestamp": 1776302734452
+        }
+      ],
+      "put_v1": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "key": "overwrite/3cbbb81a-cf34-4d0a-ba3e-2dd88bf97268.bin",
+            "url": "http://127.0.0.1:19000/ut-overwrite-bucket/overwrite/3cbbb81a-cf34-4d0a-ba3e-2dd88bf97268.bin",
+            "bucket": "ut-overwrite-bucket"
+          },
+          "timestamp": 1776302734424
+        }
+      ],
+      "put_v2": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "url": "http://127.0.0.1:19000/ut-overwrite-bucket/overwrite/60a68bbf-b3bc-4daf-ac3c-a74e7e519bf1.bin",
+            "key": "overwrite/60a68bbf-b3bc-4daf-ac3c-a74e7e519bf1.bin",
+            "bucket": "ut-overwrite-bucket"
+          },
+          "timestamp": 1776302734441
+        }
+      ],
+      "get_v1": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "size": 9,
+            "data": "version 1",
+            "last_modified": "2026-04-16T01:25:34Z",
+            "content_type": "text/plain"
+          },
+          "timestamp": 1776302734452
+        }
+      ]
+    },
+    "output": {
+      "v2_data": "version 2",
+      "v2_key": "overwrite/60a68bbf-b3bc-4daf-ac3c-a74e7e519bf1.bin",
+      "v1_data": "version 1",
+      "v1_key": "overwrite/3cbbb81a-cf34-4d0a-ba3e-2dd88bf97268.bin"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 243,
+      "per_node": {
+        "start": 0,
+        "get_v1": 7,
+        "response": 0,
+        "put_v2": 17,
+        "put_v1": 213,
+        "get_v2": 11
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

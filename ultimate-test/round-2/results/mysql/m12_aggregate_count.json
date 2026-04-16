@@ -1,0 +1,149 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mysql/m12_aggregate_count.yaml",
+    "elapsed_ms": 20,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "totals": [
+              {
+                "total": 16,
+                "avg_score": 74.18571428571428,
+                "max_score": 99.9,
+                "min_score": 45.2
+              }
+            ],
+            "by_active": [
+              {
+                "is_active": 1,
+                "cnt": 10,
+                "avg_score": 81.26
+              },
+              {
+                "is_active": 0,
+                "cnt": 4,
+                "avg_score": 56.5
+              },
+              {
+                "is_active": null,
+                "cnt": 2,
+                "avg_score": null
+              }
+            ]
+          },
+          "timestamp": 1776302591833
+        }
+      ],
+      "count_active": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "cnt": 10,
+            "rows": [
+              {
+                "is_active": 1,
+                "cnt": 10,
+                "avg_score": 81.26
+              },
+              {
+                "is_active": 0,
+                "cnt": 4,
+                "avg_score": 56.5
+              },
+              {
+                "is_active": null,
+                "cnt": 2,
+                "avg_score": null
+              }
+            ],
+            "count": 3,
+            "is_active": 1,
+            "avg_score": 81.26
+          },
+          "timestamp": 1776302591833
+        }
+      ],
+      "count_all": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "min_score": 45.2,
+            "max_score": 99.9,
+            "rows": [
+              {
+                "total": 16,
+                "avg_score": 74.18571428571428,
+                "max_score": 99.9,
+                "min_score": 45.2
+              }
+            ],
+            "count": 1,
+            "total": 16,
+            "avg_score": 74.18571428571428
+          },
+          "timestamp": 1776302591833
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302591816
+        }
+      ]
+    },
+    "output": {
+      "totals": [
+        {
+          "total": 16,
+          "avg_score": 74.18571428571428,
+          "max_score": 99.9,
+          "min_score": 45.2
+        }
+      ],
+      "by_active": [
+        {
+          "is_active": 1,
+          "cnt": 10,
+          "avg_score": 81.26
+        },
+        {
+          "is_active": 0,
+          "cnt": 4,
+          "avg_score": 56.5
+        },
+        {
+          "is_active": null,
+          "cnt": 2,
+          "avg_score": null
+        }
+      ]
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 17,
+      "per_node": {
+        "count_active": 14,
+        "response": 0,
+        "count_all": 16,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

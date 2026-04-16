@@ -1,0 +1,115 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/qdrant/q06_scroll.yaml",
+    "elapsed_ms": 19,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302768662
+        }
+      ],
+      "scroll_page1": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "next_offset": 3,
+            "count": 2,
+            "points": [
+              {
+                "id": 1,
+                "payload": {
+                  "priority": 1,
+                  "text": "hello world",
+                  "category": "greeting"
+                }
+              },
+              {
+                "id": 2,
+                "payload": {
+                  "priority": 2,
+                  "category": "farewell",
+                  "text": "goodbye world"
+                }
+              }
+            ]
+          },
+          "timestamp": 1776302768677
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "count": 2,
+            "points": [
+              {
+                "id": 1,
+                "payload": {
+                  "priority": 1,
+                  "text": "hello world",
+                  "category": "greeting"
+                }
+              },
+              {
+                "id": 2,
+                "payload": {
+                  "priority": 2,
+                  "category": "farewell",
+                  "text": "goodbye world"
+                }
+              }
+            ],
+            "next_offset": 3
+          },
+          "timestamp": 1776302768677
+        }
+      ]
+    },
+    "output": {
+      "count": 2,
+      "points": [
+        {
+          "id": 1,
+          "payload": {
+            "priority": 1,
+            "text": "hello world",
+            "category": "greeting"
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "priority": 2,
+            "category": "farewell",
+            "text": "goodbye world"
+          }
+        }
+      ],
+      "next_offset": 3
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 16,
+      "per_node": {
+        "scroll_page1": 14,
+        "response": 0,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

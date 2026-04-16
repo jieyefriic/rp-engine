@@ -33,7 +33,7 @@ tokio-postgres = { version = "0.7", features = ["with-serde_json-1", "with-uuid-
 deadpool-postgres = "0.14"
 
 # MySQL
-mysql_async = "0.34"
+mysql_async = { version = "0.34", features = ["chrono"] }
 
 # MongoDB
 mongodb = "3"

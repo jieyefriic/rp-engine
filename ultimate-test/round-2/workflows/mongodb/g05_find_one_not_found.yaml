@@ -1,0 +1,37 @@
+version: "1.0"
+name: "G05 MongoDB Find One Not Found"
+
+data_sources:
+  mongo_test:
+    name: "Test MongoDB"
+    kind: mongodb
+    config:
+      url: "mongodb://localhost:17017"
+      database: "ut_testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: find_missing
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: find_one
+        collection: "g05_empty"
+        filter:
+          name: "ABSOLUTELY_NONEXISTENT"
+
+  - id: response
+    type: response
+    config:
+      output:
+        exists: "find_missing.exists"
+        document: "find_missing.document"
+
+edges:
+  - from: start
+    to: find_missing
+  - from: find_missing
+    to: response

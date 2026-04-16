@@ -1,0 +1,64 @@
+version: "1.0"
+name: "M06 MySQL DELETE + Verify"
+
+data_sources:
+  mysql_test:
+    name: "Test MySQL"
+    kind: mysql
+    config:
+      host: "localhost"
+      port: 13306
+      username: "test"
+      password: "test"
+      database: "testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: insert_temp
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: insert
+        table: ut_types
+        data:
+          name: "DeleteMe_M06"
+          score: 0
+          is_active: false
+
+  - id: delete
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: delete
+        table: ut_types
+        where:
+          name: "DeleteMe_M06"
+
+  - id: verify
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: query
+        sql: "SELECT COUNT(*) as remaining FROM ut_types WHERE name = 'DeleteMe_M06'"
+
+  - id: response
+    type: response
+    config:
+      output:
+        deleted_count: "delete.count"
+        remaining: "verify.remaining"
+
+edges:
+  - from: start
+    to: insert_temp
+  - from: insert_temp
+    to: delete
+  - from: delete
+    to: verify
+  - from: verify
+    to: response

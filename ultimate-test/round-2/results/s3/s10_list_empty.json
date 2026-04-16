@@ -1,0 +1,76 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/s3/s10_list_empty.yaml",
+    "elapsed_ms": 215,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "list_nonexistent": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "truncated": false,
+            "objects": []
+          },
+          "timestamp": 1776302738716
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "data": "dGVzdA=="
+          },
+          "timestamp": 1776302738504
+        }
+      ],
+      "setup_bucket": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "url": "http://127.0.0.1:19000/ut-empty-list-bucket/existing/27d28d9b-a631-48ac-9db6-ff7821a86f70.bin",
+            "key": "existing/27d28d9b-a631-48ac-9db6-ff7821a86f70.bin",
+            "bucket": "ut-empty-list-bucket"
+          },
+          "timestamp": 1776302738708
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "truncated": false,
+            "objects": []
+          },
+          "timestamp": 1776302738716
+        }
+      ]
+    },
+    "output": {
+      "truncated": false,
+      "objects": []
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 213,
+      "per_node": {
+        "setup_bucket": 203,
+        "start": 0,
+        "list_nonexistent": 8,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

@@ -1,0 +1,54 @@
+version: "1.0"
+name: "Q05 Qdrant Get Points by ID"
+
+data_sources:
+  qdrant_test:
+    name: "Test Qdrant"
+    kind: qdrant
+    config:
+      url: "http://localhost:16334"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: get_with_payload
+    type: data_connector
+    config:
+      data_source_id: qdrant_test
+      operation:
+        operation: get_points
+        collection: "ut_vectors"
+        ids: [1, 3, 5]
+        with_payload: true
+        with_vectors: true
+
+  - id: get_no_vectors
+    type: data_connector
+    config:
+      data_source_id: qdrant_test
+      operation:
+        operation: get_points
+        collection: "ut_vectors"
+        ids: [2, 4]
+        with_payload: true
+        with_vectors: false
+
+  - id: response
+    type: response
+    config:
+      output:
+        with_vectors: "get_with_payload.points"
+        with_vectors_count: "get_with_payload.count"
+        without_vectors: "get_no_vectors.points"
+        without_vectors_count: "get_no_vectors.count"
+
+edges:
+  - from: start
+    to: get_with_payload
+  - from: start
+    to: get_no_vectors
+  - from: get_with_payload
+    to: response
+  - from: get_no_vectors
+    to: response

@@ -1,0 +1,66 @@
+version: "1.0"
+name: "S09 S3 Empty + Large Content"
+
+data_sources:
+  minio_test:
+    name: "Test MinIO"
+    kind: s3
+    config:
+      endpoint: "http://127.0.0.1:19000"
+      access_key: "minioadmin"
+      secret_key: "minioadmin"
+      region: "us-east-1"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: put_large
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: put_object
+        bucket: "ut-size-bucket"
+        prefix: "large"
+        content_type: "text/plain"
+      variables:
+        data: "start.large_data"
+
+  - id: head_large
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: head_object
+        bucket: "ut-size-bucket"
+        key: "{{put_large.key}}"
+
+  - id: get_large
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: get_object
+        bucket: "ut-size-bucket"
+        key: "{{put_large.key}}"
+
+  - id: response
+    type: response
+    config:
+      output:
+        large_size: "head_large.size"
+        large_exists: "head_large.exists"
+        large_content_type: "get_large.content_type"
+
+edges:
+  - from: start
+    to: put_large
+  - from: put_large
+    to: head_large
+  - from: put_large
+    to: get_large
+  - from: head_large
+    to: response
+  - from: get_large
+    to: response

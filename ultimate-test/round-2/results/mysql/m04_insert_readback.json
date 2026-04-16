@@ -1,0 +1,129 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mysql/m04_insert_readback.yaml",
+    "elapsed_ms": 41,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "score": 77.7,
+            "name": "RegrUser",
+            "is_active": true
+          },
+          "timestamp": 1776302579195
+        }
+      ],
+      "insert": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "last_insert_id": 15,
+            "rows": [
+              {
+                "id": 15,
+                "name": "RegrUser",
+                "score": 77.7
+              }
+            ],
+            "count": 1
+          },
+          "timestamp": 1776302579222
+        }
+      ],
+      "read_back": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "description": "Inserted via M04 test",
+            "id": 15,
+            "name": "RegrUser",
+            "score": 77.7,
+            "is_active": 1,
+            "rows": [
+              {
+                "id": 15,
+                "name": "RegrUser",
+                "score": 77.7,
+                "is_active": 1,
+                "description": "Inserted via M04 test"
+              }
+            ],
+            "count": 1
+          },
+          "timestamp": 1776302579233
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "read_back": [
+              {
+                "id": 15,
+                "name": "RegrUser",
+                "score": 77.7,
+                "is_active": 1,
+                "description": "Inserted via M04 test"
+              }
+            ],
+            "insert_count": 1,
+            "insert_id": 15,
+            "insert_returning": [
+              {
+                "id": 15,
+                "name": "RegrUser",
+                "score": 77.7
+              }
+            ]
+          },
+          "timestamp": 1776302579233
+        }
+      ]
+    },
+    "output": {
+      "read_back": [
+        {
+          "id": 15,
+          "name": "RegrUser",
+          "score": 77.7,
+          "is_active": 1,
+          "description": "Inserted via M04 test"
+        }
+      ],
+      "insert_count": 1,
+      "insert_id": 15,
+      "insert_returning": [
+        {
+          "id": 15,
+          "name": "RegrUser",
+          "score": 77.7
+        }
+      ]
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 39,
+      "per_node": {
+        "insert": 26,
+        "start": 0,
+        "response": 0,
+        "read_back": 10
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

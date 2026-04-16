@@ -1,0 +1,93 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mysql/m09_special_chars.yaml",
+    "elapsed_ms": 41,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "description": "regression 🎯",
+            "name": "回归测试_M09"
+          },
+          "timestamp": 1776302587427
+        }
+      ],
+      "read_back": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "count": 1,
+            "name": "回归测试_M09",
+            "description": "regression 🎯",
+            "rows": [
+              {
+                "name": "回归测试_M09",
+                "description": "regression 🎯"
+              }
+            ]
+          },
+          "timestamp": 1776302587465
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "read_back": [
+              {
+                "name": "回归测试_M09",
+                "description": "regression 🎯"
+              }
+            ],
+            "insert_id": 18
+          },
+          "timestamp": 1776302587465
+        }
+      ],
+      "insert_special": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "count": 1,
+            "last_insert_id": 18
+          },
+          "timestamp": 1776302587450
+        }
+      ]
+    },
+    "output": {
+      "read_back": [
+        {
+          "name": "回归测试_M09",
+          "description": "regression 🎯"
+        }
+      ],
+      "insert_id": 18
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 38,
+      "per_node": {
+        "read_back": 14,
+        "start": 0,
+        "response": 0,
+        "insert_special": 22
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

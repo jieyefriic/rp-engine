@@ -1,0 +1,65 @@
+version: "1.0"
+name: "Q07 Qdrant Delete by ID"
+
+data_sources:
+  qdrant_test:
+    name: "Test Qdrant"
+    kind: qdrant
+    config:
+      url: "http://localhost:16334"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: upsert_temp
+    type: data_connector
+    config:
+      data_source_id: qdrant_test
+      operation:
+        operation: upsert
+        collection: "ut_vectors"
+        points:
+          - id: 100
+            vector: [0.1, 0.1, 0.1, 0.1]
+            payload:
+              text: "temporary point"
+              category: "temp"
+
+  - id: delete
+    type: data_connector
+    config:
+      data_source_id: qdrant_test
+      operation:
+        operation: delete
+        collection: "ut_vectors"
+        ids: [100]
+
+  - id: verify
+    type: data_connector
+    config:
+      data_source_id: qdrant_test
+      operation:
+        operation: get_points
+        collection: "ut_vectors"
+        ids: [100]
+        with_payload: true
+
+  - id: response
+    type: response
+    config:
+      output:
+        upsert_success: "upsert_temp.success"
+        delete_success: "delete.success"
+        remaining_points: "verify.points"
+        remaining_count: "verify.count"
+
+edges:
+  - from: start
+    to: upsert_temp
+  - from: upsert_temp
+    to: delete
+  - from: delete
+    to: verify
+  - from: verify
+    to: response

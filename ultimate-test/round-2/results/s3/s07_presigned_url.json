@@ -1,0 +1,78 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/s3/s07_presigned_url.yaml",
+    "elapsed_ms": 215,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "data": "dGVzdA=="
+          },
+          "timestamp": 1776302732587
+        }
+      ],
+      "presign": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "expires_in": 3600,
+            "url": "http://127.0.0.1:19000/ut-presign-bucket/presign/04db803e-98e2-41b2-a3cc-4bc9a5ab4d6b.bin?x-id=GetObject&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=minioadmin%2F20260416%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260416T012532Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=4395e18689f1dabde29e5aef5e38cc0b6c2ce31ea4105deef8d5f8059a71b380"
+          },
+          "timestamp": 1776302732799
+        }
+      ],
+      "put": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "url": "http://127.0.0.1:19000/ut-presign-bucket/presign/04db803e-98e2-41b2-a3cc-4bc9a5ab4d6b.bin",
+            "bucket": "ut-presign-bucket",
+            "key": "presign/04db803e-98e2-41b2-a3cc-4bc9a5ab4d6b.bin"
+          },
+          "timestamp": 1776302732796
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "uploaded_key": "presign/04db803e-98e2-41b2-a3cc-4bc9a5ab4d6b.bin",
+            "presigned_url": "http://127.0.0.1:19000/ut-presign-bucket/presign/04db803e-98e2-41b2-a3cc-4bc9a5ab4d6b.bin?x-id=GetObject&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=minioadmin%2F20260416%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260416T012532Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=4395e18689f1dabde29e5aef5e38cc0b6c2ce31ea4105deef8d5f8059a71b380",
+            "expires_in": 3600
+          },
+          "timestamp": 1776302732799
+        }
+      ]
+    },
+    "output": {
+      "uploaded_key": "presign/04db803e-98e2-41b2-a3cc-4bc9a5ab4d6b.bin",
+      "presigned_url": "http://127.0.0.1:19000/ut-presign-bucket/presign/04db803e-98e2-41b2-a3cc-4bc9a5ab4d6b.bin?x-id=GetObject&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=minioadmin%2F20260416%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260416T012532Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=4395e18689f1dabde29e5aef5e38cc0b6c2ce31ea4105deef8d5f8059a71b380",
+      "expires_in": 3600
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 212,
+      "per_node": {
+        "presign": 3,
+        "start": 0,
+        "put": 208,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

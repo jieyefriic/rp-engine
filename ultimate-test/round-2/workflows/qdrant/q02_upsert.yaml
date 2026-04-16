@@ -1,0 +1,65 @@
+version: "1.0"
+name: "Q02 Qdrant Upsert Points"
+
+data_sources:
+  qdrant_test:
+    name: "Test Qdrant"
+    kind: qdrant
+    config:
+      url: "http://localhost:16334"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: upsert
+    type: data_connector
+    config:
+      data_source_id: qdrant_test
+      operation:
+        operation: upsert
+        collection: "ut_vectors"
+        points:
+          - id: 1
+            vector: [1.0, 0.0, 0.0, 0.0]
+            payload:
+              text: "hello world"
+              category: "greeting"
+              priority: 1
+          - id: 2
+            vector: [0.0, 1.0, 0.0, 0.0]
+            payload:
+              text: "goodbye world"
+              category: "farewell"
+              priority: 2
+          - id: 3
+            vector: [0.0, 0.0, 1.0, 0.0]
+            payload:
+              text: "how are you"
+              category: "greeting"
+              priority: 3
+          - id: 4
+            vector: [0.0, 0.0, 0.0, 1.0]
+            payload:
+              text: "see you later"
+              category: "farewell"
+              priority: 1
+          - id: 5
+            vector: [0.5, 0.5, 0.0, 0.0]
+            payload:
+              text: "hi there"
+              category: "greeting"
+              priority: 2
+
+  - id: response
+    type: response
+    config:
+      output:
+        success: "upsert.success"
+        count: "upsert.count"
+
+edges:
+  - from: start
+    to: upsert
+  - from: upsert
+    to: response

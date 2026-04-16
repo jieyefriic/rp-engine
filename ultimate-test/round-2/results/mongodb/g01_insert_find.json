@@ -1,0 +1,122 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mongodb/g01_insert_find.yaml",
+    "elapsed_ms": 33,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "city": "SH",
+            "age": 30,
+            "name": "RegrAlice"
+          },
+          "timestamp": 1776302672467
+        }
+      ],
+      "find": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "rows": [
+              {
+                "_id": "69df96daca5ecfd571d77a67",
+                "name": "Alice",
+                "age": 30,
+                "city": "Shanghai"
+              },
+              {
+                "_id": "69e03a50994af3a127342801",
+                "name": "RegrAlice",
+                "age": 30,
+                "city": "SH"
+              }
+            ],
+            "age": 30,
+            "count": 2,
+            "name": "Alice",
+            "city": "Shanghai",
+            "_id": "69df96daca5ecfd571d77a67"
+          },
+          "timestamp": 1776302672497
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "rows": [
+              {
+                "_id": "69df96daca5ecfd571d77a67",
+                "name": "Alice",
+                "age": 30,
+                "city": "Shanghai"
+              },
+              {
+                "_id": "69e03a50994af3a127342801",
+                "name": "RegrAlice",
+                "age": 30,
+                "city": "SH"
+              }
+            ],
+            "inserted_id": "69e03a50994af3a127342801",
+            "count": 2
+          },
+          "timestamp": 1776302672497
+        }
+      ],
+      "insert": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "count": 1,
+            "inserted_id": "69e03a50994af3a127342801"
+          },
+          "timestamp": 1776302672486
+        }
+      ]
+    },
+    "output": {
+      "rows": [
+        {
+          "_id": "69df96daca5ecfd571d77a67",
+          "name": "Alice",
+          "age": 30,
+          "city": "Shanghai"
+        },
+        {
+          "_id": "69e03a50994af3a127342801",
+          "name": "RegrAlice",
+          "age": 30,
+          "city": "SH"
+        }
+      ],
+      "inserted_id": "69e03a50994af3a127342801",
+      "count": 2
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 30,
+      "per_node": {
+        "find": 10,
+        "insert": 18,
+        "start": 0,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

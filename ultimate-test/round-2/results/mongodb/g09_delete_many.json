@@ -1,0 +1,90 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mongodb/g09_delete_many.yaml",
+    "elapsed_ms": 39,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302685936
+        }
+      ],
+      "seed": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "inserted_ids": [
+              "69e03a5d23b316a009ba0e58",
+              "69e03a5d23b316a009ba0e57",
+              "69e03a5d23b316a009ba0e5b",
+              "69e03a5d23b316a009ba0e59",
+              "69e03a5d23b316a009ba0e5a"
+            ],
+            "count": 5
+          },
+          "timestamp": 1776302685953
+        }
+      ],
+      "delete_errors": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "count": 3,
+            "deleted_count": 3
+          },
+          "timestamp": 1776302685963
+        }
+      ],
+      "remaining": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "count": 4
+          },
+          "timestamp": 1776302685972
+        }
+      ],
+      "response": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "remaining": 4,
+            "deleted": 3
+          },
+          "timestamp": 1776302685972
+        }
+      ]
+    },
+    "output": {
+      "remaining": 4,
+      "deleted": 3
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 37,
+      "per_node": {
+        "remaining": 8,
+        "start": 0,
+        "response": 0,
+        "delete_errors": 10,
+        "seed": 16
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

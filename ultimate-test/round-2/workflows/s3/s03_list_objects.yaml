@@ -1,0 +1,68 @@
+version: "1.0"
+name: "S03 S3 List Objects"
+
+data_sources:
+  minio_test:
+    name: "Test MinIO"
+    kind: s3
+    config:
+      endpoint: "http://127.0.0.1:19000"
+      access_key: "minioadmin"
+      secret_key: "minioadmin"
+      region: "us-east-1"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: put1
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: put_object
+        bucket: "ut-list-bucket"
+        prefix: "listtest"
+        content_type: "text/plain"
+      variables:
+        data: "start.data1"
+
+  - id: put2
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: put_object
+        bucket: "ut-list-bucket"
+        prefix: "listtest"
+        content_type: "text/plain"
+      variables:
+        data: "start.data2"
+
+  - id: list
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: list_objects
+        bucket: "ut-list-bucket"
+        prefix: "listtest/"
+
+  - id: response
+    type: response
+    config:
+      output:
+        objects: "list.objects"
+        truncated: "list.truncated"
+
+edges:
+  - from: start
+    to: put1
+  - from: start
+    to: put2
+  - from: put1
+    to: list
+  - from: put2
+    to: list
+  - from: list
+    to: response

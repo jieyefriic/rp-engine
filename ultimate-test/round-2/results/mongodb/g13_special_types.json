@@ -1,0 +1,140 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mongodb/g13_special_types.yaml",
+    "elapsed_ms": 38,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "document": {
+              "_id": "69df971dc96e039388339b41",
+              "string_val": "hello world",
+              "int_val": 42,
+              "float_val": 3.14159,
+              "bool_true": true,
+              "bool_false": false,
+              "null_val": null,
+              "big_number": 9999999999999,
+              "negative": -100,
+              "zero": 0,
+              "empty_string": "",
+              "nested_null": {
+                "inner": null
+              },
+              "empty_array": [],
+              "empty_object": {}
+            },
+            "exists": true
+          },
+          "timestamp": 1776302692797
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302692762
+        }
+      ],
+      "read_back": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "document": {
+              "_id": "69df971dc96e039388339b41",
+              "string_val": "hello world",
+              "int_val": 42,
+              "float_val": 3.14159,
+              "bool_true": true,
+              "bool_false": false,
+              "null_val": null,
+              "big_number": 9999999999999,
+              "negative": -100,
+              "zero": 0,
+              "empty_string": "",
+              "nested_null": {
+                "inner": null
+              },
+              "empty_array": [],
+              "empty_object": {}
+            },
+            "int_val": 42,
+            "big_number": 9999999999999,
+            "exists": true,
+            "string_val": "hello world",
+            "_id": "69df971dc96e039388339b41",
+            "bool_true": true,
+            "empty_object": {},
+            "empty_string": "",
+            "float_val": 3.14159,
+            "bool_false": false,
+            "zero": 0,
+            "negative": -100,
+            "null_val": null,
+            "empty_array": [],
+            "nested_null": {
+              "inner": null
+            }
+          },
+          "timestamp": 1776302692797
+        }
+      ],
+      "insert_types": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "count": 1,
+            "inserted_id": "69e03a64b0150c2d14c1125c"
+          },
+          "timestamp": 1776302692785
+        }
+      ]
+    },
+    "output": {
+      "document": {
+        "_id": "69df971dc96e039388339b41",
+        "string_val": "hello world",
+        "int_val": 42,
+        "float_val": 3.14159,
+        "bool_true": true,
+        "bool_false": false,
+        "null_val": null,
+        "big_number": 9999999999999,
+        "negative": -100,
+        "zero": 0,
+        "empty_string": "",
+        "nested_null": {
+          "inner": null
+        },
+        "empty_array": [],
+        "empty_object": {}
+      },
+      "exists": true
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 35,
+      "per_node": {
+        "start": 0,
+        "read_back": 11,
+        "insert_types": 21,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

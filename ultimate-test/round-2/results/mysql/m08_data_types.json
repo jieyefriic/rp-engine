@@ -1,0 +1,154 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mysql/m08_data_types.yaml",
+    "elapsed_ms": 61,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "insert_types": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "rows": [],
+            "count": 0
+          },
+          "timestamp": 1776302585957
+        }
+      ],
+      "response": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "row": [
+              {
+                "id": 3,
+                "tiny_val": 127,
+                "small_val": 32767,
+                "int_val": 2147483647,
+                "big_val": 9223372036854775807,
+                "float_val": 3.140000104904175,
+                "double_val": 2.718281828,
+                "decimal_val": 99999.99,
+                "varchar_val": "hello world",
+                "text_val": "long text content here",
+                "bool_val": 1,
+                "date_val": "2026-04-15 00:00:00",
+                "datetime_val": "2026-04-15 10:30:00",
+                "json_val": "{\"key\": \"value\", \"nested\": {\"a\": 1}}",
+                "enum_val": "medium"
+              }
+            ],
+            "count": 1
+          },
+          "timestamp": 1776302585976
+        }
+      ],
+      "create_types_table": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "rows": [],
+            "count": 0
+          },
+          "timestamp": 1776302585939
+        }
+      ],
+      "read_types": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "int_val": 2147483647,
+            "date_val": "2026-04-15 00:00:00",
+            "json_val": "{\"key\": \"value\", \"nested\": {\"a\": 1}}",
+            "text_val": "long text content here",
+            "rows": [
+              {
+                "id": 3,
+                "tiny_val": 127,
+                "small_val": 32767,
+                "int_val": 2147483647,
+                "big_val": 9223372036854775807,
+                "float_val": 3.140000104904175,
+                "double_val": 2.718281828,
+                "decimal_val": 99999.99,
+                "varchar_val": "hello world",
+                "text_val": "long text content here",
+                "bool_val": 1,
+                "date_val": "2026-04-15 00:00:00",
+                "datetime_val": "2026-04-15 10:30:00",
+                "json_val": "{\"key\": \"value\", \"nested\": {\"a\": 1}}",
+                "enum_val": "medium"
+              }
+            ],
+            "decimal_val": 99999.99,
+            "float_val": 3.140000104904175,
+            "big_val": 9223372036854775807,
+            "double_val": 2.718281828,
+            "varchar_val": "hello world",
+            "datetime_val": "2026-04-15 10:30:00",
+            "count": 1,
+            "id": 3,
+            "tiny_val": 127,
+            "small_val": 32767,
+            "bool_val": 1,
+            "enum_val": "medium"
+          },
+          "timestamp": 1776302585976
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302585918
+        }
+      ]
+    },
+    "output": {
+      "row": [
+        {
+          "id": 3,
+          "tiny_val": 127,
+          "small_val": 32767,
+          "int_val": 2147483647,
+          "big_val": 9223372036854775807,
+          "float_val": 3.140000104904175,
+          "double_val": 2.718281828,
+          "decimal_val": 99999.99,
+          "varchar_val": "hello world",
+          "text_val": "long text content here",
+          "bool_val": 1,
+          "date_val": "2026-04-15 00:00:00",
+          "datetime_val": "2026-04-15 10:30:00",
+          "json_val": "{\"key\": \"value\", \"nested\": {\"a\": 1}}",
+          "enum_val": "medium"
+        }
+      ],
+      "count": 1
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 58,
+      "per_node": {
+        "start": 0,
+        "create_types_table": 19,
+        "insert_types": 17,
+        "read_types": 19,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

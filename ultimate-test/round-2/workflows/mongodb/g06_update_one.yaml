@@ -1,0 +1,68 @@
+version: "1.0"
+name: "G06 MongoDB Update One"
+
+data_sources:
+  mongo_test:
+    name: "Test MongoDB"
+    kind: mongodb
+    config:
+      url: "mongodb://localhost:17017"
+      database: "ut_testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: seed
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: insert_one
+        collection: "g06_users"
+        data:
+          name: "UpdateMe"
+          age: 25
+          status: "active"
+
+  - id: update
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: update_one
+        collection: "g06_users"
+        filter:
+          name: "UpdateMe"
+        update:
+          age: 99
+          status: "updated"
+
+  - id: verify
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: find_one
+        collection: "g06_users"
+        filter:
+          name: "UpdateMe"
+
+  - id: response
+    type: response
+    config:
+      output:
+        matched: "update.matched_count"
+        modified: "update.modified_count"
+        verified_age: "verify.age"
+        verified_status: "verify.status"
+
+edges:
+  - from: start
+    to: seed
+  - from: seed
+    to: update
+  - from: update
+    to: verify
+  - from: verify
+    to: response

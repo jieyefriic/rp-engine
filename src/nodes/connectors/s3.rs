@@ -41,13 +41,13 @@ pub async fn execute(
         .ok_or_else(|| EngineError::MissingField("operation".to_string()))?;
 
     match op_type {
-        "get_object" => execute_get_object(&client, operation, ctx.state).await,
+        "get_object" => execute_get_object(&client, operation, ctx.variables, ctx.state).await,
         "put_object" => execute_put_object_v2(&client, &endpoint, operation, ctx.variables, ctx.state).await,
-        "list_objects" => execute_list_objects(&client, operation, ctx.state).await,
-        "delete_object" => execute_delete_object(&client, operation, ctx.state).await,
-        "presigned_url" => execute_presigned_url(ds_config, &access_key, &secret_key, &region, operation, ctx.state).await,
-        "head_object" => execute_head_object(&client, operation, ctx.state).await,
-        "copy_object" => execute_copy_object(&client, operation, ctx.state).await,
+        "list_objects" => execute_list_objects(&client, operation, ctx.variables, ctx.state).await,
+        "delete_object" => execute_delete_object(&client, operation, ctx.variables, ctx.state).await,
+        "presigned_url" => execute_presigned_url(ds_config, &access_key, &secret_key, &region, operation, ctx.variables, ctx.state).await,
+        "head_object" => execute_head_object(&client, operation, ctx.variables, ctx.state).await,
+        "copy_object" => execute_copy_object(&client, operation, ctx.variables, ctx.state).await,
         _ => Err(EngineError::InvalidOperation(format!("Unknown S3 operation: {}", op_type))),
     }
 }
@@ -82,17 +82,18 @@ async fn create_s3_client(
 async fn execute_get_object(
     client: &Client,
     connection: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let bucket = get_required_string(connection, "bucket", state)?;
-    let key = get_required_string(connection, "key", state)?;
+    let bucket = resolve_string_field(connection, "bucket", variables, state)?;
+    let key = resolve_string_field(connection, "key", variables, state)?;
 
     let response = client.get_object()
         .bucket(&bucket)
         .key(&key)
         .send()
         .await
-        .map_err(|e| EngineError::S3Error(e.to_string()))?;
+        .map_err(|e| EngineError::S3Error(format!("{:#}", e)))?;
 
     let content_type = response.content_type()
         .map(|s| s.to_string())
@@ -104,7 +105,7 @@ async fn execute_get_object(
 
     // Read body
     let body = response.body.collect().await
-        .map_err(|e| EngineError::S3Error(e.to_string()))?;
+        .map_err(|e| EngineError::S3Error(format!("{:#}", e)))?;
     let bytes = body.into_bytes();
 
     // Try to parse as text, otherwise encode as base64
@@ -201,7 +202,7 @@ async fn execute_put_object_v2(
         .content_type(&content_type)
         .send()
         .await
-        .map_err(|e| EngineError::S3Error(e.to_string()))?;
+        .map_err(|e| EngineError::S3Error(format!("{:#}", e)))?;
 
     // Build URL
     let url = format!("{}/{}/{}", endpoint, bucket, key);
@@ -237,6 +238,63 @@ fn resolve_binding_value(
     }
 
     Ok(raw_value.to_string())
+}
+
+/// Resolve a string field from operation config, supporting {paramName} variable resolution.
+/// Falls back to get_required_string (which handles legacy {{node.field}} templates).
+fn resolve_string_field(
+    operation: &HashMap<String, Value>,
+    field: &str,
+    variables: &HashMap<String, Value>,
+    state: &ExecutionState,
+) -> Result<String, EngineError> {
+    let raw = operation.get(field)
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| EngineError::MissingField(field.to_string()))?;
+
+    // Check if the entire value is a {paramName} reference
+    if raw.starts_with('{') && raw.ends_with('}') && !raw.contains(' ') {
+        // Could be {paramName} or {{legacyVar}}
+        let inner = &raw[1..raw.len()-1];
+        if !inner.starts_with('{') {
+            // Single brace: {paramName} — resolve from variables
+            if let Some(value) = variables.get(inner) {
+                return Ok(match value {
+                    Value::String(s) => s.clone(),
+                    Value::Null => String::new(),
+                    other => other.to_string(),
+                });
+            }
+        }
+    }
+
+    // Fall back to legacy {{node.field}} template resolution
+    Ok(super::resolve_template_vars(raw, state))
+}
+
+/// Resolve an optional string field, supporting {paramName} variable resolution.
+fn resolve_optional_string_field(
+    operation: &HashMap<String, Value>,
+    field: &str,
+    variables: &HashMap<String, Value>,
+    state: &ExecutionState,
+) -> Option<String> {
+    let raw = operation.get(field).and_then(|v| v.as_str())?;
+
+    if raw.starts_with('{') && raw.ends_with('}') && !raw.contains(' ') {
+        let inner = &raw[1..raw.len()-1];
+        if !inner.starts_with('{') {
+            if let Some(value) = variables.get(inner) {
+                return Some(match value {
+                    Value::String(s) => s.clone(),
+                    Value::Null => String::new(),
+                    other => other.to_string(),
+                });
+            }
+        }
+    }
+
+    Some(super::resolve_template_vars(raw, state))
 }
 
 fn extension_from_content_type(content_type: &str) -> &str {
@@ -321,10 +379,11 @@ async fn ensure_bucket_exists(client: &Client, bucket: &str) -> Result<(), Engin
 async fn execute_list_objects(
     client: &Client,
     connection: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let bucket = get_required_string(connection, "bucket", state)?;
-    let prefix = get_optional_string(connection, "prefix", state);
+    let bucket = resolve_string_field(connection, "bucket", variables, state)?;
+    let prefix = resolve_optional_string_field(connection, "prefix", variables, state);
     let max_keys = get_optional_u64(connection, "max_keys")
         .map(|n| n as i32)
         .unwrap_or(1000);
@@ -338,7 +397,7 @@ async fn execute_list_objects(
     }
 
     let response = request.send().await
-        .map_err(|e| EngineError::S3Error(e.to_string()))?;
+        .map_err(|e| EngineError::S3Error(format!("{:#}", e)))?;
 
     let objects: Vec<Value> = response.contents()
         .iter()
@@ -363,17 +422,18 @@ async fn execute_list_objects(
 async fn execute_delete_object(
     client: &Client,
     connection: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let bucket = get_required_string(connection, "bucket", state)?;
-    let key = get_required_string(connection, "key", state)?;
+    let bucket = resolve_string_field(connection, "bucket", variables, state)?;
+    let key = resolve_string_field(connection, "key", variables, state)?;
 
     client.delete_object()
         .bucket(&bucket)
         .key(&key)
         .send()
         .await
-        .map_err(|e| EngineError::S3Error(e.to_string()))?;
+        .map_err(|e| EngineError::S3Error(format!("{:#}", e)))?;
 
     let mut outputs = HashMap::new();
     outputs.insert("deleted".to_string(), Value::Bool(true));
@@ -391,10 +451,11 @@ async fn execute_presigned_url(
     secret_key: &str,
     region: &str,
     operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let bucket = get_required_string(operation, "bucket", state)?;
-    let key = get_required_string(operation, "key", state)?;
+    let bucket = resolve_string_field(operation, "bucket", variables, state)?;
+    let key = resolve_string_field(operation, "key", variables, state)?;
     let expires_in = get_optional_u64(operation, "expires_in").unwrap_or(3600);
 
     // Use public_endpoint for presigning if available, otherwise fall back to endpoint
@@ -415,7 +476,7 @@ async fn execute_presigned_url(
         .key(&key)
         .presigned(presigning_config)
         .await
-        .map_err(|e| EngineError::S3Error(e.to_string()))?;
+        .map_err(|e| EngineError::S3Error(format!("{:#}", e)))?;
 
     let mut outputs = HashMap::new();
     outputs.insert("url".to_string(), Value::String(presigned.uri().to_string()));
@@ -428,10 +489,11 @@ async fn execute_presigned_url(
 async fn execute_head_object(
     client: &Client,
     operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let bucket = get_required_string(operation, "bucket", state)?;
-    let key = get_required_string(operation, "key", state)?;
+    let bucket = resolve_string_field(operation, "bucket", variables, state)?;
+    let key = resolve_string_field(operation, "key", variables, state)?;
 
     let mut outputs = HashMap::new();
 
@@ -463,12 +525,13 @@ async fn execute_head_object(
 async fn execute_copy_object(
     client: &Client,
     operation: &HashMap<String, Value>,
+    variables: &HashMap<String, Value>,
     state: &ExecutionState,
 ) -> Result<HashMap<String, Value>, EngineError> {
-    let source_bucket = get_required_string(operation, "source_bucket", state)?;
-    let source_key = get_required_string(operation, "source_key", state)?;
-    let bucket = get_required_string(operation, "bucket", state)?;
-    let key = get_required_string(operation, "key", state)?;
+    let source_bucket = resolve_string_field(operation, "source_bucket", variables, state)?;
+    let source_key = resolve_string_field(operation, "source_key", variables, state)?;
+    let bucket = resolve_string_field(operation, "bucket", variables, state)?;
+    let key = resolve_string_field(operation, "key", variables, state)?;
 
     let copy_source = format!("{}/{}", source_bucket, source_key);
 
@@ -478,7 +541,7 @@ async fn execute_copy_object(
         .copy_source(&copy_source)
         .send()
         .await
-        .map_err(|e| EngineError::S3Error(e.to_string()))?;
+        .map_err(|e| EngineError::S3Error(format!("{:#}", e)))?;
 
     let mut outputs = HashMap::new();
     outputs.insert("bucket".to_string(), Value::String(bucket));

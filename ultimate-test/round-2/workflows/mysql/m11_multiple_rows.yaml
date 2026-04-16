@@ -1,0 +1,52 @@
+version: "1.0"
+name: "M11 MySQL Multiple Rows + Sorting"
+
+data_sources:
+  mysql_test:
+    name: "Test MySQL"
+    kind: mysql
+    config:
+      host: "localhost"
+      port: 13306
+      username: "test"
+      password: "test"
+      database: "testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: all_rows_asc
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: query
+        sql: "SELECT name, score FROM ut_types WHERE name IN ('Alice','Bob','Charlie','Diana','Eve') ORDER BY score ASC"
+
+  - id: all_rows_desc
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: query
+        sql: "SELECT name, score FROM ut_types WHERE name IN ('Alice','Bob','Charlie','Diana','Eve') ORDER BY score DESC"
+
+  - id: response
+    type: response
+    config:
+      output:
+        ascending: "all_rows_asc.rows"
+        asc_count: "all_rows_asc.count"
+        descending: "all_rows_desc.rows"
+        desc_count: "all_rows_desc.count"
+
+edges:
+  - from: start
+    to: all_rows_asc
+  - from: start
+    to: all_rows_desc
+  - from: all_rows_asc
+    to: response
+  - from: all_rows_desc
+    to: response

@@ -1,0 +1,52 @@
+version: "1.0"
+name: "S10 S3 List Empty Prefix"
+
+data_sources:
+  minio_test:
+    name: "Test MinIO"
+    kind: s3
+    config:
+      endpoint: "http://127.0.0.1:19000"
+      access_key: "minioadmin"
+      secret_key: "minioadmin"
+      region: "us-east-1"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: setup_bucket
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: put_object
+        bucket: "ut-empty-list-bucket"
+        prefix: "existing"
+        content_type: "text/plain"
+      variables:
+        data: "start.data"
+
+  - id: list_nonexistent
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: list_objects
+        bucket: "ut-empty-list-bucket"
+        prefix: "nonexistent-prefix/"
+
+  - id: response
+    type: response
+    config:
+      output:
+        objects: "list_nonexistent.objects"
+        truncated: "list_nonexistent.truncated"
+
+edges:
+  - from: start
+    to: setup_bucket
+  - from: setup_bucket
+    to: list_nonexistent
+  - from: list_nonexistent
+    to: response

@@ -1,0 +1,99 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mongodb/g06_update_one.yaml",
+    "elapsed_ms": 41,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "update": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "modified_count": 0,
+            "matched_count": 1,
+            "count": 0
+          },
+          "timestamp": 1776302680675
+        }
+      ],
+      "verify": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "exists": true,
+            "_id": "69df96f8fca90d72d0839e27",
+            "document": {
+              "_id": "69df96f8fca90d72d0839e27",
+              "name": "UpdateMe",
+              "age": 99,
+              "status": "updated"
+            },
+            "age": 99,
+            "status": "updated",
+            "name": "UpdateMe"
+          },
+          "timestamp": 1776302680685
+        }
+      ],
+      "response": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "matched": 1,
+            "modified": 0,
+            "verified_age": 99,
+            "verified_status": "updated"
+          },
+          "timestamp": 1776302680685
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302680647
+        }
+      ],
+      "seed": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "inserted_id": "69e03a5860f39e8d16f8cdb6",
+            "count": 1
+          },
+          "timestamp": 1776302680666
+        }
+      ]
+    },
+    "output": {
+      "matched": 1,
+      "modified": 0,
+      "verified_age": 99,
+      "verified_status": "updated"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 38,
+      "per_node": {
+        "response": 0,
+        "start": 0,
+        "update": 9,
+        "verify": 9,
+        "seed": 17
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

@@ -1,0 +1,71 @@
+version: "1.0"
+name: "G11 MongoDB Count with Filter"
+
+data_sources:
+  mongo_test:
+    name: "Test MongoDB"
+    kind: mongodb
+    config:
+      url: "mongodb://localhost:17017"
+      database: "ut_testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: seed
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: insert_many
+        collection: "g11_people"
+        data:
+          - name: "A"
+            age: 18
+          - name: "B"
+            age: 25
+          - name: "C"
+            age: 30
+          - name: "D"
+            age: 15
+          - name: "E"
+            age: 40
+
+  - id: count_all
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: count
+        collection: "g11_people"
+
+  - id: count_adults
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: count
+        collection: "g11_people"
+        filter:
+          age:
+            "$gte": 18
+
+  - id: response
+    type: response
+    config:
+      output:
+        total: "count_all.count"
+        adults: "count_adults.count"
+
+edges:
+  - from: start
+    to: seed
+  - from: seed
+    to: count_all
+  - from: seed
+    to: count_adults
+  - from: count_all
+    to: response
+  - from: count_adults
+    to: response

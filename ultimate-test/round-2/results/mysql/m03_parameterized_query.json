@@ -1,0 +1,93 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mysql/m03_parameterized_query.yaml",
+    "elapsed_ms": 22,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "param_query": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "score": 82.3,
+            "name": "Bob",
+            "rows": [
+              {
+                "name": "Bob",
+                "score": 82.3
+              },
+              {
+                "name": "Bob",
+                "score": 82.3
+              }
+            ],
+            "count": 2
+          },
+          "timestamp": 1776302577756
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "rows": [
+              {
+                "name": "Bob",
+                "score": 82.3
+              },
+              {
+                "name": "Bob",
+                "score": 82.3
+              }
+            ],
+            "count": 2
+          },
+          "timestamp": 1776302577756
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "active": true,
+            "name": "Bob"
+          },
+          "timestamp": 1776302577738
+        }
+      ]
+    },
+    "output": {
+      "rows": [
+        {
+          "name": "Bob",
+          "score": 82.3
+        },
+        {
+          "name": "Bob",
+          "score": 82.3
+        }
+      ],
+      "count": 2
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 20,
+      "per_node": {
+        "param_query": 18,
+        "start": 0,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

@@ -1,0 +1,36 @@
+version: "1.0"
+name: "Q01 Qdrant Create Collection"
+
+data_sources:
+  qdrant_test:
+    name: "Test Qdrant"
+    kind: qdrant
+    config:
+      url: "http://localhost:16334"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: create
+    type: data_connector
+    config:
+      data_source_id: qdrant_test
+      operation:
+        operation: create_collection
+        collection: "ut_vectors"
+        dimension: 4
+        distance: "Cosine"
+
+  - id: response
+    type: response
+    config:
+      output:
+        success: "create.success"
+        collection: "create.collection"
+
+edges:
+  - from: start
+    to: create
+  - from: create
+    to: response

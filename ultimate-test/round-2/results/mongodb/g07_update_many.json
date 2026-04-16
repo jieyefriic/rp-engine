@@ -1,0 +1,269 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mongodb/g07_update_many.yaml",
+    "elapsed_ms": 25,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "verify": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "count": 8,
+            "_id": "69df96fa76ced2472933fe09",
+            "price": 10,
+            "category": "A",
+            "in_stock": false,
+            "rows": [
+              {
+                "_id": "69df96fa76ced2472933fe09",
+                "name": "P1",
+                "category": "A",
+                "price": 10,
+                "in_stock": false
+              },
+              {
+                "_id": "69e03a5afe9948a77951f74c",
+                "name": "P1",
+                "category": "A",
+                "price": 10,
+                "in_stock": false
+              },
+              {
+                "_id": "69df96fa76ced2472933fe0a",
+                "name": "P2",
+                "category": "A",
+                "price": 20,
+                "in_stock": false
+              },
+              {
+                "_id": "69e03a5afe9948a77951f74d",
+                "name": "P2",
+                "category": "A",
+                "price": 20,
+                "in_stock": false
+              },
+              {
+                "_id": "69df96fa76ced2472933fe0b",
+                "name": "P3",
+                "category": "B",
+                "price": 30,
+                "in_stock": true
+              },
+              {
+                "_id": "69e03a5afe9948a77951f74e",
+                "name": "P3",
+                "category": "B",
+                "price": 30,
+                "in_stock": true
+              },
+              {
+                "_id": "69df96fa76ced2472933fe0c",
+                "name": "P4",
+                "category": "A",
+                "price": 40,
+                "in_stock": false
+              },
+              {
+                "_id": "69e03a5afe9948a77951f74f",
+                "name": "P4",
+                "category": "A",
+                "price": 40,
+                "in_stock": false
+              }
+            ],
+            "name": "P1"
+          },
+          "timestamp": 1776302682157
+        }
+      ],
+      "update_many": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "count": 3,
+            "matched_count": 6,
+            "modified_count": 3
+          },
+          "timestamp": 1776302682152
+        }
+      ],
+      "seed": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "inserted_ids": [
+              "69e03a5afe9948a77951f74e",
+              "69e03a5afe9948a77951f74d",
+              "69e03a5afe9948a77951f74c",
+              "69e03a5afe9948a77951f74f"
+            ],
+            "count": 4
+          },
+          "timestamp": 1776302682147
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302682135
+        }
+      ],
+      "response": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "matched": 6,
+            "modified": 3,
+            "all_products": [
+              {
+                "_id": "69df96fa76ced2472933fe09",
+                "name": "P1",
+                "category": "A",
+                "price": 10,
+                "in_stock": false
+              },
+              {
+                "_id": "69e03a5afe9948a77951f74c",
+                "name": "P1",
+                "category": "A",
+                "price": 10,
+                "in_stock": false
+              },
+              {
+                "_id": "69df96fa76ced2472933fe0a",
+                "name": "P2",
+                "category": "A",
+                "price": 20,
+                "in_stock": false
+              },
+              {
+                "_id": "69e03a5afe9948a77951f74d",
+                "name": "P2",
+                "category": "A",
+                "price": 20,
+                "in_stock": false
+              },
+              {
+                "_id": "69df96fa76ced2472933fe0b",
+                "name": "P3",
+                "category": "B",
+                "price": 30,
+                "in_stock": true
+              },
+              {
+                "_id": "69e03a5afe9948a77951f74e",
+                "name": "P3",
+                "category": "B",
+                "price": 30,
+                "in_stock": true
+              },
+              {
+                "_id": "69df96fa76ced2472933fe0c",
+                "name": "P4",
+                "category": "A",
+                "price": 40,
+                "in_stock": false
+              },
+              {
+                "_id": "69e03a5afe9948a77951f74f",
+                "name": "P4",
+                "category": "A",
+                "price": 40,
+                "in_stock": false
+              }
+            ]
+          },
+          "timestamp": 1776302682157
+        }
+      ]
+    },
+    "output": {
+      "matched": 6,
+      "modified": 3,
+      "all_products": [
+        {
+          "_id": "69df96fa76ced2472933fe09",
+          "name": "P1",
+          "category": "A",
+          "price": 10,
+          "in_stock": false
+        },
+        {
+          "_id": "69e03a5afe9948a77951f74c",
+          "name": "P1",
+          "category": "A",
+          "price": 10,
+          "in_stock": false
+        },
+        {
+          "_id": "69df96fa76ced2472933fe0a",
+          "name": "P2",
+          "category": "A",
+          "price": 20,
+          "in_stock": false
+        },
+        {
+          "_id": "69e03a5afe9948a77951f74d",
+          "name": "P2",
+          "category": "A",
+          "price": 20,
+          "in_stock": false
+        },
+        {
+          "_id": "69df96fa76ced2472933fe0b",
+          "name": "P3",
+          "category": "B",
+          "price": 30,
+          "in_stock": true
+        },
+        {
+          "_id": "69e03a5afe9948a77951f74e",
+          "name": "P3",
+          "category": "B",
+          "price": 30,
+          "in_stock": true
+        },
+        {
+          "_id": "69df96fa76ced2472933fe0c",
+          "name": "P4",
+          "category": "A",
+          "price": 40,
+          "in_stock": false
+        },
+        {
+          "_id": "69e03a5afe9948a77951f74f",
+          "name": "P4",
+          "category": "A",
+          "price": 40,
+          "in_stock": false
+        }
+      ]
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 22,
+      "per_node": {
+        "response": 0,
+        "seed": 11,
+        "start": 0,
+        "update_many": 5,
+        "verify": 4
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

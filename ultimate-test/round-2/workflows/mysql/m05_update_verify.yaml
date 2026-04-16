@@ -1,0 +1,62 @@
+version: "1.0"
+name: "M05 MySQL UPDATE + Verify"
+
+data_sources:
+  mysql_test:
+    name: "Test MySQL"
+    kind: mysql
+    config:
+      host: "localhost"
+      port: 13306
+      username: "test"
+      password: "test"
+      database: "testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: update
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: update
+        table: ut_types
+        set:
+          score: "{new_score}"
+        where:
+          name: "{target}"
+        returning: ["name", "score"]
+      variables:
+        target: "start.target"
+        new_score: "start.new_score"
+
+  - id: verify
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: select
+        table: ut_types
+        columns: ["name", "score"]
+        where:
+          name: "{target}"
+      variables:
+        target: "start.target"
+
+  - id: response
+    type: response
+    config:
+      output:
+        affected_count: "update.count"
+        update_returning: "update.rows"
+        verified: "verify.rows"
+
+edges:
+  - from: start
+    to: update
+  - from: update
+    to: verify
+  - from: verify
+    to: response

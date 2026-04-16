@@ -1,0 +1,10 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/qdrant/q01_create_collection.yaml",
+    "elapsed_ms": 18,
+    "providers_registered": [],
+    "status": "Error"
+  },
+  "_error": "Qdrant error: Error in the response: Some entity that we attempted to create already exists Wrong input: Collection `ut_vectors` already exists! MetadataMap { headers: {\"content-type\": \"application/grpc\", \"date\": \"Thu, 16 Apr 2026 01:26:01 GMT\", \"content-length\": \"0\"} }",
+  "_error_debug": "QdrantError(\"Error in the response: Some entity that we attempted to create already exists Wrong input: Collection `ut_vectors` already exists! MetadataMap { headers: {\\\"content-type\\\": \\\"application/grpc\\\", \\\"date\\\": \\\"Thu, 16 Apr 2026 01:26:01 GMT\\\", \\\"content-length\\\": \\\"0\\\"} }\")"
+}

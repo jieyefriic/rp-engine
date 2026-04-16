@@ -1,0 +1,89 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mongodb/g11_count.yaml",
+    "elapsed_ms": 39,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "count_adults": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "count": 8
+          },
+          "timestamp": 1776302688967
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302688931
+        }
+      ],
+      "response": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "total": 10,
+            "adults": 8
+          },
+          "timestamp": 1776302688967
+        }
+      ],
+      "count_all": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "count": 10
+          },
+          "timestamp": 1776302688967
+        }
+      ],
+      "seed": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "count": 5,
+            "inserted_ids": [
+              "69e03a60d64aeff2ccaf914a",
+              "69e03a60d64aeff2ccaf914e",
+              "69e03a60d64aeff2ccaf914b",
+              "69e03a60d64aeff2ccaf914d",
+              "69e03a60d64aeff2ccaf914c"
+            ]
+          },
+          "timestamp": 1776302688953
+        }
+      ]
+    },
+    "output": {
+      "total": 10,
+      "adults": 8
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 37,
+      "per_node": {
+        "seed": 21,
+        "count_adults": 14,
+        "count_all": 14,
+        "start": 0,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

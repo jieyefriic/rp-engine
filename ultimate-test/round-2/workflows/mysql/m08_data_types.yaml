@@ -1,0 +1,82 @@
+version: "1.0"
+name: "M08 MySQL Data Types"
+
+data_sources:
+  mysql_test:
+    name: "Test MySQL"
+    kind: mysql
+    config:
+      host: "localhost"
+      port: 13306
+      username: "test"
+      password: "test"
+      database: "testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: create_types_table
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: query
+        sql: >
+          CREATE TABLE IF NOT EXISTS ut_datatypes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            tiny_val TINYINT,
+            small_val SMALLINT,
+            int_val INT,
+            big_val BIGINT,
+            float_val FLOAT,
+            double_val DOUBLE,
+            decimal_val DECIMAL(10,2),
+            varchar_val VARCHAR(100),
+            text_val TEXT,
+            bool_val BOOLEAN,
+            date_val DATE,
+            datetime_val DATETIME,
+            json_val JSON,
+            enum_val ENUM('small', 'medium', 'large')
+          )
+
+  - id: insert_types
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: query
+        sql: >
+          INSERT INTO ut_datatypes
+          (tiny_val, small_val, int_val, big_val, float_val, double_val, decimal_val,
+           varchar_val, text_val, bool_val, date_val, datetime_val, json_val, enum_val)
+          VALUES
+          (127, 32767, 2147483647, 9223372036854775807, 3.14, 2.718281828, 99999.99,
+           'hello world', 'long text content here', true, '2026-04-15', '2026-04-15 10:30:00',
+           '{"key":"value","nested":{"a":1}}', 'medium')
+
+  - id: read_types
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: query
+        sql: "SELECT * FROM ut_datatypes ORDER BY id DESC LIMIT 1"
+
+  - id: response
+    type: response
+    config:
+      output:
+        row: "read_types.rows"
+        count: "read_types.count"
+
+edges:
+  - from: start
+    to: create_types_table
+  - from: create_types_table
+    to: insert_types
+  - from: insert_types
+    to: read_types
+  - from: read_types
+    to: response

@@ -1,0 +1,64 @@
+version: "1.0"
+name: "Q04 Qdrant Search with Filter"
+
+data_sources:
+  qdrant_test:
+    name: "Test Qdrant"
+    kind: qdrant
+    config:
+      url: "http://localhost:16334"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: search_must
+    type: data_connector
+    config:
+      data_source_id: qdrant_test
+      operation:
+        operation: search
+        collection: "ut_vectors"
+        vector: [0.5, 0.5, 0.5, 0.5]
+        limit: 10
+        with_payload: true
+        filter:
+          must:
+            - key: "category"
+              match:
+                value: "greeting"
+
+  - id: search_must_not
+    type: data_connector
+    config:
+      data_source_id: qdrant_test
+      operation:
+        operation: search
+        collection: "ut_vectors"
+        vector: [0.5, 0.5, 0.5, 0.5]
+        limit: 10
+        with_payload: true
+        filter:
+          must_not:
+            - key: "category"
+              match:
+                value: "farewell"
+
+  - id: response
+    type: response
+    config:
+      output:
+        greetings_only: "search_must.results"
+        greetings_count: "search_must.count"
+        no_farewells: "search_must_not.results"
+        no_farewells_count: "search_must_not.count"
+
+edges:
+  - from: start
+    to: search_must
+  - from: start
+    to: search_must_not
+  - from: search_must
+    to: response
+  - from: search_must_not
+    to: response

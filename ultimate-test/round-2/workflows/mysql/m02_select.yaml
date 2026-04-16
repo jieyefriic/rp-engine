@@ -1,0 +1,61 @@
+version: "1.0"
+name: "M02 MySQL Structured SELECT"
+
+data_sources:
+  mysql_test:
+    name: "Test MySQL"
+    kind: mysql
+    config:
+      host: "localhost"
+      port: 13306
+      username: "test"
+      password: "test"
+      database: "testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: select_where
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: select
+        table: ut_types
+        columns: ["name", "score", "is_active"]
+        where:
+          name: "{search_name}"
+      variables:
+        search_name: "start.name"
+
+  - id: select_order_limit
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: select
+        table: ut_types
+        columns: ["name", "score"]
+        order_by: "score DESC"
+        limit: 3
+        offset: 1
+
+  - id: response
+    type: response
+    config:
+      output:
+        by_name: "select_where.rows"
+        by_name_count: "select_where.count"
+        top_scores: "select_order_limit.rows"
+        top_count: "select_order_limit.count"
+
+edges:
+  - from: start
+    to: select_where
+  - from: start
+    to: select_order_limit
+  - from: select_where
+    to: response
+  - from: select_order_limit
+    to: response

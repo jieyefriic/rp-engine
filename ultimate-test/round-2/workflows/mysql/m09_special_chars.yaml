@@ -1,0 +1,57 @@
+version: "1.0"
+name: "M09 MySQL Special Characters"
+
+data_sources:
+  mysql_test:
+    name: "Test MySQL"
+    kind: mysql
+    config:
+      host: "localhost"
+      port: 13306
+      username: "test"
+      password: "test"
+      database: "testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: insert_special
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: insert
+        table: ut_types
+        data:
+          name: "{special_name}"
+          description: "{special_desc}"
+          score: 50.0
+      variables:
+        special_name: "start.name"
+        special_desc: "start.description"
+
+  - id: read_back
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: query
+        sql: "SELECT name, description FROM ut_types WHERE name = {lookup}"
+      variables:
+        lookup: "start.name"
+
+  - id: response
+    type: response
+    config:
+      output:
+        insert_id: "insert_special.last_insert_id"
+        read_back: "read_back.rows"
+
+edges:
+  - from: start
+    to: insert_special
+  - from: insert_special
+    to: read_back
+  - from: read_back
+    to: response

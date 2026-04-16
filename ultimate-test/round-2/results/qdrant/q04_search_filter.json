@@ -1,0 +1,320 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/qdrant/q04_search_filter.yaml",
+    "elapsed_ms": 27,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "search_must": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "results": [
+              {
+                "id": 5,
+                "score": 0.7071067690849304,
+                "payload": {
+                  "priority": 2,
+                  "category": "greeting",
+                  "text": "hi there"
+                }
+              },
+              {
+                "id": 1,
+                "score": 0.5,
+                "payload": {
+                  "category": "greeting",
+                  "priority": 1,
+                  "text": "hello world"
+                }
+              },
+              {
+                "id": 3,
+                "score": 0.5,
+                "payload": {
+                  "text": "how are you",
+                  "priority": 3,
+                  "category": "greeting"
+                }
+              }
+            ],
+            "count": 3
+          },
+          "timestamp": 1776302765737
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "no_farewells": [
+              {
+                "id": 300,
+                "score": 0.9128710031509399,
+                "payload": {
+                  "version": 2,
+                  "new_field": "added",
+                  "text": "updated content"
+                }
+              },
+              {
+                "id": 5,
+                "score": 0.7071067690849304,
+                "payload": {
+                  "category": "greeting",
+                  "text": "hi there",
+                  "priority": 2
+                }
+              },
+              {
+                "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+                "score": 0.693375289440155,
+                "payload": {
+                  "text": "uuid point beta",
+                  "category": "uuid_test"
+                }
+              },
+              {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "score": 0.693375289440155,
+                "payload": {
+                  "text": "uuid point alpha",
+                  "category": "uuid_test"
+                }
+              },
+              {
+                "id": 1,
+                "score": 0.5,
+                "payload": {
+                  "priority": 1,
+                  "text": "hello world",
+                  "category": "greeting"
+                }
+              },
+              {
+                "id": 3,
+                "score": 0.5,
+                "payload": {
+                  "category": "greeting",
+                  "priority": 3,
+                  "text": "how are you"
+                }
+              }
+            ],
+            "greetings_count": 3,
+            "no_farewells_count": 6,
+            "greetings_only": [
+              {
+                "id": 5,
+                "score": 0.7071067690849304,
+                "payload": {
+                  "priority": 2,
+                  "category": "greeting",
+                  "text": "hi there"
+                }
+              },
+              {
+                "id": 1,
+                "score": 0.5,
+                "payload": {
+                  "category": "greeting",
+                  "priority": 1,
+                  "text": "hello world"
+                }
+              },
+              {
+                "id": 3,
+                "score": 0.5,
+                "payload": {
+                  "text": "how are you",
+                  "priority": 3,
+                  "category": "greeting"
+                }
+              }
+            ]
+          },
+          "timestamp": 1776302765737
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302765713
+        }
+      ],
+      "search_must_not": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "count": 6,
+            "results": [
+              {
+                "id": 300,
+                "score": 0.9128710031509399,
+                "payload": {
+                  "version": 2,
+                  "new_field": "added",
+                  "text": "updated content"
+                }
+              },
+              {
+                "id": 5,
+                "score": 0.7071067690849304,
+                "payload": {
+                  "category": "greeting",
+                  "text": "hi there",
+                  "priority": 2
+                }
+              },
+              {
+                "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+                "score": 0.693375289440155,
+                "payload": {
+                  "text": "uuid point beta",
+                  "category": "uuid_test"
+                }
+              },
+              {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "score": 0.693375289440155,
+                "payload": {
+                  "text": "uuid point alpha",
+                  "category": "uuid_test"
+                }
+              },
+              {
+                "id": 1,
+                "score": 0.5,
+                "payload": {
+                  "priority": 1,
+                  "text": "hello world",
+                  "category": "greeting"
+                }
+              },
+              {
+                "id": 3,
+                "score": 0.5,
+                "payload": {
+                  "category": "greeting",
+                  "priority": 3,
+                  "text": "how are you"
+                }
+              }
+            ]
+          },
+          "timestamp": 1776302765737
+        }
+      ]
+    },
+    "output": {
+      "no_farewells": [
+        {
+          "id": 300,
+          "score": 0.9128710031509399,
+          "payload": {
+            "version": 2,
+            "new_field": "added",
+            "text": "updated content"
+          }
+        },
+        {
+          "id": 5,
+          "score": 0.7071067690849304,
+          "payload": {
+            "category": "greeting",
+            "text": "hi there",
+            "priority": 2
+          }
+        },
+        {
+          "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+          "score": 0.693375289440155,
+          "payload": {
+            "text": "uuid point beta",
+            "category": "uuid_test"
+          }
+        },
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "score": 0.693375289440155,
+          "payload": {
+            "text": "uuid point alpha",
+            "category": "uuid_test"
+          }
+        },
+        {
+          "id": 1,
+          "score": 0.5,
+          "payload": {
+            "priority": 1,
+            "text": "hello world",
+            "category": "greeting"
+          }
+        },
+        {
+          "id": 3,
+          "score": 0.5,
+          "payload": {
+            "category": "greeting",
+            "priority": 3,
+            "text": "how are you"
+          }
+        }
+      ],
+      "greetings_count": 3,
+      "no_farewells_count": 6,
+      "greetings_only": [
+        {
+          "id": 5,
+          "score": 0.7071067690849304,
+          "payload": {
+            "priority": 2,
+            "category": "greeting",
+            "text": "hi there"
+          }
+        },
+        {
+          "id": 1,
+          "score": 0.5,
+          "payload": {
+            "category": "greeting",
+            "priority": 1,
+            "text": "hello world"
+          }
+        },
+        {
+          "id": 3,
+          "score": 0.5,
+          "payload": {
+            "text": "how are you",
+            "priority": 3,
+            "category": "greeting"
+          }
+        }
+      ]
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 24,
+      "per_node": {
+        "search_must": 22,
+        "search_must_not": 13,
+        "start": 0,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

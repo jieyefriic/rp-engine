@@ -1,0 +1,61 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mysql/m10_empty_result.yaml",
+    "elapsed_ms": 32,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302588891
+        }
+      ],
+      "empty_select": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "count": 0,
+            "rows": []
+          },
+          "timestamp": 1776302588919
+        }
+      ],
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "rows": [],
+            "count": 0
+          },
+          "timestamp": 1776302588919
+        }
+      ]
+    },
+    "output": {
+      "rows": [],
+      "count": 0
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 30,
+      "per_node": {
+        "response": 0,
+        "start": 0,
+        "empty_select": 28
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

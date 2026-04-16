@@ -1,0 +1,62 @@
+version: "1.0"
+name: "G02 MongoDB Insert Many"
+
+data_sources:
+  mongo_test:
+    name: "Test MongoDB"
+    kind: mongodb
+    config:
+      url: "mongodb://localhost:17017"
+      database: "ut_testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: insert_many
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: insert_many
+        collection: "g02_items"
+        data:
+          - name: "Item_A"
+            category: "electronics"
+            price: 299.99
+          - name: "Item_B"
+            category: "clothing"
+            price: 49.99
+          - name: "Item_C"
+            category: "electronics"
+            price: 149.50
+          - name: "Item_D"
+            category: "food"
+            price: 12.00
+          - name: "Item_E"
+            category: "clothing"
+            price: 89.99
+
+  - id: verify
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: count
+        collection: "g02_items"
+
+  - id: response
+    type: response
+    config:
+      output:
+        inserted_ids: "insert_many.inserted_ids"
+        insert_count: "insert_many.count"
+        total_count: "verify.count"
+
+edges:
+  - from: start
+    to: insert_many
+  - from: insert_many
+    to: verify
+  - from: verify
+    to: response

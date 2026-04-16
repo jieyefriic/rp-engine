@@ -1,0 +1,54 @@
+version: "1.0"
+name: "G01 MongoDB Insert One + Find"
+
+data_sources:
+  mongo_test:
+    name: "Test MongoDB"
+    kind: mongodb
+    config:
+      url: "mongodb://localhost:17017"
+      database: "ut_testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: insert
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: insert_one
+        collection: "g01_users"
+        data:
+          name: "{name}"
+          age: "{age}"
+          city: "{city}"
+      variables:
+        name: "start.name"
+        age: "start.age"
+        city: "start.city"
+
+  - id: find
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: find
+        collection: "g01_users"
+
+  - id: response
+    type: response
+    config:
+      output:
+        inserted_id: "insert.inserted_id"
+        rows: "find.rows"
+        count: "find.count"
+
+edges:
+  - from: start
+    to: insert
+  - from: insert
+    to: find
+  - from: find
+    to: response

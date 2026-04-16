@@ -1,0 +1,38 @@
+version: "1.0"
+name: "Q03 Qdrant Search"
+
+data_sources:
+  qdrant_test:
+    name: "Test Qdrant"
+    kind: qdrant
+    config:
+      url: "http://localhost:16334"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: search
+    type: data_connector
+    config:
+      data_source_id: qdrant_test
+      operation:
+        operation: search
+        collection: "ut_vectors"
+        vector: [0.9, 0.1, 0.0, 0.0]
+        limit: 3
+        with_payload: true
+        with_vectors: false
+
+  - id: response
+    type: response
+    config:
+      output:
+        results: "search.results"
+        count: "search.count"
+
+edges:
+  - from: start
+    to: search
+  - from: search
+    to: response

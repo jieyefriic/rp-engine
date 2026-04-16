@@ -1,0 +1,73 @@
+version: "1.0"
+name: "G10 MongoDB Aggregate Pipeline"
+
+data_sources:
+  mongo_test:
+    name: "Test MongoDB"
+    kind: mongodb
+    config:
+      url: "mongodb://localhost:17017"
+      database: "ut_testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: seed
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: insert_many
+        collection: "g10_sales"
+        data:
+          - product: "Widget"
+            region: "East"
+            amount: 100
+          - product: "Widget"
+            region: "West"
+            amount: 150
+          - product: "Gadget"
+            region: "East"
+            amount: 200
+          - product: "Widget"
+            region: "East"
+            amount: 50
+          - product: "Gadget"
+            region: "West"
+            amount: 300
+
+  - id: aggregate
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: aggregate
+        collection: "g10_sales"
+        pipeline:
+          - "$match":
+              product: "Widget"
+          - "$group":
+              _id: "$region"
+              total_amount:
+                "$sum": "$amount"
+              order_count:
+                "$sum": 1
+          - "$sort":
+              total_amount: -1
+
+  - id: response
+    type: response
+    config:
+      output:
+        seed_count: "seed.count"
+        aggregated: "aggregate.rows"
+        agg_count: "aggregate.count"
+
+edges:
+  - from: start
+    to: seed
+  - from: seed
+    to: aggregate
+  - from: aggregate
+    to: response

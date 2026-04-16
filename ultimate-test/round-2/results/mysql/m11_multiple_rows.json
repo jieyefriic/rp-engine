@@ -1,0 +1,327 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mysql/m11_multiple_rows.yaml",
+    "elapsed_ms": 19,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302590331
+        }
+      ],
+      "all_rows_asc": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "score": 45.2,
+            "name": "Eve",
+            "rows": [
+              {
+                "name": "Eve",
+                "score": 45.2
+              },
+              {
+                "name": "Eve",
+                "score": 45.2
+              },
+              {
+                "name": "Charlie",
+                "score": 67.8
+              },
+              {
+                "name": "Charlie",
+                "score": 67.8
+              },
+              {
+                "name": "Bob",
+                "score": 82.3
+              },
+              {
+                "name": "Bob",
+                "score": 82.3
+              },
+              {
+                "name": "Diana",
+                "score": 91.0
+              },
+              {
+                "name": "Diana",
+                "score": 91.0
+              },
+              {
+                "name": "Alice",
+                "score": 99.9
+              },
+              {
+                "name": "Alice",
+                "score": 99.9
+              }
+            ],
+            "count": 10
+          },
+          "timestamp": 1776302590348
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "asc_count": 10,
+            "ascending": [
+              {
+                "name": "Eve",
+                "score": 45.2
+              },
+              {
+                "name": "Eve",
+                "score": 45.2
+              },
+              {
+                "name": "Charlie",
+                "score": 67.8
+              },
+              {
+                "name": "Charlie",
+                "score": 67.8
+              },
+              {
+                "name": "Bob",
+                "score": 82.3
+              },
+              {
+                "name": "Bob",
+                "score": 82.3
+              },
+              {
+                "name": "Diana",
+                "score": 91.0
+              },
+              {
+                "name": "Diana",
+                "score": 91.0
+              },
+              {
+                "name": "Alice",
+                "score": 99.9
+              },
+              {
+                "name": "Alice",
+                "score": 99.9
+              }
+            ],
+            "desc_count": 10,
+            "descending": [
+              {
+                "name": "Alice",
+                "score": 99.9
+              },
+              {
+                "name": "Alice",
+                "score": 99.9
+              },
+              {
+                "name": "Diana",
+                "score": 91.0
+              },
+              {
+                "name": "Diana",
+                "score": 91.0
+              },
+              {
+                "name": "Bob",
+                "score": 82.3
+              },
+              {
+                "name": "Bob",
+                "score": 82.3
+              },
+              {
+                "name": "Charlie",
+                "score": 67.8
+              },
+              {
+                "name": "Charlie",
+                "score": 67.8
+              },
+              {
+                "name": "Eve",
+                "score": 45.2
+              },
+              {
+                "name": "Eve",
+                "score": 45.2
+              }
+            ]
+          },
+          "timestamp": 1776302590348
+        }
+      ],
+      "all_rows_desc": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "rows": [
+              {
+                "name": "Alice",
+                "score": 99.9
+              },
+              {
+                "name": "Alice",
+                "score": 99.9
+              },
+              {
+                "name": "Diana",
+                "score": 91.0
+              },
+              {
+                "name": "Diana",
+                "score": 91.0
+              },
+              {
+                "name": "Bob",
+                "score": 82.3
+              },
+              {
+                "name": "Bob",
+                "score": 82.3
+              },
+              {
+                "name": "Charlie",
+                "score": 67.8
+              },
+              {
+                "name": "Charlie",
+                "score": 67.8
+              },
+              {
+                "name": "Eve",
+                "score": 45.2
+              },
+              {
+                "name": "Eve",
+                "score": 45.2
+              }
+            ],
+            "score": 99.9,
+            "count": 10,
+            "name": "Alice"
+          },
+          "timestamp": 1776302590348
+        }
+      ]
+    },
+    "output": {
+      "asc_count": 10,
+      "ascending": [
+        {
+          "name": "Eve",
+          "score": 45.2
+        },
+        {
+          "name": "Eve",
+          "score": 45.2
+        },
+        {
+          "name": "Charlie",
+          "score": 67.8
+        },
+        {
+          "name": "Charlie",
+          "score": 67.8
+        },
+        {
+          "name": "Bob",
+          "score": 82.3
+        },
+        {
+          "name": "Bob",
+          "score": 82.3
+        },
+        {
+          "name": "Diana",
+          "score": 91.0
+        },
+        {
+          "name": "Diana",
+          "score": 91.0
+        },
+        {
+          "name": "Alice",
+          "score": 99.9
+        },
+        {
+          "name": "Alice",
+          "score": 99.9
+        }
+      ],
+      "desc_count": 10,
+      "descending": [
+        {
+          "name": "Alice",
+          "score": 99.9
+        },
+        {
+          "name": "Alice",
+          "score": 99.9
+        },
+        {
+          "name": "Diana",
+          "score": 91.0
+        },
+        {
+          "name": "Diana",
+          "score": 91.0
+        },
+        {
+          "name": "Bob",
+          "score": 82.3
+        },
+        {
+          "name": "Bob",
+          "score": 82.3
+        },
+        {
+          "name": "Charlie",
+          "score": 67.8
+        },
+        {
+          "name": "Charlie",
+          "score": 67.8
+        },
+        {
+          "name": "Eve",
+          "score": 45.2
+        },
+        {
+          "name": "Eve",
+          "score": 45.2
+        }
+      ]
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 17,
+      "per_node": {
+        "all_rows_desc": 16,
+        "response": 0,
+        "all_rows_asc": 14,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

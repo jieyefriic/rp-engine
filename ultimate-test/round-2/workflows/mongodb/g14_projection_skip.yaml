@@ -1,0 +1,75 @@
+version: "1.0"
+name: "G14 MongoDB Projection + Skip"
+
+data_sources:
+  mongo_test:
+    name: "Test MongoDB"
+    kind: mongodb
+    config:
+      url: "mongodb://localhost:17017"
+      database: "ut_testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: seed
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: insert_many
+        collection: "g14_records"
+        data:
+          - name: "R1"
+            category: "A"
+            value: 100
+            secret: "hidden1"
+          - name: "R2"
+            category: "B"
+            value: 200
+            secret: "hidden2"
+          - name: "R3"
+            category: "A"
+            value: 300
+            secret: "hidden3"
+          - name: "R4"
+            category: "B"
+            value: 400
+            secret: "hidden4"
+          - name: "R5"
+            category: "A"
+            value: 500
+            secret: "hidden5"
+
+  - id: find_projected
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: find
+        collection: "g14_records"
+        projection:
+          name: 1
+          value: 1
+          _id: 0
+        sort:
+          value: 1
+        skip: 2
+        limit: 2
+
+  - id: response
+    type: response
+    config:
+      output:
+        seed_count: "seed.count"
+        results: "find_projected.rows"
+        result_count: "find_projected.count"
+
+edges:
+  - from: start
+    to: seed
+  - from: seed
+    to: find_projected
+  - from: find_projected
+    to: response

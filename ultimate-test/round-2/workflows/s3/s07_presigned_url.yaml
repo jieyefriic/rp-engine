@@ -1,0 +1,54 @@
+version: "1.0"
+name: "S07 S3 Presigned URL"
+
+data_sources:
+  minio_test:
+    name: "Test MinIO"
+    kind: s3
+    config:
+      endpoint: "http://127.0.0.1:19000"
+      access_key: "minioadmin"
+      secret_key: "minioadmin"
+      region: "us-east-1"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: put
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: put_object
+        bucket: "ut-presign-bucket"
+        prefix: "presign"
+        content_type: "text/plain"
+      variables:
+        data: "start.data"
+
+  - id: presign
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: presigned_url
+        bucket: "ut-presign-bucket"
+        key: "{{put.key}}"
+        expires_in: 3600
+
+  - id: response
+    type: response
+    config:
+      output:
+        uploaded_key: "put.key"
+        presigned_url: "presign.url"
+        expires_in: "presign.expires_in"
+
+edges:
+  - from: start
+    to: put
+  - from: put
+    to: presign
+  - from: presign
+    to: response

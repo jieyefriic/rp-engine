@@ -1,0 +1,73 @@
+version: "1.0"
+name: "M01 MySQL Setup + Basic Query"
+
+data_sources:
+  mysql_test:
+    name: "Test MySQL"
+    kind: mysql
+    config:
+      host: "localhost"
+      port: 13306
+      username: "test"
+      password: "test"
+      database: "testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: create_table
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: query
+        sql: >
+          CREATE TABLE IF NOT EXISTS ut_types (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            score DOUBLE,
+            is_active BOOLEAN DEFAULT true,
+            description TEXT,
+            metadata JSON,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+
+  - id: seed_data
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: query
+        sql: >
+          INSERT INTO ut_types (name, score, is_active, description, metadata) VALUES
+          ('Alice', 95.5, true, 'First user', '{"role":"admin","level":5}'),
+          ('Bob', 82.3, true, 'Second user', '{"role":"user","level":3}'),
+          ('Charlie', 67.8, false, 'Third user', '{"role":"user","level":1}'),
+          ('Diana', 91.0, true, 'Fourth user', '{"role":"mod","level":4}'),
+          ('Eve', 45.2, false, 'Fifth user', null)
+
+  - id: verify_query
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: query
+        sql: "SELECT id, name, score, is_active, description, metadata, created_at FROM ut_types ORDER BY id"
+
+  - id: response
+    type: response
+    config:
+      output:
+        rows: "verify_query.rows"
+        count: "verify_query.count"
+
+edges:
+  - from: start
+    to: create_table
+  - from: create_table
+    to: seed_data
+  - from: seed_data
+    to: verify_query
+  - from: verify_query
+    to: response

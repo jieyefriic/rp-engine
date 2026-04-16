@@ -1,0 +1,61 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/qdrant/q02_upsert.yaml",
+    "elapsed_ms": 32,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "count": 5,
+            "success": true
+          },
+          "timestamp": 1776302762797
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302762768
+        }
+      ],
+      "upsert": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "success": true,
+            "count": 5
+          },
+          "timestamp": 1776302762797
+        }
+      ]
+    },
+    "output": {
+      "count": 5,
+      "success": true
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 29,
+      "per_node": {
+        "start": 0,
+        "upsert": 28,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

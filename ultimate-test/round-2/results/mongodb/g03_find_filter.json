@@ -1,0 +1,124 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mongodb/g03_find_filter.yaml",
+    "elapsed_ms": 20,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "seed": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "count": 5,
+            "inserted_ids": [
+              "69e03a54154bebd402d9e7ab",
+              "69e03a54154bebd402d9e7a9",
+              "69e03a54154bebd402d9e7a8",
+              "69e03a54154bebd402d9e7a7",
+              "69e03a54154bebd402d9e7aa"
+            ]
+          },
+          "timestamp": 1776302676284
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302676273
+        }
+      ],
+      "find_filtered": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "rows": [
+              {
+                "_id": "69e03a54154bebd402d9e7a9",
+                "name": "Charlie",
+                "age": 35,
+                "department": "Engineering"
+              },
+              {
+                "_id": "69df96ed8931fac2be66b5d2",
+                "name": "Charlie",
+                "age": 35,
+                "department": "Engineering"
+              }
+            ],
+            "_id": "69e03a54154bebd402d9e7a9",
+            "name": "Charlie",
+            "count": 2,
+            "age": 35,
+            "department": "Engineering"
+          },
+          "timestamp": 1776302676289
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "seed_count": 5,
+            "filtered_count": 2,
+            "filtered": [
+              {
+                "_id": "69e03a54154bebd402d9e7a9",
+                "name": "Charlie",
+                "age": 35,
+                "department": "Engineering"
+              },
+              {
+                "_id": "69df96ed8931fac2be66b5d2",
+                "name": "Charlie",
+                "age": 35,
+                "department": "Engineering"
+              }
+            ]
+          },
+          "timestamp": 1776302676289
+        }
+      ]
+    },
+    "output": {
+      "seed_count": 5,
+      "filtered_count": 2,
+      "filtered": [
+        {
+          "_id": "69e03a54154bebd402d9e7a9",
+          "name": "Charlie",
+          "age": 35,
+          "department": "Engineering"
+        },
+        {
+          "_id": "69df96ed8931fac2be66b5d2",
+          "name": "Charlie",
+          "age": 35,
+          "department": "Engineering"
+        }
+      ]
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 17,
+      "per_node": {
+        "seed": 11,
+        "start": 0,
+        "find_filtered": 5,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

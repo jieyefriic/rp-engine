@@ -1,0 +1,37 @@
+version: "1.0"
+name: "Q06 Qdrant Scroll (Pagination)"
+
+data_sources:
+  qdrant_test:
+    name: "Test Qdrant"
+    kind: qdrant
+    config:
+      url: "http://localhost:16334"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: scroll_page1
+    type: data_connector
+    config:
+      data_source_id: qdrant_test
+      operation:
+        operation: scroll
+        collection: "ut_vectors"
+        limit: 2
+        with_payload: true
+
+  - id: response
+    type: response
+    config:
+      output:
+        points: "scroll_page1.points"
+        count: "scroll_page1.count"
+        next_offset: "scroll_page1.next_offset"
+
+edges:
+  - from: start
+    to: scroll_page1
+  - from: scroll_page1
+    to: response

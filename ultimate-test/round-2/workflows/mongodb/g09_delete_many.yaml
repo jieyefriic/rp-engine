@@ -1,0 +1,68 @@
+version: "1.0"
+name: "G09 MongoDB Delete Many"
+
+data_sources:
+  mongo_test:
+    name: "Test MongoDB"
+    kind: mongodb
+    config:
+      url: "mongodb://localhost:17017"
+      database: "ut_testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: seed
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: insert_many
+        collection: "g09_logs"
+        data:
+          - level: "info"
+            msg: "ok"
+          - level: "error"
+            msg: "fail1"
+          - level: "error"
+            msg: "fail2"
+          - level: "info"
+            msg: "ok2"
+          - level: "error"
+            msg: "fail3"
+
+  - id: delete_errors
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: delete_many
+        collection: "g09_logs"
+        filter:
+          level: "error"
+
+  - id: remaining
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: count
+        collection: "g09_logs"
+
+  - id: response
+    type: response
+    config:
+      output:
+        deleted: "delete_errors.deleted_count"
+        remaining: "remaining.count"
+
+edges:
+  - from: start
+    to: seed
+  - from: seed
+    to: delete_errors
+  - from: delete_errors
+    to: remaining
+  - from: remaining
+    to: response

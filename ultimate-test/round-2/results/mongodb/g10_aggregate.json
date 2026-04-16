@@ -1,0 +1,117 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mongodb/g10_aggregate.yaml",
+    "elapsed_ms": 22,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "seed": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "count": 5,
+            "inserted_ids": [
+              "69e03a5fd0e8787a87e9c1a1",
+              "69e03a5fd0e8787a87e9c19e",
+              "69e03a5fd0e8787a87e9c19f",
+              "69e03a5fd0e8787a87e9c1a0",
+              "69e03a5fd0e8787a87e9c1a2"
+            ]
+          },
+          "timestamp": 1776302687471
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "aggregated": [
+              {
+                "_id": "East",
+                "total_amount": 300,
+                "order_count": 4
+              },
+              {
+                "_id": "West",
+                "total_amount": 300,
+                "order_count": 2
+              }
+            ],
+            "agg_count": 2,
+            "seed_count": 5
+          },
+          "timestamp": 1776302687475
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302687458
+        }
+      ],
+      "aggregate": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "_id": "East",
+            "order_count": 4,
+            "rows": [
+              {
+                "_id": "East",
+                "total_amount": 300,
+                "order_count": 4
+              },
+              {
+                "_id": "West",
+                "total_amount": 300,
+                "order_count": 2
+              }
+            ],
+            "total_amount": 300,
+            "count": 2
+          },
+          "timestamp": 1776302687475
+        }
+      ]
+    },
+    "output": {
+      "aggregated": [
+        {
+          "_id": "East",
+          "total_amount": 300,
+          "order_count": 4
+        },
+        {
+          "_id": "West",
+          "total_amount": 300,
+          "order_count": 2
+        }
+      ],
+      "agg_count": 2,
+      "seed_count": 5
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 19,
+      "per_node": {
+        "response": 0,
+        "seed": 12,
+        "start": 0,
+        "aggregate": 4
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

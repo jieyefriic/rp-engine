@@ -8,6 +8,7 @@ use mysql_async::prelude::*;
 use mysql_async::{Pool, Opts, OptsBuilder, Value as MysqlValue, Row};
 use serde_json::Value;
 use tracing::{debug, warn};
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 
 use crate::state::ExecutionState;
 use crate::error::EngineError;
@@ -435,8 +436,23 @@ fn rows_to_json(rows: &[Row]) -> Vec<Value> {
 
 /// Convert a single MySQL column value to JSON
 fn row_value_to_json(row: &Row, idx: usize) -> Value {
-    // Try various types
-    if let Some(val) = row.get_opt::<Option<i64>, _>(idx).and_then(|r| r.ok()) {
+    // Try temporal types first (before i64, since DATETIME can mis-match as integer)
+    if let Some(val) = row.get_opt::<Option<NaiveDateTime>, _>(idx).and_then(|r| r.ok()) {
+        match val {
+            Some(dt) => Value::String(dt.format("%Y-%m-%d %H:%M:%S").to_string()),
+            None => Value::Null,
+        }
+    } else if let Some(val) = row.get_opt::<Option<NaiveDate>, _>(idx).and_then(|r| r.ok()) {
+        match val {
+            Some(d) => Value::String(d.format("%Y-%m-%d").to_string()),
+            None => Value::Null,
+        }
+    } else if let Some(val) = row.get_opt::<Option<NaiveTime>, _>(idx).and_then(|r| r.ok()) {
+        match val {
+            Some(t) => Value::String(t.format("%H:%M:%S").to_string()),
+            None => Value::Null,
+        }
+    } else if let Some(val) = row.get_opt::<Option<i64>, _>(idx).and_then(|r| r.ok()) {
         match val {
             Some(i) => Value::Number(i.into()),
             None => Value::Null,

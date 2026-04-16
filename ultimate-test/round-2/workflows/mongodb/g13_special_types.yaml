@@ -1,0 +1,62 @@
+version: "1.0"
+name: "G13 MongoDB Special Types"
+
+data_sources:
+  mongo_test:
+    name: "Test MongoDB"
+    kind: mongodb
+    config:
+      url: "mongodb://localhost:17017"
+      database: "ut_testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: insert_types
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: insert_one
+        collection: "g13_types"
+        data:
+          string_val: "hello world"
+          int_val: 42
+          float_val: 3.14159
+          bool_true: true
+          bool_false: false
+          null_val: null
+          big_number: 9999999999999
+          negative: -100
+          zero: 0
+          empty_string: ""
+          nested_null:
+            inner: null
+          empty_array: []
+          empty_object: {}
+
+  - id: read_back
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: find_one
+        collection: "g13_types"
+        filter:
+          string_val: "hello world"
+
+  - id: response
+    type: response
+    config:
+      output:
+        exists: "read_back.exists"
+        document: "read_back.document"
+
+edges:
+  - from: start
+    to: insert_types
+  - from: insert_types
+    to: read_back
+  - from: read_back
+    to: response

@@ -1,0 +1,62 @@
+version: "1.0"
+name: "G08 MongoDB Delete One"
+
+data_sources:
+  mongo_test:
+    name: "Test MongoDB"
+    kind: mongodb
+    config:
+      url: "mongodb://localhost:17017"
+      database: "ut_testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: seed
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: insert_one
+        collection: "g08_temp"
+        data:
+          name: "ToBeDeleted"
+          value: 42
+
+  - id: delete
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: delete_one
+        collection: "g08_temp"
+        filter:
+          name: "ToBeDeleted"
+
+  - id: verify
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: find_one
+        collection: "g08_temp"
+        filter:
+          name: "ToBeDeleted"
+
+  - id: response
+    type: response
+    config:
+      output:
+        deleted_count: "delete.deleted_count"
+        still_exists: "verify.exists"
+
+edges:
+  - from: start
+    to: seed
+  - from: seed
+    to: delete
+  - from: delete
+    to: verify
+  - from: verify
+    to: response

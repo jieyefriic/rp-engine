@@ -1736,6 +1736,22 @@ Columns and tables are quoted with backticks (`` ` ``) instead of PostgreSQL's d
 | Insert output | `rows` (from RETURNING) | `count`, `last_insert_id` |
 | Parameterized placeholders | `$1`, `$2`, ... | `?`, `?`, ... |
 
+**MySQL type mapping:**
+
+| MySQL Type | JSON Output |
+|-----------|-------------|
+| INT, BIGINT, TINYINT, SMALLINT | number |
+| FLOAT, DOUBLE | number (float precision) |
+| DECIMAL | number (double precision) |
+| VARCHAR, TEXT, CHAR | string |
+| BOOLEAN | number (1/0 — MySQL stores as TINYINT) |
+| DATE | string (`"YYYY-MM-DD"`) |
+| DATETIME, TIMESTAMP | string (`"YYYY-MM-DD HH:MM:SS"`) |
+| TIME | string (`"HH:MM:SS"`) |
+| JSON | string (JSON text) |
+| ENUM | string |
+| NULL | null |
+
 #### update
 
 ```yaml
@@ -2283,6 +2299,8 @@ data_sources:
 ```
 
 Note: The config uses `access_key` and `secret_key` (snake_case), not camelCase.
+
+All S3 operations support `{paramName}` variable resolution for `bucket`, `key`, `prefix`, `source_bucket`, and `source_key` fields. This allows chaining operations (e.g., using `put_object`'s output key in a subsequent `get_object`).
 
 #### get_object
 

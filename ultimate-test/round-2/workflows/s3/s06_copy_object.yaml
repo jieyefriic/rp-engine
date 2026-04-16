@@ -1,0 +1,67 @@
+version: "1.0"
+name: "S06 S3 Copy Object"
+
+data_sources:
+  minio_test:
+    name: "Test MinIO"
+    kind: s3
+    config:
+      endpoint: "http://127.0.0.1:19000"
+      access_key: "minioadmin"
+      secret_key: "minioadmin"
+      region: "us-east-1"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: put_original
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: put_object
+        bucket: "ut-copy-bucket"
+        prefix: "source"
+        content_type: "text/plain"
+      variables:
+        data: "start.data"
+
+  - id: copy
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: copy_object
+        source_bucket: "ut-copy-bucket"
+        source_key: "{{put_original.key}}"
+        bucket: "ut-copy-bucket"
+        key: "destination/copied-file.txt"
+
+  - id: get_copy
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: get_object
+        bucket: "ut-copy-bucket"
+        key: "destination/copied-file.txt"
+
+  - id: response
+    type: response
+    config:
+      output:
+        original_key: "put_original.key"
+        copy_key: "copy.key"
+        copied_data: "get_copy.data"
+        copy_content_type: "get_copy.content_type"
+
+edges:
+  - from: start
+    to: put_original
+  - from: put_original
+    to: copy
+  - from: copy
+    to: get_copy
+  - from: get_copy
+    to: response

@@ -1,0 +1,61 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mongodb/g05_find_one_not_found.yaml",
+    "elapsed_ms": 25,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "exists": false,
+            "document": null
+          },
+          "timestamp": 1776302679226
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302679204
+        }
+      ],
+      "find_missing": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "exists": false,
+            "document": null
+          },
+          "timestamp": 1776302679226
+        }
+      ]
+    },
+    "output": {
+      "exists": false,
+      "document": null
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 22,
+      "per_node": {
+        "find_missing": 21,
+        "response": 0,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

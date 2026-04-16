@@ -1,0 +1,81 @@
+version: "1.0"
+name: "S08 S3 Overwrite Object"
+
+data_sources:
+  minio_test:
+    name: "Test MinIO"
+    kind: s3
+    config:
+      endpoint: "http://127.0.0.1:19000"
+      access_key: "minioadmin"
+      secret_key: "minioadmin"
+      region: "us-east-1"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: put_v1
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: put_object
+        bucket: "ut-overwrite-bucket"
+        prefix: "overwrite"
+        content_type: "text/plain"
+      variables:
+        data: "start.data_v1"
+
+  - id: put_v2
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: put_object
+        bucket: "ut-overwrite-bucket"
+        prefix: "overwrite"
+        content_type: "text/plain"
+      variables:
+        data: "start.data_v2"
+
+  - id: get_v1
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: get_object
+        bucket: "ut-overwrite-bucket"
+        key: "{{put_v1.key}}"
+
+  - id: get_v2
+    type: data_connector
+    config:
+      data_source_id: minio_test
+      operation:
+        operation: get_object
+        bucket: "ut-overwrite-bucket"
+        key: "{{put_v2.key}}"
+
+  - id: response
+    type: response
+    config:
+      output:
+        v1_key: "put_v1.key"
+        v2_key: "put_v2.key"
+        v1_data: "get_v1.data"
+        v2_data: "get_v2.data"
+
+edges:
+  - from: start
+    to: put_v1
+  - from: put_v1
+    to: put_v2
+  - from: put_v2
+    to: get_v1
+  - from: put_v2
+    to: get_v2
+  - from: get_v1
+    to: response
+  - from: get_v2
+    to: response

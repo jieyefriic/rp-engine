@@ -1,0 +1,94 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/s3/s06_copy_object.yaml",
+    "elapsed_ms": 224,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "copy": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "bucket": "ut-copy-bucket",
+            "key": "destination/copied-file.txt"
+          },
+          "timestamp": 1776302731116
+        }
+      ],
+      "response": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "copied_data": "test",
+            "copy_content_type": "text/plain",
+            "original_key": "source/c80f35e7-32f0-44c7-bc32-839326dfbea7.bin",
+            "copy_key": "destination/copied-file.txt"
+          },
+          "timestamp": 1776302731123
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "data": "dGVzdA=="
+          },
+          "timestamp": 1776302730903
+        }
+      ],
+      "put_original": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "key": "source/c80f35e7-32f0-44c7-bc32-839326dfbea7.bin",
+            "url": "http://127.0.0.1:19000/ut-copy-bucket/source/c80f35e7-32f0-44c7-bc32-839326dfbea7.bin",
+            "bucket": "ut-copy-bucket"
+          },
+          "timestamp": 1776302731106
+        }
+      ],
+      "get_copy": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "content_type": "text/plain",
+            "size": 4,
+            "last_modified": "2026-04-16T01:25:31Z",
+            "data": "test"
+          },
+          "timestamp": 1776302731123
+        }
+      ]
+    },
+    "output": {
+      "copied_data": "test",
+      "copy_content_type": "text/plain",
+      "original_key": "source/c80f35e7-32f0-44c7-bc32-839326dfbea7.bin",
+      "copy_key": "destination/copied-file.txt"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 222,
+      "per_node": {
+        "start": 0,
+        "copy": 9,
+        "put_original": 203,
+        "get_copy": 6,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

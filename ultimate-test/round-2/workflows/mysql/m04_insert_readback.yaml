@@ -1,0 +1,62 @@
+version: "1.0"
+name: "M04 MySQL INSERT + Readback Round-trip"
+
+data_sources:
+  mysql_test:
+    name: "Test MySQL"
+    kind: mysql
+    config:
+      host: "localhost"
+      port: 13306
+      username: "test"
+      password: "test"
+      database: "testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: insert
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: insert
+        table: ut_types
+        data:
+          name: "{ins_name}"
+          score: "{ins_score}"
+          is_active: "{ins_active}"
+          description: "Inserted via M04 test"
+        returning: ["id", "name", "score"]
+      variables:
+        ins_name: "start.name"
+        ins_score: "start.score"
+        ins_active: "start.is_active"
+
+  - id: read_back
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: query
+        sql: "SELECT id, name, score, is_active, description FROM ut_types WHERE name = {lookup_name} ORDER BY id DESC LIMIT 1"
+      variables:
+        lookup_name: "start.name"
+
+  - id: response
+    type: response
+    config:
+      output:
+        insert_count: "insert.count"
+        insert_id: "insert.last_insert_id"
+        insert_returning: "insert.rows"
+        read_back: "read_back.rows"
+
+edges:
+  - from: start
+    to: insert
+  - from: insert
+    to: read_back
+  - from: read_back
+    to: response

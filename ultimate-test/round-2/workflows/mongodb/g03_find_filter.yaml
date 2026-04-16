@@ -1,0 +1,67 @@
+version: "1.0"
+name: "G03 MongoDB Find with Filter + Sort + Limit"
+
+data_sources:
+  mongo_test:
+    name: "Test MongoDB"
+    kind: mongodb
+    config:
+      url: "mongodb://localhost:17017"
+      database: "ut_testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: seed
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: insert_many
+        collection: "g03_people"
+        data:
+          - name: "Alice"
+            age: 30
+            department: "Engineering"
+          - name: "Bob"
+            age: 25
+            department: "Marketing"
+          - name: "Charlie"
+            age: 35
+            department: "Engineering"
+          - name: "Diana"
+            age: 28
+            department: "Engineering"
+          - name: "Eve"
+            age: 22
+            department: "Marketing"
+
+  - id: find_filtered
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: find
+        collection: "g03_people"
+        filter:
+          department: "Engineering"
+        sort:
+          age: -1
+        limit: 2
+
+  - id: response
+    type: response
+    config:
+      output:
+        seed_count: "seed.count"
+        filtered: "find_filtered.rows"
+        filtered_count: "find_filtered.count"
+
+edges:
+  - from: start
+    to: seed
+  - from: seed
+    to: find_filtered
+  - from: find_filtered
+    to: response

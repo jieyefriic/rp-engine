@@ -1,0 +1,89 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/s3/s02_put_get_json.yaml",
+    "elapsed_ms": 233,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "downloaded_data": {
+              "name": "test",
+              "value": 42
+            },
+            "uploaded_key": "json-tests/710e38e2-276d-4d1d-9631-8b9a70f74abf.bin",
+            "content_type": "application/json"
+          },
+          "timestamp": 1776302723632
+        }
+      ],
+      "put": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "url": "http://127.0.0.1:19000/ut-test-bucket/json-tests/710e38e2-276d-4d1d-9631-8b9a70f74abf.bin",
+            "bucket": "ut-test-bucket",
+            "key": "json-tests/710e38e2-276d-4d1d-9631-8b9a70f74abf.bin"
+          },
+          "timestamp": 1776302723625
+        }
+      ],
+      "get": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "data": {
+              "name": "test",
+              "value": 42
+            },
+            "content_type": "application/json",
+            "last_modified": "2026-04-16T01:25:23Z",
+            "size": 26
+          },
+          "timestamp": 1776302723632
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "data": "eyJuYW1lIjoidGVzdCIsInZhbHVlIjo0Mn0="
+          },
+          "timestamp": 1776302723402
+        }
+      ]
+    },
+    "output": {
+      "downloaded_data": {
+        "name": "test",
+        "value": 42
+      },
+      "uploaded_key": "json-tests/710e38e2-276d-4d1d-9631-8b9a70f74abf.bin",
+      "content_type": "application/json"
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 230,
+      "per_node": {
+        "response": 0,
+        "get": 6,
+        "put": 223,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

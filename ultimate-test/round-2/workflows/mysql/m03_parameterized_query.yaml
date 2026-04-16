@@ -1,0 +1,41 @@
+version: "1.0"
+name: "M03 MySQL Parameterized Query"
+
+data_sources:
+  mysql_test:
+    name: "Test MySQL"
+    kind: mysql
+    config:
+      host: "localhost"
+      port: 13306
+      username: "test"
+      password: "test"
+      database: "testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: param_query
+    type: data_connector
+    config:
+      data_source_id: mysql_test
+      operation:
+        operation: query
+        sql: "SELECT name, score FROM ut_types WHERE name = {search_name} AND is_active = {active}"
+      variables:
+        search_name: "start.name"
+        active: "start.active"
+
+  - id: response
+    type: response
+    config:
+      output:
+        rows: "param_query.rows"
+        count: "param_query.count"
+
+edges:
+  - from: start
+    to: param_query
+  - from: param_query
+    to: response

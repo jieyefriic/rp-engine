@@ -1,0 +1,122 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/qdrant/q09_uuid_ids.yaml",
+    "elapsed_ms": 25,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302773857
+        }
+      ],
+      "upsert_uuid": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "count": 2,
+            "success": true
+          },
+          "timestamp": 1776302773871
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "get_count": 2,
+            "upsert_success": true,
+            "upsert_count": 2,
+            "points": [
+              {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "payload": {
+                  "text": "uuid point alpha",
+                  "category": "uuid_test"
+                }
+              },
+              {
+                "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+                "payload": {
+                  "category": "uuid_test",
+                  "text": "uuid point beta"
+                }
+              }
+            ]
+          },
+          "timestamp": 1776302773878
+        }
+      ],
+      "get_uuid": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "count": 2,
+            "points": [
+              {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "payload": {
+                  "text": "uuid point alpha",
+                  "category": "uuid_test"
+                }
+              },
+              {
+                "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+                "payload": {
+                  "category": "uuid_test",
+                  "text": "uuid point beta"
+                }
+              }
+            ]
+          },
+          "timestamp": 1776302773878
+        }
+      ]
+    },
+    "output": {
+      "get_count": 2,
+      "upsert_success": true,
+      "upsert_count": 2,
+      "points": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "payload": {
+            "text": "uuid point alpha",
+            "category": "uuid_test"
+          }
+        },
+        {
+          "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+          "payload": {
+            "category": "uuid_test",
+            "text": "uuid point beta"
+          }
+        }
+      ]
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 22,
+      "per_node": {
+        "get_uuid": 7,
+        "start": 0,
+        "response": 0,
+        "upsert_uuid": 13
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

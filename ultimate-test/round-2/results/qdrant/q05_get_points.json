@@ -1,0 +1,257 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/qdrant/q05_get_points.yaml",
+    "elapsed_ms": 34,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "get_with_payload": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "points": [
+              {
+                "id": 1,
+                "payload": {
+                  "category": "greeting",
+                  "priority": 1,
+                  "text": "hello world"
+                },
+                "vectors": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              {
+                "id": 3,
+                "payload": {
+                  "priority": 3,
+                  "category": "greeting",
+                  "text": "how are you"
+                },
+                "vectors": [
+                  0.0,
+                  0.0,
+                  1.0,
+                  0.0
+                ]
+              },
+              {
+                "id": 5,
+                "payload": {
+                  "text": "hi there",
+                  "priority": 2,
+                  "category": "greeting"
+                },
+                "vectors": [
+                  0.7071067690849304,
+                  0.7071067690849304,
+                  0.0,
+                  0.0
+                ]
+              }
+            ],
+            "count": 3
+          },
+          "timestamp": 1776302767231
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "with_vectors_count": 3,
+            "without_vectors": [
+              {
+                "id": 2,
+                "payload": {
+                  "category": "farewell",
+                  "text": "goodbye world",
+                  "priority": 2
+                }
+              },
+              {
+                "id": 4,
+                "payload": {
+                  "priority": 1,
+                  "category": "farewell",
+                  "text": "see you later"
+                }
+              }
+            ],
+            "without_vectors_count": 2,
+            "with_vectors": [
+              {
+                "id": 1,
+                "payload": {
+                  "category": "greeting",
+                  "priority": 1,
+                  "text": "hello world"
+                },
+                "vectors": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              {
+                "id": 3,
+                "payload": {
+                  "priority": 3,
+                  "category": "greeting",
+                  "text": "how are you"
+                },
+                "vectors": [
+                  0.0,
+                  0.0,
+                  1.0,
+                  0.0
+                ]
+              },
+              {
+                "id": 5,
+                "payload": {
+                  "text": "hi there",
+                  "priority": 2,
+                  "category": "greeting"
+                },
+                "vectors": [
+                  0.7071067690849304,
+                  0.7071067690849304,
+                  0.0,
+                  0.0
+                ]
+              }
+            ]
+          },
+          "timestamp": 1776302767231
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302767200
+        }
+      ],
+      "get_no_vectors": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "points": [
+              {
+                "id": 2,
+                "payload": {
+                  "category": "farewell",
+                  "text": "goodbye world",
+                  "priority": 2
+                }
+              },
+              {
+                "id": 4,
+                "payload": {
+                  "priority": 1,
+                  "category": "farewell",
+                  "text": "see you later"
+                }
+              }
+            ],
+            "count": 2
+          },
+          "timestamp": 1776302767231
+        }
+      ]
+    },
+    "output": {
+      "with_vectors_count": 3,
+      "without_vectors": [
+        {
+          "id": 2,
+          "payload": {
+            "category": "farewell",
+            "text": "goodbye world",
+            "priority": 2
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "priority": 1,
+            "category": "farewell",
+            "text": "see you later"
+          }
+        }
+      ],
+      "without_vectors_count": 2,
+      "with_vectors": [
+        {
+          "id": 1,
+          "payload": {
+            "category": "greeting",
+            "priority": 1,
+            "text": "hello world"
+          },
+          "vectors": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": 3,
+          "payload": {
+            "priority": 3,
+            "category": "greeting",
+            "text": "how are you"
+          },
+          "vectors": [
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "id": 5,
+          "payload": {
+            "text": "hi there",
+            "priority": 2,
+            "category": "greeting"
+          },
+          "vectors": [
+            0.7071067690849304,
+            0.7071067690849304,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 32,
+      "per_node": {
+        "response": 0,
+        "get_with_payload": 30,
+        "get_no_vectors": 18,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

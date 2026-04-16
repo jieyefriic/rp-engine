@@ -1,0 +1,85 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mongodb/g08_delete_one.yaml",
+    "elapsed_ms": 38,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "seed": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "inserted_id": "69e03a5b6bafae711dc4c921",
+            "count": 1
+          },
+          "timestamp": 1776302683584
+        }
+      ],
+      "verify": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "document": null,
+            "exists": false
+          },
+          "timestamp": 1776302683602
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302683567
+        }
+      ],
+      "delete": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "count": 1,
+            "deleted_count": 1
+          },
+          "timestamp": 1776302683595
+        }
+      ],
+      "response": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "deleted_count": 1,
+            "still_exists": false
+          },
+          "timestamp": 1776302683603
+        }
+      ]
+    },
+    "output": {
+      "deleted_count": 1,
+      "still_exists": false
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 36,
+      "per_node": {
+        "start": 0,
+        "verify": 7,
+        "delete": 10,
+        "seed": 16,
+        "response": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

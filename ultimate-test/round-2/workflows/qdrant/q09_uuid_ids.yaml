@@ -1,0 +1,61 @@
+version: "1.0"
+name: "Q09 Qdrant UUID Point IDs"
+
+data_sources:
+  qdrant_test:
+    name: "Test Qdrant"
+    kind: qdrant
+    config:
+      url: "http://localhost:16334"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: upsert_uuid
+    type: data_connector
+    config:
+      data_source_id: qdrant_test
+      operation:
+        operation: upsert
+        collection: "ut_vectors"
+        points:
+          - id: "550e8400-e29b-41d4-a716-446655440000"
+            vector: [0.7, 0.1, 0.1, 0.1]
+            payload:
+              text: "uuid point alpha"
+              category: "uuid_test"
+          - id: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+            vector: [0.1, 0.7, 0.1, 0.1]
+            payload:
+              text: "uuid point beta"
+              category: "uuid_test"
+
+  - id: get_uuid
+    type: data_connector
+    config:
+      data_source_id: qdrant_test
+      operation:
+        operation: get_points
+        collection: "ut_vectors"
+        ids:
+          - "550e8400-e29b-41d4-a716-446655440000"
+          - "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        with_payload: true
+
+  - id: response
+    type: response
+    config:
+      output:
+        upsert_success: "upsert_uuid.success"
+        upsert_count: "upsert_uuid.count"
+        points: "get_uuid.points"
+        get_count: "get_uuid.count"
+
+edges:
+  - from: start
+    to: upsert_uuid
+  - from: upsert_uuid
+    to: get_uuid
+  - from: get_uuid
+    to: response

@@ -1,0 +1,68 @@
+version: "1.0"
+name: "G12 MongoDB Nested Documents + Arrays"
+
+data_sources:
+  mongo_test:
+    name: "Test MongoDB"
+    kind: mongodb
+    config:
+      url: "mongodb://localhost:17017"
+      database: "ut_testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: insert_nested
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: insert_one
+        collection: "g12_nested"
+        data:
+          name: "DeepDoc"
+          profile:
+            bio: "A test user"
+            address:
+              city: "Beijing"
+              zip: "100000"
+              coords:
+                lat: 39.9
+                lng: 116.4
+          tags: ["developer", "tester", "admin"]
+          scores: [95, 87, 92, 78]
+          metadata:
+            created_by: "test"
+            flags:
+              verified: true
+              premium: false
+
+  - id: read_back
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: find_one
+        collection: "g12_nested"
+        filter:
+          name: "DeepDoc"
+
+  - id: response
+    type: response
+    config:
+      output:
+        exists: "read_back.exists"
+        name: "read_back.name"
+        profile: "read_back.profile"
+        tags: "read_back.tags"
+        scores: "read_back.scores"
+        metadata: "read_back.metadata"
+
+edges:
+  - from: start
+    to: insert_nested
+  - from: insert_nested
+    to: read_back
+  - from: read_back
+    to: response

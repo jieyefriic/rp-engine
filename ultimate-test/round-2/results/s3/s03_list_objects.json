@@ -1,0 +1,183 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/s3/s03_list_objects.yaml",
+    "elapsed_ms": 210,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "put2": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "url": "http://127.0.0.1:19000/ut-list-bucket/listtest/4836b61a-488b-4f9d-8452-1bea2d662927.bin",
+            "bucket": "ut-list-bucket",
+            "key": "listtest/4836b61a-488b-4f9d-8452-1bea2d662927.bin"
+          },
+          "timestamp": 1776302726165
+        }
+      ],
+      "put1": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "bucket": "ut-list-bucket",
+            "url": "http://127.0.0.1:19000/ut-list-bucket/listtest/5847d2bd-c1c7-4cfb-94d1-25ccb9813bf0.bin",
+            "key": "listtest/5847d2bd-c1c7-4cfb-94d1-25ccb9813bf0.bin"
+          },
+          "timestamp": 1776302726166
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "data2": "ZmlsZSB0d28=",
+            "data1": "ZmlsZSBvbmU="
+          },
+          "timestamp": 1776302725965
+        }
+      ],
+      "list": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "truncated": false,
+            "objects": [
+              {
+                "key": "listtest/4836b61a-488b-4f9d-8452-1bea2d662927.bin",
+                "size": 8,
+                "last_modified": "2026-04-16T01:25:26.16Z",
+                "etag": "\"f03e17819231fd2ea06d3013ee1e3b2c\""
+              },
+              {
+                "key": "listtest/5847d2bd-c1c7-4cfb-94d1-25ccb9813bf0.bin",
+                "size": 8,
+                "last_modified": "2026-04-16T01:25:26.16Z",
+                "etag": "\"e6bbb3095edb03733dfa4e6dd9962cfb\""
+              },
+              {
+                "key": "listtest/9405fcb4-7883-4608-8932-1a9f7d6e8cd5.bin",
+                "size": 8,
+                "last_modified": "2026-04-15T14:21:15.638Z",
+                "etag": "\"e6bbb3095edb03733dfa4e6dd9962cfb\""
+              },
+              {
+                "key": "listtest/9b55b781-baf5-4bab-89ba-369d83551c8a.bin",
+                "size": 16,
+                "last_modified": "2026-04-15T13:51:14.675Z",
+                "etag": "\"257075e03fc5351067247f7e04f8c74f\""
+              },
+              {
+                "key": "listtest/f7cd9b2e-96ff-44ae-b44c-ee6151a11bab.bin",
+                "size": 8,
+                "last_modified": "2026-04-15T14:21:15.638Z",
+                "etag": "\"f03e17819231fd2ea06d3013ee1e3b2c\""
+              }
+            ]
+          },
+          "timestamp": 1776302726173
+        }
+      ],
+      "response": [
+        {
+          "short_id": "e",
+          "execution_index": 0,
+          "outputs": {
+            "truncated": false,
+            "objects": [
+              {
+                "key": "listtest/4836b61a-488b-4f9d-8452-1bea2d662927.bin",
+                "size": 8,
+                "last_modified": "2026-04-16T01:25:26.16Z",
+                "etag": "\"f03e17819231fd2ea06d3013ee1e3b2c\""
+              },
+              {
+                "key": "listtest/5847d2bd-c1c7-4cfb-94d1-25ccb9813bf0.bin",
+                "size": 8,
+                "last_modified": "2026-04-16T01:25:26.16Z",
+                "etag": "\"e6bbb3095edb03733dfa4e6dd9962cfb\""
+              },
+              {
+                "key": "listtest/9405fcb4-7883-4608-8932-1a9f7d6e8cd5.bin",
+                "size": 8,
+                "last_modified": "2026-04-15T14:21:15.638Z",
+                "etag": "\"e6bbb3095edb03733dfa4e6dd9962cfb\""
+              },
+              {
+                "key": "listtest/9b55b781-baf5-4bab-89ba-369d83551c8a.bin",
+                "size": 16,
+                "last_modified": "2026-04-15T13:51:14.675Z",
+                "etag": "\"257075e03fc5351067247f7e04f8c74f\""
+              },
+              {
+                "key": "listtest/f7cd9b2e-96ff-44ae-b44c-ee6151a11bab.bin",
+                "size": 8,
+                "last_modified": "2026-04-15T14:21:15.638Z",
+                "etag": "\"f03e17819231fd2ea06d3013ee1e3b2c\""
+              }
+            ]
+          },
+          "timestamp": 1776302726173
+        }
+      ]
+    },
+    "output": {
+      "truncated": false,
+      "objects": [
+        {
+          "key": "listtest/4836b61a-488b-4f9d-8452-1bea2d662927.bin",
+          "size": 8,
+          "last_modified": "2026-04-16T01:25:26.16Z",
+          "etag": "\"f03e17819231fd2ea06d3013ee1e3b2c\""
+        },
+        {
+          "key": "listtest/5847d2bd-c1c7-4cfb-94d1-25ccb9813bf0.bin",
+          "size": 8,
+          "last_modified": "2026-04-16T01:25:26.16Z",
+          "etag": "\"e6bbb3095edb03733dfa4e6dd9962cfb\""
+        },
+        {
+          "key": "listtest/9405fcb4-7883-4608-8932-1a9f7d6e8cd5.bin",
+          "size": 8,
+          "last_modified": "2026-04-15T14:21:15.638Z",
+          "etag": "\"e6bbb3095edb03733dfa4e6dd9962cfb\""
+        },
+        {
+          "key": "listtest/9b55b781-baf5-4bab-89ba-369d83551c8a.bin",
+          "size": 16,
+          "last_modified": "2026-04-15T13:51:14.675Z",
+          "etag": "\"257075e03fc5351067247f7e04f8c74f\""
+        },
+        {
+          "key": "listtest/f7cd9b2e-96ff-44ae-b44c-ee6151a11bab.bin",
+          "size": 8,
+          "last_modified": "2026-04-15T14:21:15.638Z",
+          "etag": "\"f03e17819231fd2ea06d3013ee1e3b2c\""
+        }
+      ]
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 208,
+      "per_node": {
+        "put1": 15,
+        "list": 6,
+        "put2": 200,
+        "response": 0,
+        "start": 0
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

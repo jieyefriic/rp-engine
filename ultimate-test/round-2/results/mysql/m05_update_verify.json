@@ -1,0 +1,132 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mysql/m05_update_verify.yaml",
+    "elapsed_ms": 38,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "update_returning": [
+              {
+                "name": "Alice",
+                "score": 99.9
+              },
+              {
+                "name": "Alice",
+                "score": 99.9
+              }
+            ],
+            "affected_count": 1,
+            "verified": [
+              {
+                "name": "Alice",
+                "score": 99.9
+              },
+              {
+                "name": "Alice",
+                "score": 99.9
+              }
+            ]
+          },
+          "timestamp": 1776302580684
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {
+            "new_score": 99.9,
+            "target": "Alice"
+          },
+          "timestamp": 1776302580648
+        }
+      ],
+      "update": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "rows": [
+              {
+                "name": "Alice",
+                "score": 99.9
+              },
+              {
+                "name": "Alice",
+                "score": 99.9
+              }
+            ],
+            "count": 1
+          },
+          "timestamp": 1776302580679
+        }
+      ],
+      "verify": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "count": 2,
+            "rows": [
+              {
+                "name": "Alice",
+                "score": 99.9
+              },
+              {
+                "name": "Alice",
+                "score": 99.9
+              }
+            ]
+          },
+          "timestamp": 1776302580684
+        }
+      ]
+    },
+    "output": {
+      "update_returning": [
+        {
+          "name": "Alice",
+          "score": 99.9
+        },
+        {
+          "name": "Alice",
+          "score": 99.9
+        }
+      ],
+      "affected_count": 1,
+      "verified": [
+        {
+          "name": "Alice",
+          "score": 99.9
+        },
+        {
+          "name": "Alice",
+          "score": 99.9
+        }
+      ]
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 36,
+      "per_node": {
+        "start": 0,
+        "response": 0,
+        "update": 30,
+        "verify": 4
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

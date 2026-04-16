@@ -1,0 +1,194 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mongodb/g12_nested_docs.yaml",
+    "elapsed_ms": 31,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "read_back": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "exists": true,
+            "name": "DeepDoc",
+            "scores": [
+              95,
+              87,
+              92,
+              78
+            ],
+            "tags": [
+              "developer",
+              "tester",
+              "admin"
+            ],
+            "document": {
+              "_id": "69df971b0860882270c0533c",
+              "name": "DeepDoc",
+              "profile": {
+                "bio": "A test user",
+                "address": {
+                  "city": "Beijing",
+                  "zip": "100000",
+                  "coords": {
+                    "lat": 39.9,
+                    "lng": 116.4
+                  }
+                }
+              },
+              "tags": [
+                "developer",
+                "tester",
+                "admin"
+              ],
+              "scores": [
+                95,
+                87,
+                92,
+                78
+              ],
+              "metadata": {
+                "created_by": "test",
+                "flags": {
+                  "verified": true,
+                  "premium": false
+                }
+              }
+            },
+            "profile": {
+              "bio": "A test user",
+              "address": {
+                "city": "Beijing",
+                "zip": "100000",
+                "coords": {
+                  "lat": 39.9,
+                  "lng": 116.4
+                }
+              }
+            },
+            "metadata": {
+              "created_by": "test",
+              "flags": {
+                "verified": true,
+                "premium": false
+              }
+            },
+            "_id": "69df971b0860882270c0533c"
+          },
+          "timestamp": 1776302690458
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "scores": [
+              95,
+              87,
+              92,
+              78
+            ],
+            "profile": {
+              "bio": "A test user",
+              "address": {
+                "city": "Beijing",
+                "zip": "100000",
+                "coords": {
+                  "lat": 39.9,
+                  "lng": 116.4
+                }
+              }
+            },
+            "tags": [
+              "developer",
+              "tester",
+              "admin"
+            ],
+            "exists": true,
+            "name": "DeepDoc",
+            "metadata": {
+              "created_by": "test",
+              "flags": {
+                "verified": true,
+                "premium": false
+              }
+            }
+          },
+          "timestamp": 1776302690458
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302690430
+        }
+      ],
+      "insert_nested": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "inserted_id": "69e03a62ab20d75863e6531c",
+            "count": 1
+          },
+          "timestamp": 1776302690448
+        }
+      ]
+    },
+    "output": {
+      "scores": [
+        95,
+        87,
+        92,
+        78
+      ],
+      "profile": {
+        "bio": "A test user",
+        "address": {
+          "city": "Beijing",
+          "zip": "100000",
+          "coords": {
+            "lat": 39.9,
+            "lng": 116.4
+          }
+        }
+      },
+      "tags": [
+        "developer",
+        "tester",
+        "admin"
+      ],
+      "exists": true,
+      "name": "DeepDoc",
+      "metadata": {
+        "created_by": "test",
+        "flags": {
+          "verified": true,
+          "premium": false
+        }
+      }
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 29,
+      "per_node": {
+        "response": 0,
+        "start": 0,
+        "read_back": 10,
+        "insert_nested": 17
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

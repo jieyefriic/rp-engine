@@ -1,0 +1,110 @@
+{
+  "_test_meta": {
+    "yaml_path": "ultimate-test/round-2/workflows/mysql/m07_null_handling.yaml",
+    "elapsed_ms": 32,
+    "providers_registered": [],
+    "status": "Success"
+  },
+  "result": {
+    "status": "Success",
+    "executions": {
+      "read_back": [
+        {
+          "short_id": "c",
+          "execution_index": 0,
+          "outputs": {
+            "rows": [
+              {
+                "name": "NullTest_M07",
+                "score": null,
+                "is_active": null,
+                "description": null,
+                "metadata": null
+              }
+            ],
+            "is_active": null,
+            "metadata": null,
+            "count": 1,
+            "name": "NullTest_M07",
+            "score": null,
+            "description": null
+          },
+          "timestamp": 1776302583635
+        }
+      ],
+      "response": [
+        {
+          "short_id": "d",
+          "execution_index": 0,
+          "outputs": {
+            "is_active": null,
+            "score": null,
+            "row": [
+              {
+                "name": "NullTest_M07",
+                "score": null,
+                "is_active": null,
+                "description": null,
+                "metadata": null
+              }
+            ],
+            "description": null,
+            "name": "NullTest_M07",
+            "insert_id": 17
+          },
+          "timestamp": 1776302583635
+        }
+      ],
+      "start": [
+        {
+          "short_id": "a",
+          "execution_index": 0,
+          "outputs": {},
+          "timestamp": 1776302583606
+        }
+      ],
+      "insert_null": [
+        {
+          "short_id": "b",
+          "execution_index": 0,
+          "outputs": {
+            "last_insert_id": 17,
+            "count": 1
+          },
+          "timestamp": 1776302583626
+        }
+      ]
+    },
+    "output": {
+      "is_active": null,
+      "score": null,
+      "row": [
+        {
+          "name": "NullTest_M07",
+          "score": null,
+          "is_active": null,
+          "description": null,
+          "metadata": null
+        }
+      ],
+      "description": null,
+      "name": "NullTest_M07",
+      "insert_id": 17
+    },
+    "error": null,
+    "timing": {
+      "total_ms": 29,
+      "per_node": {
+        "read_back": 8,
+        "response": 0,
+        "start": 0,
+        "insert_null": 19
+      }
+    },
+    "token_usage": {
+      "total_input_tokens": 0,
+      "total_output_tokens": 0,
+      "per_node": {}
+    }
+  }
+}

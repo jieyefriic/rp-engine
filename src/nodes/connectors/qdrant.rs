@@ -334,11 +334,17 @@ async fn execute_search(
             .map(|(k, v)| (k.clone(), qdrant_value_to_json(v)))
             .collect();
 
-        serde_json::json!({
+        let vectors = vectors_output_to_json(&point.vectors);
+
+        let mut obj = serde_json::json!({
             "id": id,
             "score": point.score,
             "payload": payload,
-        })
+        });
+        if !vectors.is_null() {
+            obj["vectors"] = vectors;
+        }
+        obj
     }).collect();
 
     let mut outputs = HashMap::new();
@@ -398,10 +404,16 @@ async fn execute_scroll(
             .map(|(k, v)| (k.clone(), qdrant_value_to_json(v)))
             .collect();
 
-        serde_json::json!({
+        let vectors = vectors_output_to_json(&point.vectors);
+
+        let mut obj = serde_json::json!({
             "id": id,
             "payload": payload,
-        })
+        });
+        if !vectors.is_null() {
+            obj["vectors"] = vectors;
+        }
+        obj
     }).collect();
 
     let next_offset = response.next_page_offset.as_ref().and_then(|id| {
@@ -472,10 +484,16 @@ async fn execute_get_points(
             .map(|(k, v)| (k.clone(), qdrant_value_to_json(v)))
             .collect();
 
-        serde_json::json!({
+        let vectors = vectors_output_to_json(&point.vectors);
+
+        let mut obj = serde_json::json!({
             "id": id,
             "payload": payload,
-        })
+        });
+        if !vectors.is_null() {
+            obj["vectors"] = vectors;
+        }
+        obj
     }).collect();
 
     let mut outputs = HashMap::new();
@@ -483,6 +501,40 @@ async fn execute_get_points(
     outputs.insert("count".to_string(), Value::Number(points.len().into()));
 
     Ok(outputs)
+}
+
+/// Extract vectors from a VectorsOutput into JSON
+fn vectors_output_to_json(vectors: &Option<qdrant_client::qdrant::VectorsOutput>) -> Value {
+    use qdrant_client::qdrant::vectors_output::VectorsOptions;
+
+    match vectors {
+        Some(vo) => match &vo.vectors_options {
+            #[allow(deprecated)]
+            Some(VectorsOptions::Vector(v)) => {
+                Value::Array(v.data.iter().map(|f| {
+                    serde_json::Number::from_f64(*f as f64)
+                        .map(Value::Number)
+                        .unwrap_or(Value::Null)
+                }).collect())
+            }
+            Some(VectorsOptions::Vectors(named)) => {
+                let map: serde_json::Map<String, Value> = named.vectors.iter()
+                    .map(|(name, vec)| {
+                        #[allow(deprecated)]
+                        let arr = Value::Array(vec.data.iter().map(|f| {
+                            serde_json::Number::from_f64(*f as f64)
+                                .map(Value::Number)
+                                .unwrap_or(Value::Null)
+                        }).collect());
+                        (name.clone(), arr)
+                    })
+                    .collect();
+                Value::Object(map)
+            }
+            None => Value::Null,
+        },
+        None => Value::Null,
+    }
 }
 
 /// Convert Qdrant Value to serde_json Value

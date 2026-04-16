@@ -1,0 +1,53 @@
+version: "1.0"
+name: "G04 MongoDB Find One"
+
+data_sources:
+  mongo_test:
+    name: "Test MongoDB"
+    kind: mongodb
+    config:
+      url: "mongodb://localhost:17017"
+      database: "ut_testdb"
+
+nodes:
+  - id: start
+    type: start
+
+  - id: seed
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: insert_one
+        collection: "g04_users"
+        data:
+          name: "FindMeUser"
+          email: "findme@test.com"
+          role: "admin"
+
+  - id: find_one
+    type: data_connector
+    config:
+      data_source_id: mongo_test
+      operation:
+        operation: find_one
+        collection: "g04_users"
+        filter:
+          name: "FindMeUser"
+
+  - id: response
+    type: response
+    config:
+      output:
+        exists: "find_one.exists"
+        name: "find_one.name"
+        email: "find_one.email"
+        role: "find_one.role"
+
+edges:
+  - from: start
+    to: seed
+  - from: seed
+    to: find_one
+  - from: find_one
+    to: response
