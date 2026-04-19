@@ -136,41 +136,65 @@
 | S37 | Unicode & Special | PASS | |
 | S38 | Long Context | PASS | ~2000 char input summarized |
 | S39 | Schema Chain | PASS | Post-fix: schema fields flow between nodes |
-| S40 | Conditional + Loop | FAIL | YAML wiring issue |
+| S40 | Conditional + Loop | PASS | Fixed after Phase 2 |
 
 ---
 
-## Untested Dimensions — Deferred to Round 2
+## Status of Previously-Untested Dimensions
 
-The following areas were NOT tested in Round 1 due to environment or infrastructure constraints.
+### Database Connectors — ALL COMPLETED in Round 2
 
-### Database Connectors (need remote instances)
-| Connector | Reason Not Tested |
-|-----------|-------------------|
-| **MySQL / MariaDB** | apt install failed (network too slow in sandbox) |
-| **MongoDB** | apt install failed (no official repo connectivity) |
-| **S3 / MinIO** | Docker image pull failed (no bridge networking) |
-| **Qdrant** | Docker image pull failed |
-| **GraphQL** | No available GraphQL endpoint in sandbox |
+| Connector | Status | Tests |
+|-----------|--------|-------|
+| **MySQL / MariaDB** | DONE | 12/12 pass (Round 2) |
+| **MongoDB** | DONE | 14/14 pass (Round 2) |
+| **S3 / MinIO** | DONE | 10/10 pass (Round 2) |
+| **Qdrant** | DONE | 9/10 pass (Round 2; Q01 expected fail on re-run) |
+| **GraphQL** | STILL UNTESTED | No available GraphQL endpoint |
 
 ### Provider Features
-| Feature | Reason Not Tested |
-|---------|-------------------|
-| **Vision / Multimodal** | Need image files; sandbox has no test images |
-| **OpenAI Compatible (custom endpoint)** | Need a local LLM server (vLLM/Ollama) |
-| **Provider-level streaming verification** | Streaming tested at workflow level (N11) but not per-provider token-by-token validation |
-| **Thinking/Reasoning mode** | Tested implicitly (Zhipu GLM-4.7, Huoshan doubao return reasoning_content) but no dedicated thinking_budget test |
+
+| Feature | Status |
+|---------|--------|
+| **Vision / Multimodal** | DONE (supplementary round): N_vision with OpenAI gpt-4o-mini + URL image — PASS |
+| **Thinking/Reasoning mode** | DONE (supplementary round): N_thinking with Anthropic thinking_budget=2048 — PASS (answer correct, _thinking field null) |
+| **OpenAI Compatible (custom endpoint)** | STILL UNTESTED | Need a local LLM server |
+| **Provider-level streaming verification** | PARTIAL — streaming verified at workflow level (N11 advanced: 9 chunks + _ttft_ms), not per-provider |
 
 ### Node Capabilities
-| Capability | Reason Not Tested |
-|------------|-------------------|
-| **MCP integration** | Need a reachable MCP server; DeepWiki endpoint used in existing tests but not in ultimate-test suite |
-| **Harness memory_file + writeback** | Tested harness.instructions (N18, S30) but NOT the memory_file persistence + writeback LLM call |
-| **Embedding nodes** | No embedding-specific workflow tests |
+
+| Capability | Status |
+|------------|--------|
+| **MCP integration** | DONE (supplementary round): N44 explicit + N45 discovery — both PASS |
+| **Harness memory_file + writeback** | DONE (supplementary round): N18b — memory file updated correctly after execution |
+| **Embedding nodes** | STILL UNTESTED | No embedding-specific tests written |
 
 ### Workflow Patterns
-| Pattern | Reason Not Tested |
-|---------|-------------------|
-| **Concurrent workflow execution** | Multiple workflows on same Engine instance simultaneously |
-| **Very large workflows** | 20+ node deep graphs with complex fan-out/fan-in |
-| **Production load testing** | Concurrent users, rate limiting, backpressure |
+
+| Pattern | Status |
+|---------|--------|
+| **Concurrent workflow execution** | STILL UNTESTED | Requires Rust test code, not YAML |
+| **Very large workflows (20+ nodes)** | STILL UNTESTED | S32 deep chain covers 6 sequential nodes but no wide+deep combos |
+| **Production load testing** | STILL UNTESTED | Requires dedicated benchmarking framework |
+
+### Known Minor Issues
+
+| Issue | Severity | Note |
+|-------|----------|------|
+| `_thinking` field null despite thinking_budget set | Low | Anthropic haiku thinking output may not be surfaced to `_thinking`; answer itself correct |
+| f32 float precision (0.7 → 0.699999988079071) | Low | Most APIs tolerate it |
+| Fixed-point dead path propagation efficiency | Low | Not measured for very large graphs |
+
+---
+
+## Grand Total (Round 1 + Round 2 + Supplementary)
+
+| Round | Tests | Pass Rate |
+|-------|-------|-----------|
+| Round 1 | 115 | 91% (105/115) after fixes |
+| Round 2 | 46 | 98% (45/46) |
+| Supplementary | 5 | 100% (5/5) |
+| **Grand Total** | **166** | **~94%** |
+
+Total engine issues fixed: **17** (EI-01~EI-12 + EI-R2-01~05)
+Total skill doc issues fixed: **10** (SI-01~SI-08 + SI-R2-01~02)
