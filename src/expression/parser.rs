@@ -59,8 +59,12 @@ pub enum Expr {
     Path(PathExpr),
     /// Literal value
     Literal(Value),
-    /// Function call
-    FunctionCall(String, Box<Expr>),
+    /// Function call with 1+ positional arguments.
+    ///
+    /// Built-in functions:
+    /// - `empty(x)`, `exists(x)`, `len(x)` — arity 1
+    /// - `contains(h, n)`, `not_contains(h, n)`, `matches(s, r)` — arity 2
+    FunctionCall(String, Vec<Expr>),
 }
 
 /// Parser for expression language
@@ -187,15 +191,22 @@ impl Parser {
             Token::Ident(name) => {
                 self.advance();
 
-                // Check if this is a function call
+                // Check if this is a function call: name(arg1, arg2, ...)
                 if matches!(self.peek(), Token::LParen) {
                     self.advance();
-                    let arg = self.parse_or()?;
+                    let mut args: Vec<Expr> = Vec::new();
                     if !matches!(self.peek(), Token::RParen) {
-                        return Err(ExprError::UnexpectedToken("expected )".into()));
+                        args.push(self.parse_or()?);
+                        while matches!(self.peek(), Token::Comma) {
+                            self.advance();
+                            args.push(self.parse_or()?);
+                        }
+                    }
+                    if !matches!(self.peek(), Token::RParen) {
+                        return Err(ExprError::UnexpectedToken("expected ',' or ')'".into()));
                     }
                     self.advance();
-                    Ok(Expr::FunctionCall(name, Box::new(arg)))
+                    Ok(Expr::FunctionCall(name, args))
                 } else {
                     // Parse as path
                     let path = self.parse_path_from_ident(name)?;
