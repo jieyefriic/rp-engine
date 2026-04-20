@@ -1,5 +1,6 @@
 //! Expression evaluator
 
+use regex_lite::Regex;
 use serde_json::Value;
 use tracing::{trace, warn};
 
@@ -7,6 +8,57 @@ use crate::error::ExprError;
 use crate::state::ExecutionState;
 use super::lexer::Lexer;
 use super::parser::{Expr, PathExpr, CompareOp, PathSegment, parse};
+
+/// Validate that a function was called with the expected number of args.
+/// Returns an UnexpectedToken error mentioning the function name and
+/// expected/actual arity — mirrors the existing error style in this module.
+fn check_arity(name: &str, args: &[Expr], expected: usize) -> Result<(), ExprError> {
+    if args.len() != expected {
+        return Err(ExprError::UnexpectedToken(format!(
+            "{name}() takes {expected} argument(s), got {}",
+            args.len()
+        )));
+    }
+    Ok(())
+}
+
+/// `contains(haystack, needle)`:
+/// - Both strings → substring match
+/// - haystack array + needle scalar → array contains element (JSON equality)
+/// - otherwise → false (non-error: composes well in OR chains)
+fn value_contains(haystack: &Value, needle: &Value) -> bool {
+    match (haystack, needle) {
+        (Value::String(h), Value::String(n)) => h.contains(n.as_str()),
+        (Value::Array(arr), n) => arr.iter().any(|item| item == n),
+        _ => false,
+    }
+}
+
+/// `matches(text, pattern)`:
+/// - Both strings → regex test using `regex_lite` (no fancy features; fine
+///   for edge conditions)
+/// - otherwise → TypeMismatch
+///
+/// The pattern is compiled on every call. Workflow edge conditions are
+/// evaluated at most once per node ready-check, so caching isn't worth the
+/// complexity right now.
+fn value_matches(text: &Value, pattern: &Value) -> Result<bool, ExprError> {
+    let (t, p) = match (text, pattern) {
+        (Value::String(t), Value::String(p)) => (t, p),
+        _ => {
+            return Err(ExprError::TypeMismatch {
+                expected: "string, string".into(),
+                got: format!("{:?}, {:?}", text, pattern),
+            })
+        }
+    };
+    match Regex::new(p) {
+        Ok(re) => Ok(re.is_match(t)),
+        Err(e) => Err(ExprError::UnexpectedToken(format!(
+            "invalid regex in matches(): {e}"
+        ))),
+    }
+}
 
 /// Evaluate an expression string against the execution state
 pub fn evaluate_expression(expr: &str, state: &ExecutionState) -> Result<bool, ExprError> {
@@ -69,12 +121,41 @@ fn eval_ast(expr: &Expr, state: &ExecutionState) -> Result<bool, ExprError> {
         Expr::Literal(val) => {
             Ok(is_truthy(val))
         }
-        Expr::FunctionCall(name, arg) => {
-            let arg_val = eval_to_value(arg, state)?;
+        Expr::FunctionCall(name, args) => {
             match name.as_str() {
-                "empty" => Ok(is_empty(&arg_val)),
-                "exists" => Ok(!arg_val.is_null()),
-                "len" => Ok(get_length(&arg_val) > 0),
+                "empty" => {
+                    check_arity("empty", args, 1)?;
+                    let v = eval_to_value(&args[0], state)?;
+                    Ok(is_empty(&v))
+                }
+                "exists" => {
+                    check_arity("exists", args, 1)?;
+                    let v = eval_to_value(&args[0], state)?;
+                    Ok(!v.is_null())
+                }
+                "len" => {
+                    check_arity("len", args, 1)?;
+                    let v = eval_to_value(&args[0], state)?;
+                    Ok(get_length(&v) > 0)
+                }
+                "contains" => {
+                    check_arity("contains", args, 2)?;
+                    let h = eval_to_value(&args[0], state)?;
+                    let n = eval_to_value(&args[1], state)?;
+                    Ok(value_contains(&h, &n))
+                }
+                "not_contains" => {
+                    check_arity("not_contains", args, 2)?;
+                    let h = eval_to_value(&args[0], state)?;
+                    let n = eval_to_value(&args[1], state)?;
+                    Ok(!value_contains(&h, &n))
+                }
+                "matches" => {
+                    check_arity("matches", args, 2)?;
+                    let t = eval_to_value(&args[0], state)?;
+                    let p = eval_to_value(&args[1], state)?;
+                    value_matches(&t, &p)
+                }
                 _ => Err(ExprError::UnknownFunction(name.clone())),
             }
         }
@@ -86,12 +167,32 @@ fn eval_to_value(expr: &Expr, state: &ExecutionState) -> Result<Value, ExprError
     match expr {
         Expr::Path(path) => resolve_path(path, state),
         Expr::Literal(val) => Ok(val.clone()),
-        Expr::FunctionCall(name, arg) => {
-            let arg_val = eval_to_value(arg, state)?;
+        Expr::FunctionCall(name, args) => {
+            // Functions are inherently boolean, but we may be asked to produce
+            // a Value here (e.g. as a sub-expression of an outer operator).
+            // Wrap the boolean result. `len()` is special-cased to return a
+            // Number — the only function that's historically useful as a
+            // Value (e.g. `len(path) > 0`).
             match name.as_str() {
-                "empty" => Ok(Value::Bool(is_empty(&arg_val))),
-                "exists" => Ok(Value::Bool(!arg_val.is_null())),
-                "len" => Ok(Value::Number(get_length(&arg_val).into())),
+                "empty" => {
+                    check_arity("empty", args, 1)?;
+                    let v = eval_to_value(&args[0], state)?;
+                    Ok(Value::Bool(is_empty(&v)))
+                }
+                "exists" => {
+                    check_arity("exists", args, 1)?;
+                    let v = eval_to_value(&args[0], state)?;
+                    Ok(Value::Bool(!v.is_null()))
+                }
+                "len" => {
+                    check_arity("len", args, 1)?;
+                    let v = eval_to_value(&args[0], state)?;
+                    Ok(Value::Number(get_length(&v).into()))
+                }
+                "contains" | "not_contains" | "matches" => {
+                    // Evaluate as boolean via eval_ast — already handles arity + args
+                    Ok(Value::Bool(eval_ast(expr, state)?))
+                }
                 _ => Err(ExprError::UnknownFunction(name.clone())),
             }
         }
@@ -298,5 +399,156 @@ mod tests {
         let state = ExecutionState::new(input);
 
         assert!(evaluate_expression("input.query == \"hello\"", &state).unwrap());
+    }
+
+    // ============================================================
+    // Engine-alignment new operators: contains / not_contains / matches
+    // ============================================================
+
+    #[test]
+    fn test_contains_string_substring() {
+        let mut state = ExecutionState::new(HashMap::new());
+        let mut outputs = HashMap::new();
+        outputs.insert("text".to_string(), Value::String("hello world".to_string()));
+        state.write("node", outputs);
+
+        assert!(evaluate_expression("contains(node.text, \"hello\")", &state).unwrap());
+        assert!(evaluate_expression("contains(node.text, \"world\")", &state).unwrap());
+        assert!(!evaluate_expression("contains(node.text, \"xyz\")", &state).unwrap());
+    }
+
+    #[test]
+    fn test_contains_array_element() {
+        let mut state = ExecutionState::new(HashMap::new());
+        let mut outputs = HashMap::new();
+        outputs.insert(
+            "tags".to_string(),
+            Value::Array(vec![
+                Value::String("urgent".to_string()),
+                Value::String("review".to_string()),
+            ]),
+        );
+        state.write("node", outputs);
+
+        assert!(evaluate_expression("contains(node.tags, \"urgent\")", &state).unwrap());
+        assert!(!evaluate_expression("contains(node.tags, \"other\")", &state).unwrap());
+    }
+
+    #[test]
+    fn test_contains_non_string_non_array_returns_false() {
+        // contains() on a number haystack returns false (not an error) —
+        // keeps OR chains composable.
+        let mut state = ExecutionState::new(HashMap::new());
+        let mut outputs = HashMap::new();
+        outputs.insert("count".to_string(), Value::Number(42.into()));
+        state.write("node", outputs);
+
+        assert!(!evaluate_expression("contains(node.count, \"42\")", &state).unwrap());
+    }
+
+    #[test]
+    fn test_not_contains_is_inverse() {
+        let mut state = ExecutionState::new(HashMap::new());
+        let mut outputs = HashMap::new();
+        outputs.insert("text".to_string(), Value::String("draft version".to_string()));
+        state.write("node", outputs);
+
+        assert!(!evaluate_expression("not_contains(node.text, \"draft\")", &state).unwrap());
+        assert!(evaluate_expression("not_contains(node.text, \"final\")", &state).unwrap());
+    }
+
+    #[test]
+    fn test_matches_regex_basic() {
+        let mut state = ExecutionState::new(HashMap::new());
+        let mut outputs = HashMap::new();
+        outputs.insert(
+            "email".to_string(),
+            Value::String("alice@example.com".to_string()),
+        );
+        state.write("node", outputs);
+
+        assert!(evaluate_expression(
+            "matches(node.email, \"^[^@]+@example\\\\.com$\")",
+            &state
+        )
+        .unwrap());
+        assert!(!evaluate_expression(
+            "matches(node.email, \"^[^@]+@other\\\\.com$\")",
+            &state
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn test_matches_invalid_regex_errors() {
+        // Malformed regex must surface an error, not silently return false.
+        let mut state = ExecutionState::new(HashMap::new());
+        let mut outputs = HashMap::new();
+        outputs.insert("x".to_string(), Value::String("hi".to_string()));
+        state.write("node", outputs);
+
+        // Unclosed character class
+        let result = evaluate_expression("matches(node.x, \"[unclosed\")", &state);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_matches_non_string_errors() {
+        // matches() on a numeric haystack must error (TypeMismatch), not
+        // silently return false — regex semantics require a string.
+        let mut state = ExecutionState::new(HashMap::new());
+        let mut outputs = HashMap::new();
+        outputs.insert("count".to_string(), Value::Number(42.into()));
+        state.write("node", outputs);
+
+        let result = evaluate_expression("matches(node.count, \"^4\")", &state);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_new_operators_in_logical_chain() {
+        // Verify the new operators compose correctly with && / || / !
+        let mut state = ExecutionState::new(HashMap::new());
+        let mut outputs = HashMap::new();
+        outputs.insert("text".to_string(), Value::String("alpha beta".to_string()));
+        outputs.insert("n".to_string(), Value::Number(10.into()));
+        state.write("node", outputs);
+
+        // Both true → true
+        assert!(evaluate_expression(
+            "contains(node.text, \"alpha\") && node.n > 5",
+            &state
+        )
+        .unwrap());
+
+        // Mixed → false via AND
+        assert!(!evaluate_expression(
+            "contains(node.text, \"alpha\") && node.n > 100",
+            &state
+        )
+        .unwrap());
+
+        // Mixed → true via OR
+        assert!(evaluate_expression(
+            "contains(node.text, \"zeta\") || matches(node.text, \"^alpha\")",
+            &state
+        )
+        .unwrap());
+
+        // NOT inversion
+        assert!(evaluate_expression("!contains(node.text, \"zeta\")", &state).unwrap());
+    }
+
+    #[test]
+    fn test_arity_errors() {
+        let state = ExecutionState::new(HashMap::new());
+
+        // contains requires 2 args
+        assert!(evaluate_expression("contains(\"hi\")", &state).is_err());
+        assert!(evaluate_expression("contains(\"hi\", \"h\", \"i\")", &state).is_err());
+
+        // empty requires 1 arg
+        assert!(evaluate_expression("empty()", &state).is_err());
+        assert!(evaluate_expression("empty(\"a\", \"b\")", &state).is_err());
     }
 }
