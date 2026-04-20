@@ -2920,7 +2920,27 @@ condition1 || condition2       # OR
 empty(node.field)              # true if null, empty string, empty array, or empty object
 exists(node.field)             # true if not null
 len(node.field)                # returns length (string length, array length, object key count)
+
+# String / array containment
+contains(node.text, "error")            # true if text contains substring "error"
+contains(node.tags, "urgent")           # true if tags array contains element "urgent"
+not_contains(node.text, "draft")        # inverse of contains
+not_contains(node.tags, "deprecated")   # inverse for arrays
+
+# Regex matching (uses regex_lite; no fancy backtracking)
+matches(node.email, "^[^@]+@example\\.com$")   # true if email matches the regex
+matches(node.url, "^https?://")                 # true if url starts with http:// or https://
 ```
+
+`contains(haystack, needle)` is overloaded by type:
+- String + String → substring check (`haystack.contains(needle)`)
+- Array + scalar → JSON-equality element check
+- Anything else → `false` (composes cleanly in OR chains)
+
+`matches(text, pattern)` requires both arguments to be strings; a
+non-string haystack or malformed regex produces an evaluation error.
+Patterns are compiled on every invocation (edge conditions run once
+per node ready-check, so caching isn't worth the complexity).
 
 **Truthiness:** A bare path (without comparison) is truthy if: not null, not false, not 0, not empty string, not empty array, not empty object.
 

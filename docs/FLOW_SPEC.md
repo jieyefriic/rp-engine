@@ -1420,6 +1420,11 @@ empty(node.field)        # true if null, "", [], or {}
 exists(node.field)       # true if not null
 len(node.field)          # returns length (> 0 for truthy check)
 
+# String / array containment (arity 2)
+contains(node.text, "error")            # substring check on strings, element check on arrays
+not_contains(node.text, "draft")        # inverse
+matches(node.email, "^[^@]+@.+$")       # regex match via regex_lite
+
 # Grouping
 (a == 1 || b == 2) && c == 3
 ```

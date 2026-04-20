@@ -1,5 +1,6 @@
 //! Expression evaluator
 
+use regex_lite::Regex;
 use serde_json::Value;
 use tracing::{trace, warn};
 
@@ -7,6 +8,57 @@ use crate::error::ExprError;
 use crate::state::ExecutionState;
 use super::lexer::Lexer;
 use super::parser::{Expr, PathExpr, CompareOp, PathSegment, parse};
+
+/// Validate that a function was called with the expected number of args.
+/// Returns an UnexpectedToken error mentioning the function name and
+/// expected/actual arity — mirrors the existing error style in this module.
+fn check_arity(name: &str, args: &[Expr], expected: usize) -> Result<(), ExprError> {
+    if args.len() != expected {
+        return Err(ExprError::UnexpectedToken(format!(
+            "{name}() takes {expected} argument(s), got {}",
+            args.len()
+        )));
+    }
+    Ok(())
+}
+
+/// `contains(haystack, needle)`:
+/// - Both strings → substring match
+/// - haystack array + needle scalar → array contains element (JSON equality)
+/// - otherwise → false (non-error: composes well in OR chains)
+fn value_contains(haystack: &Value, needle: &Value) -> bool {
+    match (haystack, needle) {
+        (Value::String(h), Value::String(n)) => h.contains(n.as_str()),
+        (Value::Array(arr), n) => arr.iter().any(|item| item == n),
+        _ => false,
+    }
+}
+
+/// `matches(text, pattern)`:
+/// - Both strings → regex test using `regex_lite` (no fancy features; fine
+///   for edge conditions)
+/// - otherwise → TypeMismatch
+///
+/// The pattern is compiled on every call. Workflow edge conditions are
+/// evaluated at most once per node ready-check, so caching isn't worth the
+/// complexity right now.
+fn value_matches(text: &Value, pattern: &Value) -> Result<bool, ExprError> {
+    let (t, p) = match (text, pattern) {
+        (Value::String(t), Value::String(p)) => (t, p),
+        _ => {
+            return Err(ExprError::TypeMismatch {
+                expected: "string, string".into(),
+                got: format!("{:?}, {:?}", text, pattern),
+            })
+        }
+    };
+    match Regex::new(p) {
+        Ok(re) => Ok(re.is_match(t)),
+        Err(e) => Err(ExprError::UnexpectedToken(format!(
+            "invalid regex in matches(): {e}"
+        ))),
+    }
+}
 
 /// Evaluate an expression string against the execution state
 pub fn evaluate_expression(expr: &str, state: &ExecutionState) -> Result<bool, ExprError> {
@@ -69,12 +121,41 @@ fn eval_ast(expr: &Expr, state: &ExecutionState) -> Result<bool, ExprError> {
         Expr::Literal(val) => {
             Ok(is_truthy(val))
         }
-        Expr::FunctionCall(name, arg) => {
-            let arg_val = eval_to_value(arg, state)?;
+        Expr::FunctionCall(name, args) => {
             match name.as_str() {
-                "empty" => Ok(is_empty(&arg_val)),
-                "exists" => Ok(!arg_val.is_null()),
-                "len" => Ok(get_length(&arg_val) > 0),
+                "empty" => {
+                    check_arity("empty", args, 1)?;
+                    let v = eval_to_value(&args[0], state)?;
+                    Ok(is_empty(&v))
+                }
+                "exists" => {
+                    check_arity("exists", args, 1)?;
+                    let v = eval_to_value(&args[0], state)?;
+                    Ok(!v.is_null())
+                }
+                "len" => {
+                    check_arity("len", args, 1)?;
+                    let v = eval_to_value(&args[0], state)?;
+                    Ok(get_length(&v) > 0)
+                }
+                "contains" => {
+                    check_arity("contains", args, 2)?;
+                    let h = eval_to_value(&args[0], state)?;
+                    let n = eval_to_value(&args[1], state)?;
+                    Ok(value_contains(&h, &n))
+                }
+                "not_contains" => {
+                    check_arity("not_contains", args, 2)?;
+                    let h = eval_to_value(&args[0], state)?;
+                    let n = eval_to_value(&args[1], state)?;
+                    Ok(!value_contains(&h, &n))
+                }
+                "matches" => {
+                    check_arity("matches", args, 2)?;
+                    let t = eval_to_value(&args[0], state)?;
+                    let p = eval_to_value(&args[1], state)?;
+                    value_matches(&t, &p)
+                }
                 _ => Err(ExprError::UnknownFunction(name.clone())),
             }
         }
@@ -86,12 +167,32 @@ fn eval_to_value(expr: &Expr, state: &ExecutionState) -> Result<Value, ExprError
     match expr {
         Expr::Path(path) => resolve_path(path, state),
         Expr::Literal(val) => Ok(val.clone()),
-        Expr::FunctionCall(name, arg) => {
-            let arg_val = eval_to_value(arg, state)?;
+        Expr::FunctionCall(name, args) => {
+            // Functions are inherently boolean, but we may be asked to produce
+            // a Value here (e.g. as a sub-expression of an outer operator).
+            // Wrap the boolean result. `len()` is special-cased to return a
+            // Number — the only function that's historically useful as a
+            // Value (e.g. `len(path) > 0`).
             match name.as_str() {
-                "empty" => Ok(Value::Bool(is_empty(&arg_val))),
-                "exists" => Ok(Value::Bool(!arg_val.is_null())),
-                "len" => Ok(Value::Number(get_length(&arg_val).into())),
+                "empty" => {
+                    check_arity("empty", args, 1)?;
+                    let v = eval_to_value(&args[0], state)?;
+                    Ok(Value::Bool(is_empty(&v)))
+                }
+                "exists" => {
+                    check_arity("exists", args, 1)?;
+                    let v = eval_to_value(&args[0], state)?;
+                    Ok(Value::Bool(!v.is_null()))
+                }
+                "len" => {
+                    check_arity("len", args, 1)?;
+                    let v = eval_to_value(&args[0], state)?;
+                    Ok(Value::Number(get_length(&v).into()))
+                }
+                "contains" | "not_contains" | "matches" => {
+                    // Evaluate as boolean via eval_ast — already handles arity + args
+                    Ok(Value::Bool(eval_ast(expr, state)?))
+                }
                 _ => Err(ExprError::UnknownFunction(name.clone())),
             }
         }
