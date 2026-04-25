@@ -27,7 +27,17 @@ pub struct ExecutionRecord {
     /// Outputs from this execution
     pub outputs: HashMap<String, Value>,
 
-    /// Timestamp in milliseconds
+    /// Wall-clock Unix epoch ms when execution **started**. The executor
+    /// captures this just before the node runs; together with `timestamp`
+    /// it gives downstream tools (frontend timeline / Gantt views) an
+    /// authoritative per-execution duration without inference.
+    /// Optional for backward compat with old persisted state; defaults
+    /// to 0 if missing.
+    #[serde(default)]
+    pub started_at: u64,
+
+    /// Wall-clock Unix epoch ms when execution **finished** and outputs
+    /// were committed to state.
     pub timestamp: u64,
 }
 
@@ -191,6 +201,24 @@ impl ExecutionState {
     const MAX_RECORDS_PER_NODE: usize = 500;
 
     pub fn write(&mut self, node_id: &str, outputs: HashMap<String, Value>) -> String {
+        // Backward-compat shim: callers that don't have a meaningful start
+        // time (legacy paths, tests) get started_at == finish timestamp,
+        // which yields duration 0. Prefer `write_with_start` from the
+        // executor so timeline views get accurate per-execution durations.
+        let now = current_timestamp();
+        self.write_with_start(node_id, outputs, now)
+    }
+
+    /// Like [`write`], but caller supplies the wall-clock start time the
+    /// node began executing. Use this from `execute_single_node` so the
+    /// resulting `ExecutionRecord` carries an authoritative duration
+    /// (`timestamp - started_at`) for downstream timeline/Gantt views.
+    pub fn write_with_start(
+        &mut self,
+        node_id: &str,
+        outputs: HashMap<String, Value>,
+        started_at: u64,
+    ) -> String {
         let short_id = self.generate_short_id();
         let execution_index = self.node_executions
             .get(node_id)
@@ -201,6 +229,7 @@ impl ExecutionState {
             short_id: short_id.clone(),
             execution_index,
             outputs,
+            started_at,
             timestamp: current_timestamp(),
         };
 
@@ -612,8 +641,10 @@ fn to_base36(mut n: u32) -> String {
     String::from_utf8(result).unwrap()
 }
 
-/// Get current timestamp in milliseconds
-fn current_timestamp() -> u64 {
+/// Get current timestamp in milliseconds since the Unix epoch.
+/// `pub(crate)` so the executor can stamp per-execution `started_at`
+/// values without going through ExecutionState.
+pub(crate) fn current_timestamp() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)

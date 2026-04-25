@@ -449,6 +449,11 @@ struct NodeResult {
     node_id: String,
     outputs: HashMap<String, Value>,
     timing_ms: u64,
+    /// Wall-clock Unix epoch ms when the node began executing. Captured
+    /// at the very top of `execute_single_node` (before retry loop) so
+    /// downstream consumers see "user-perceived" start, not "after
+    /// last retry". Persisted on the ExecutionRecord.
+    started_at: u64,
 }
 
 
@@ -743,8 +748,15 @@ pub async fn execute_workflow(
                 None
             };
 
-            // Write outputs to state
-            let short_id = state_guard.write(&result.node_id, result.outputs.clone());
+            // Write outputs to state — pass the captured wall-clock start
+            // time so the resulting ExecutionRecord has an authoritative
+            // duration (timestamp - started_at) for downstream timeline
+            // / Gantt views.
+            let short_id = state_guard.write_with_start(
+                &result.node_id,
+                result.outputs.clone(),
+                result.started_at,
+            );
             debug!(
                 workflow = %workflow.name,
                 node = %result.node_id,
@@ -1046,6 +1058,12 @@ async fn execute_single_node(
     workflow_name: &str,
 ) -> Result<NodeResult, EngineError> {
     let node_start = Instant::now();
+    // Wall-clock start (Unix ms) — paired with the write-time `timestamp`
+    // on ExecutionRecord, this gives downstream tools a real, per-execution
+    // duration. Captured before the retry loop so retries don't skew the
+    // user-perceived start. `Instant::now()` above stays for monotonic
+    // duration measurement (timing_ms).
+    let started_at = crate::state::current_timestamp();
     let node_id = node.id.clone();
     let node_type = format!("{:?}", node.node_type);
 
@@ -1110,7 +1128,7 @@ async fn execute_single_node(
                     output_keys = ?outputs.keys().collect::<Vec<_>>(),
                     "Node execution completed"
                 );
-                return Ok(NodeResult { node_id, outputs, timing_ms });
+                return Ok(NodeResult { node_id, outputs, timing_ms, started_at });
             }
             Err(e) => {
                 warn!(
@@ -1140,7 +1158,7 @@ async fn execute_single_node(
             node = %node_id,
             "Node failed after retries, continuing with error outputs (on_exhausted=continue)"
         );
-        Ok(NodeResult { node_id, outputs, timing_ms })
+        Ok(NodeResult { node_id, outputs, timing_ms, started_at })
     } else {
         error!(
             workflow = %workflow_name,
