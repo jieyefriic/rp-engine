@@ -246,6 +246,13 @@ pub struct ExecutionConfig {
 
     /// MCP server definitions (server_id -> McpServerDef)
     pub mcp_servers: HashMap<String, crate::schema::McpServerDef>,
+
+    // ── EvoMap (engine-level, optional) ──────────────────────────────
+
+    /// EvoMap A2A configuration for self-evolution integration.
+    /// When present and `auto_report` is true, execution outcomes are
+    /// automatically reported to the EvoMap Hub.
+    pub evomap: Option<super::evomap::EvoMapConfig>,
 }
 
 impl Default for ExecutionConfig {
@@ -271,6 +278,7 @@ impl Default for ExecutionConfig {
             harness_instructions: None,
             harness_memory_file: None,
             mcp_servers: HashMap::new(),
+            evomap: None,
         }
     }
 }
@@ -394,6 +402,12 @@ impl ExecutionConfig {
     /// Set MCP server definitions
     pub fn with_mcp_servers(mut self, servers: HashMap<String, crate::schema::McpServerDef>) -> Self {
         self.mcp_servers = servers;
+        self
+    }
+
+    /// Set EvoMap configuration for self-evolution integration
+    pub fn with_evomap(mut self, config: super::evomap::EvoMapConfig) -> Self {
+        self.evomap = Some(config);
         self
     }
 }
@@ -865,6 +879,24 @@ pub async fn execute_workflow(
                     "Harness writeback failed (non-fatal)"
                 );
             }
+        }
+    }
+
+    // EvoMap outcome reporting (fire-and-forget, non-fatal)
+    if let Some(ref evomap_cfg) = config.evomap {
+        if evomap_cfg.auto_report && !evomap_cfg.node_id.is_empty() {
+            let cfg = evomap_cfg.clone();
+            let wf_name = workflow.name.clone();
+            let total_ms = timing.total_ms;
+            tokio::spawn(async move {
+                super::evomap::report_execution_outcome(
+                    &cfg,
+                    &wf_name,
+                    "success",
+                    total_ms,
+                    None,
+                ).await;
+            });
         }
     }
 

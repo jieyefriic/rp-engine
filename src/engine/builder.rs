@@ -95,6 +95,9 @@ pub struct EngineBuilder {
 
     /// Redis connection URLs: data_source_id -> URL
     redis_urls: HashMap<String, String>,
+
+    /// EvoMap A2A configuration for self-evolution integration
+    evomap: Option<super::evomap::EvoMapConfig>,
 }
 
 impl Default for EngineBuilder {
@@ -123,6 +126,7 @@ impl EngineBuilder {
             capture_source_yaml: true,
             model_registry: ModelRegistry::from_embedded(),
             redis_urls: HashMap::new(),
+            evomap: None,
         }
     }
 
@@ -190,6 +194,26 @@ impl EngineBuilder {
     /// Register an MCP server with full configuration (including auth)
     pub fn mcp_server_def(mut self, id: &str, def: crate::schema::McpServerDef) -> Self {
         self.mcp_servers.insert(id.to_string(), def);
+        self
+    }
+
+    /// Configure EvoMap A2A integration for self-evolution
+    ///
+    /// When configured, execution outcomes are automatically reported to the
+    /// EvoMap Hub, building persistent evolution memory.
+    ///
+    /// # Example
+    /// ```ignore
+    /// use riceprompt_engine::{Engine, EvoMapConfig};
+    ///
+    /// let engine = Engine::builder()
+    ///     .evomap(EvoMapConfig::new("my-agent-node")
+    ///         .with_api_key("secret"))
+    ///     .build()
+    ///     .await?;
+    /// ```
+    pub fn evomap(mut self, config: super::evomap::EvoMapConfig) -> Self {
+        self.evomap = Some(config);
         self
     }
 
@@ -431,6 +455,7 @@ impl EngineBuilder {
             self.capture_actual_prompt,
             self.capture_raw_response,
             self.capture_source_yaml,
+            self.evomap,
         ))
     }
 }

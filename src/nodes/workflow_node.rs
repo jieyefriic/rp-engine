@@ -175,6 +175,7 @@ async fn execute_child_workflow(
         harness_instructions: config.harness_instructions.clone(),
         harness_memory_file: config.harness_memory_file.clone(),
         mcp_servers: config.mcp_servers.clone(),
+        evomap: config.evomap.clone(),
     };
 
     // Execute the child workflow

@@ -45,7 +45,7 @@ pub mod providers;
 pub use error::EngineError;
 pub use schema::{PreparedWorkflow, YamlNode, YamlEdge, Template, NodeConfig, NodeType, ProviderDef, McpServerDef, McpAuth};
 pub use state::{ExecutionState, ExecutionRecord, CheckpointState, EdgeCountEntry};
-pub use engine::{ExecutionResult, ExecutionConfig, ExecutionStatus, Engine, EngineBuilder, StateSavingConfig, ConnectionPools, PoolConfig, ResumeParams, StreamHandler, SharedStreamHandler};
+pub use engine::{ExecutionResult, ExecutionConfig, ExecutionStatus, Engine, EngineBuilder, StateSavingConfig, ConnectionPools, PoolConfig, ResumeParams, StreamHandler, SharedStreamHandler, EvoMapConfig, EvoMapClient};
 
 // Custom node support
 pub use nodes::{CustomNode, NodeRegistry};

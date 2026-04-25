@@ -5,6 +5,7 @@ mod executor;
 mod builder;
 mod engine;
 mod stream_handler;
+pub mod evomap;
 
 pub use graph::ExecutionGraph;
 pub(crate) use executor::execute_workflow;
@@ -12,3 +13,4 @@ pub use executor::{ExecutionResult, ExecutionConfig, ExecutionStatus, ExecutionT
 pub use builder::{EngineBuilder, StateSavingConfig};
 pub use engine::Engine;
 pub use stream_handler::{StreamHandler, SharedStreamHandler};
+pub use evomap::{EvoMapConfig, EvoMapClient};

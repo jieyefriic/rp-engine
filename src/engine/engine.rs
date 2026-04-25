@@ -76,6 +76,9 @@ pub struct Engine {
     /// MCP server definitions
     mcp_servers: HashMap<String, crate::schema::McpServerDef>,
 
+    /// EvoMap A2A configuration for self-evolution integration
+    evomap: Option<super::evomap::EvoMapConfig>,
+
     /// State saving configuration
     state_saving: Option<StateSavingConfig>,
 
@@ -117,6 +120,7 @@ impl Engine {
         capture_actual_prompt: bool,
         capture_raw_response: bool,
         capture_source_yaml: bool,
+        evomap: Option<super::evomap::EvoMapConfig>,
     ) -> Self {
         Self {
             workflows: Arc::new(workflows),
@@ -125,6 +129,7 @@ impl Engine {
             embedding_providers,
             search_providers,
             mcp_servers,
+            evomap,
             node_registry,
             pools,
             model_registry,
@@ -216,6 +221,11 @@ impl Engine {
             .with_workflows(self.workflows.clone())
             .with_transforms(self.transforms.clone());
 
+        // Inject EvoMap config if present
+        if let Some(ref evomap_cfg) = self.evomap {
+            config = config.with_evomap(evomap_cfg.clone());
+        }
+
         // Inject stream handler if provided
         if let Some(handler) = stream_handler {
             config = config.with_stream_handler(handler);
@@ -294,6 +304,11 @@ impl Engine {
             .with_capture_source_yaml(self.capture_source_yaml)
             .with_workflows(self.workflows.clone())
             .with_transforms(self.transforms.clone());
+
+        // Inject EvoMap config if present
+        if let Some(ref evomap_cfg) = self.evomap {
+            config = config.with_evomap(evomap_cfg.clone());
+        }
 
         for (id, ds) in &workflow.data_sources {
             config.data_sources.insert(id.clone(), ds.clone());
@@ -380,6 +395,11 @@ impl Engine {
             .with_capture_source_yaml(self.capture_source_yaml)
             .with_workflows(self.workflows.clone())
             .with_transforms(self.transforms.clone());
+
+        // Inject EvoMap config if present
+        if let Some(ref evomap_cfg) = self.evomap {
+            config = config.with_evomap(evomap_cfg.clone());
+        }
 
         // Inject stream handler if provided
         if let Some(handler) = stream_handler {
