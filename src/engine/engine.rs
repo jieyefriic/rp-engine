@@ -90,6 +90,9 @@ pub struct Engine {
 
     /// Whether to capture raw LLM response
     capture_raw_response: bool,
+
+    /// Whether to embed source YAML in `ExecutionResult.source_yaml`
+    capture_source_yaml: bool,
 }
 
 impl Engine {
@@ -113,6 +116,7 @@ impl Engine {
         state_saving: Option<StateSavingConfig>,
         capture_actual_prompt: bool,
         capture_raw_response: bool,
+        capture_source_yaml: bool,
     ) -> Self {
         Self {
             workflows: Arc::new(workflows),
@@ -130,6 +134,7 @@ impl Engine {
             max_iterations: 100,
             capture_actual_prompt,
             capture_raw_response,
+            capture_source_yaml,
         }
     }
 
@@ -207,6 +212,7 @@ impl Engine {
             .with_max_iterations(self.max_iterations)
             .with_capture_actual_prompt(self.capture_actual_prompt)
             .with_capture_raw_response(self.capture_raw_response)
+            .with_capture_source_yaml(self.capture_source_yaml)
             .with_workflows(self.workflows.clone())
             .with_transforms(self.transforms.clone());
 
@@ -285,6 +291,7 @@ impl Engine {
             .with_max_iterations(self.max_iterations)
             .with_capture_actual_prompt(self.capture_actual_prompt)
             .with_capture_raw_response(self.capture_raw_response)
+            .with_capture_source_yaml(self.capture_source_yaml)
             .with_workflows(self.workflows.clone())
             .with_transforms(self.transforms.clone());
 
@@ -370,6 +377,7 @@ impl Engine {
             .with_max_iterations(self.max_iterations)
             .with_capture_actual_prompt(self.capture_actual_prompt)
             .with_capture_raw_response(self.capture_raw_response)
+            .with_capture_source_yaml(self.capture_source_yaml)
             .with_workflows(self.workflows.clone())
             .with_transforms(self.transforms.clone());
 
@@ -389,7 +397,16 @@ impl Engine {
             config.providers.register(id, provider);
         }
 
-        execute_workflow(&workflow, input_map, config, None).await
+        let mut result = execute_workflow(&workflow, input_map, config, None).await?;
+
+        // Embed the source YAML into the result so a single JSON file is
+        // self-describing for offline inspection. We attach the input as
+        // received (pre-injection of any external keys by upstream callers)
+        // so the snapshot stays user-meaningful and free of secrets.
+        if self.capture_source_yaml {
+            result.source_yaml = Some(yaml.to_string());
+        }
+        Ok(result)
     }
 
     /// Check if a workflow exists

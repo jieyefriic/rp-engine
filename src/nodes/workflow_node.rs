@@ -163,6 +163,11 @@ async fn execute_child_workflow(
         pools: config.pools.clone(),
         capture_actual_prompt: config.capture_actual_prompt,
         capture_raw_response: config.capture_raw_response,
+        // Sub-workflows never carry their own yaml snapshot — the parent
+        // workflow's yaml already references them, so embedding here would
+        // be redundant and bloat result documents. The flag stays off
+        // regardless of the parent's setting.
+        capture_source_yaml: false,
         workflows: config.workflows.clone(),
         transforms: config.transforms.clone(),
         stream_handler: config.stream_handler.clone(),

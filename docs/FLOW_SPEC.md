@@ -1719,3 +1719,59 @@ templates:
       temperature: 0.7
       max_tokens: 1024
 ```
+
+## Result Schema
+
+`Engine::run_yaml*()` returns `ExecutionResult` (serialized as JSON):
+
+```jsonc
+{
+  "status": "Success" | "Error" | "Timeout" | "Paused",
+  "executions": {
+    "<node_id>": [
+      {
+        "short_id": "a",
+        "execution_index": 0,
+        "outputs": { ... },        // user fields + engine `_*` meta
+        "timestamp": 1776308363051
+      }
+      // …one entry per execution; iterator/supervisor produce many
+    ]
+  },
+  "output": { ... },               // response node's outputs
+  "error": null | "...",
+  "timing":      { "total_ms": 4045, "per_node": { "<id>": 4045 } },
+  "token_usage": { "total_input_tokens": 13, "total_output_tokens": 40,
+                   "per_node": { "<id>": [13, 40] } },
+  "exit_reason": "...",            // supervisor only
+  "checkpoint_state": { ... },     // when status = "Paused"
+  "source_yaml": "version: '1.0'\nname: ...\n..."   // see below
+}
+```
+
+### `source_yaml`
+
+When the engine is built with `capture_source_yaml(true)` (the **default**),
+`Engine::run_yaml()` and `Engine::run_yaml_with_stream_handler()` embed the
+original input YAML into `result.source_yaml`. This makes a result JSON
+file self-describing — a downstream tool (frontend inspector, debugging
+script) can render the workflow topology and the per-node executions from
+a single file without any out-of-band YAML lookup.
+
+The captured YAML is the **input as received** by `run_yaml*`, before any
+provider-key injection or other rewrites by upstream callers (e.g. the
+RicePrompt-Server hosted-key injection happens after the engine call site
+in some integrations). Users embedding the engine should therefore pass
+the user-meaningful YAML (without secrets) to `run_yaml*` if they want
+the snapshot to stay safe to persist.
+
+Sub-workflow executions (invoked via the `workflow` node) **never** carry
+their own `source_yaml` — the parent workflow's snapshot already
+references them. Loaded-by-name workflows (`Engine::run("name", ...)`)
+also don't populate the field; only the `run_yaml*` entry points do,
+because that is the one path where the engine actually receives a YAML
+string.
+
+Disable with `EngineBuilder::capture_source_yaml(false)` for very large
+workflows or fire-and-forget pipelines where self-description is not
+worth the extra bytes.

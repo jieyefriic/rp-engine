@@ -85,6 +85,11 @@ pub struct EngineBuilder {
     /// Whether to capture raw LLM response (for observability)
     capture_raw_response: bool,
 
+    /// Whether to embed the source YAML in `ExecutionResult.source_yaml`.
+    /// Default `true` — makes result JSON self-describing for offline
+    /// inspection. Sub-workflow results never carry a snapshot regardless.
+    capture_source_yaml: bool,
+
     /// Model capability registry (vision support, etc.)
     model_registry: ModelRegistry,
 
@@ -115,6 +120,7 @@ impl EngineBuilder {
             connection_pools: ConnectionPools::new(),
             capture_actual_prompt: false,
             capture_raw_response: false,
+            capture_source_yaml: true,
             model_registry: ModelRegistry::from_embedded(),
             redis_urls: HashMap::new(),
         }
@@ -281,6 +287,19 @@ impl EngineBuilder {
         self
     }
 
+    /// Enable embedding the source YAML in `ExecutionResult.source_yaml`.
+    ///
+    /// Default `true`. The captured YAML is the original input to
+    /// `Engine::run_yaml*()`, before any provider-key injection by upstream
+    /// callers. Disable for very large workflows or when you don't need
+    /// self-describing result JSONs (e.g. fire-and-forget pipelines).
+    /// Sub-workflow results never carry a snapshot regardless of this flag —
+    /// the parent yaml already references them.
+    pub fn capture_source_yaml(mut self, enabled: bool) -> Self {
+        self.capture_source_yaml = enabled;
+        self
+    }
+
     /// Replace the default model capability registry
     ///
     /// The default registry is loaded from the embedded providers.json.
@@ -411,6 +430,7 @@ impl EngineBuilder {
             self.state_saving,
             self.capture_actual_prompt,
             self.capture_raw_response,
+            self.capture_source_yaml,
         ))
     }
 }

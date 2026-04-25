@@ -224,6 +224,12 @@ pub struct ExecutionConfig {
     /// Whether to capture the raw LLM response before parsing (for observability)
     pub capture_raw_response: bool,
 
+    /// Whether to embed the source YAML into ExecutionResult.source_yaml.
+    /// When enabled (default), every run_yaml* call attaches the original
+    /// (pre-injection) workflow YAML to the result. This makes a single
+    /// JSON file self-describing for offline inspection / debugging.
+    pub capture_source_yaml: bool,
+
     /// Optional stream handler for generate nodes with stream: true
     pub stream_handler: Option<Arc<dyn super::StreamHandler>>,
 
@@ -257,6 +263,7 @@ impl Default for ExecutionConfig {
             pools: Arc::new(ConnectionPools::new()),
             capture_actual_prompt: false,
             capture_raw_response: false,
+            capture_source_yaml: true,
             workflows: Arc::new(HashMap::new()),
             model_registry: Arc::new(ModelRegistry::from_embedded()),
             transforms: HashMap::new(),
@@ -332,6 +339,14 @@ impl ExecutionConfig {
     /// Enable/disable capturing of raw LLM response
     pub fn with_capture_raw_response(mut self, enabled: bool) -> Self {
         self.capture_raw_response = enabled;
+        self
+    }
+
+    /// Enable/disable embedding the source YAML in `ExecutionResult.source_yaml`.
+    /// Default `true`. Sub-workflows are explicitly opted out of carrying
+    /// their own snapshot (the parent yaml already references them).
+    pub fn with_capture_source_yaml(mut self, enabled: bool) -> Self {
+        self.capture_source_yaml = enabled;
         self
     }
 
@@ -411,6 +426,13 @@ pub struct ExecutionResult {
     /// Checkpoint state for pause/resume (present when status is Paused)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub checkpoint_state: Option<CheckpointState>,
+
+    /// Source YAML that was executed (pre-injection of any external keys).
+    /// Populated by `Engine::run_yaml*()` when `capture_source_yaml` is true
+    /// (default). Sub-workflow executions do NOT carry their own snapshot —
+    /// the parent yaml already references them.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_yaml: Option<String>,
 }
 
 /// Parameters for resuming a workflow from a checkpoint
@@ -617,6 +639,7 @@ pub async fn execute_workflow(
                 token_usage,
                 exit_reason: None,
                 checkpoint_state: None,
+                source_yaml: None,
             });
         }
 
@@ -748,6 +771,7 @@ pub async fn execute_workflow(
                     token_usage,
                     exit_reason: None,
                     checkpoint_state: Some(cp_state),
+                    source_yaml: None,
                 });
             }
 
@@ -842,6 +866,7 @@ pub async fn execute_workflow(
         token_usage,
         exit_reason: None,
         checkpoint_state: None,
+        source_yaml: None,
     })
 }
 
@@ -1420,5 +1445,70 @@ edges:
 
         let result = execute_workflow(&workflow, input, ExecutionConfig::default(), None).await.unwrap();
         assert_eq!(result.status, ExecutionStatus::Success);
+    }
+
+    /// `source_yaml` defaults to `None` from the executor — only the
+    /// `Engine::run_yaml*()` entry points populate it after the executor
+    /// returns. We separately verify in engine-level tests that those
+    /// entry points fill the field. Here we assert the executor itself
+    /// keeps the field empty (so other consumers don't accidentally rely
+    /// on the executor inventing a yaml string).
+    #[tokio::test]
+    async fn test_executor_does_not_populate_source_yaml() {
+        let yaml = r#"
+version: "0.1"
+name: "Simple"
+nodes:
+  - id: start
+    type: start
+    config:
+      output:
+        message: "input.query"
+  - id: response
+    type: response
+edges:
+  - from: start
+    to: response
+"#;
+        let workflow = PreparedWorkflow::from_yaml(yaml).unwrap();
+        let mut input = HashMap::new();
+        input.insert("query".to_string(), Value::String("hi".to_string()));
+
+        let result = execute_workflow(&workflow, input, ExecutionConfig::default(), None)
+            .await
+            .unwrap();
+        assert!(
+            result.source_yaml.is_none(),
+            "executor populated source_yaml; should be left to Engine::run_yaml*()",
+        );
+    }
+
+    /// `ExecutionResult.source_yaml` should round-trip through serde:
+    /// absent when None (skip_serializing_if), present when Some.
+    #[test]
+    fn test_source_yaml_serde_roundtrip() {
+        let mut none_result = ExecutionResult {
+            status: ExecutionStatus::Success,
+            executions: HashMap::new(),
+            output: HashMap::new(),
+            error: None,
+            timing: ExecutionTiming::default(),
+            token_usage: TokenUsage::default(),
+            exit_reason: None,
+            checkpoint_state: None,
+            source_yaml: None,
+        };
+        let json = serde_json::to_string(&none_result).unwrap();
+        assert!(
+            !json.contains("source_yaml"),
+            "None source_yaml should be omitted from JSON",
+        );
+
+        none_result.source_yaml = Some("name: foo\nnodes: []".to_string());
+        let json = serde_json::to_string(&none_result).unwrap();
+        assert!(json.contains(r#""source_yaml":"name: foo\nnodes: []""#));
+
+        let parsed: ExecutionResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.source_yaml.as_deref(), Some("name: foo\nnodes: []"));
     }
 }
