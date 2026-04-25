@@ -48,6 +48,10 @@ pub struct ModelCapabilities {
     pub sampling_override: Option<SamplingOverride>,
     /// Max output tokens
     pub max_tokens: u32,
+    /// Input price in USD per 1M tokens (None when unknown)
+    pub input_price: Option<f64>,
+    /// Output price in USD per 1M tokens (None when unknown)
+    pub output_price: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -131,6 +135,10 @@ struct ModelEntryJson {
     thinking_budget: Option<ThinkingBudgetJson>,
     #[serde(default)]
     sampling_override: Option<SamplingOverrideJson>,
+    #[serde(default)]
+    input_price: Option<f64>,
+    #[serde(default)]
+    output_price: Option<f64>,
 }
 
 fn default_thinking() -> String { "none".to_string() }
@@ -230,6 +238,8 @@ impl ModelRegistry {
                                 thinking_budget,
                                 sampling_override,
                                 max_tokens: model.max_tokens,
+                                input_price: model.input_price,
+                                output_price: model.output_price,
                             },
                         );
                     }
@@ -310,7 +320,34 @@ impl ModelRegistry {
                 thinking_budget: None,
                 sampling_override: None,
                 max_tokens: 4096,
+                input_price: None,
+                output_price: None,
             });
+    }
+
+    /// Look up (input_price, output_price) in USD per 1M tokens.
+    /// Returns None if the model is unknown or pricing is missing.
+    pub fn get_pricing(&self, provider: &str, model: &str) -> Option<(f64, f64)> {
+        let caps = self.get_capabilities(provider, model)?;
+        match (caps.input_price, caps.output_price) {
+            (Some(i), Some(o)) => Some((i, o)),
+            _ => None,
+        }
+    }
+
+    /// Compute cost in USD for given input/output token counts.
+    /// Returns None if pricing is unknown.
+    pub fn compute_cost(
+        &self,
+        provider: &str,
+        model: &str,
+        input_tokens: u64,
+        output_tokens: u64,
+    ) -> Option<f64> {
+        let (input_price, output_price) = self.get_pricing(provider, model)?;
+        let cost = (input_tokens as f64) * input_price / 1_000_000.0
+            + (output_tokens as f64) * output_price / 1_000_000.0;
+        Some(cost)
     }
 
     /// Get all vision-capable models (for backward compat)
@@ -361,6 +398,28 @@ mod tests {
         // Max temperature with override
         assert_eq!(registry.max_temperature("openai", "gpt-4o"), 2.0);
         assert_eq!(registry.max_temperature("openai", "o3"), 1.0); // samplingOverride
+    }
+
+    #[test]
+    fn test_pricing_and_cost() {
+        let registry = ModelRegistry::from_embedded();
+
+        // Known model: gpt-5.4 at $2.5/$15
+        let (i, o) = registry.get_pricing("openai", "gpt-5.4").unwrap();
+        assert!((i - 2.5).abs() < 1e-9);
+        assert!((o - 15.0).abs() < 1e-9);
+
+        // Cost: 1M input + 1M output = 2.5 + 15 = 17.5
+        let cost = registry.compute_cost("openai", "gpt-5.4", 1_000_000, 1_000_000).unwrap();
+        assert!((cost - 17.5).abs() < 1e-9);
+
+        // 1k tokens each: 0.0025 + 0.015 = 0.0175
+        let small = registry.compute_cost("openai", "gpt-5.4", 1_000, 1_000).unwrap();
+        assert!((small - 0.0175).abs() < 1e-9);
+
+        // Unknown model: None
+        assert!(registry.get_pricing("fake", "model").is_none());
+        assert!(registry.compute_cost("fake", "model", 1000, 1000).is_none());
     }
 
     #[test]

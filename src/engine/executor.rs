@@ -22,10 +22,20 @@ use super::graph::ExecutionGraph;
 /// Execution status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExecutionStatus {
+    /// Workflow completed and the response node ran.
     Success,
+    /// A node returned an error that propagated up.
     Error,
+    /// Wall-clock timeout was hit.
     Timeout,
+    /// Stopped at a checkpoint node, waiting to resume.
     Paused,
+    /// Workflow finished but some declared nodes never became ready —
+    /// typically because edge conditions never matched and there was no
+    /// default fallback. Distinct from `Success` so silent failures are
+    /// not misreported as healthy runs. `error` carries the stuck node
+    /// list; partial outputs that were produced remain in `executions`.
+    Partial,
 }
 
 /// Timing information for execution
@@ -43,6 +53,41 @@ pub struct TokenUsage {
     pub total_input_tokens: u64,
     pub total_output_tokens: u64,
     pub per_node: HashMap<String, (u64, u64)>,
+}
+
+/// Per-node cost breakdown.
+///
+/// `total_cost` is `None` when the model is unknown to the registry or has no
+/// pricing data; in that case the node still contributes to `tokens` but is
+/// skipped in cost aggregation and the parent `CostTracking` flags
+/// `has_unknown_pricing = true`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NodeCost {
+    pub provider: String,
+    pub model: String,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    /// USD cost for this single execution. None when pricing is unavailable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_cost: Option<f64>,
+}
+
+/// Aggregated cost tracking for the whole execution.
+///
+/// All amounts are USD computed from the token counts emitted by each
+/// generate-style node and the per-model `inputPrice` / `outputPrice` in
+/// `providers.json` (USD per 1M tokens). Cache discounts are NOT applied —
+/// this is a simple "list price" estimate suitable for the Inspector's
+/// 1000-run projection.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CostTracking {
+    /// Sum of all per-node costs that had known pricing, in USD.
+    pub total_cost: f64,
+    /// Per-node detail (one entry per node that reported `_usage`).
+    pub per_node: HashMap<String, NodeCost>,
+    /// True when at least one billed node used a model without pricing data,
+    /// meaning `total_cost` is a lower bound rather than the full estimate.
+    pub has_unknown_pricing: bool,
 }
 
 /// Configuration for database connection pools
@@ -433,6 +478,10 @@ pub struct ExecutionResult {
     /// Token usage
     pub token_usage: TokenUsage,
 
+    /// Cost tracking (USD list price, no cache discount)
+    #[serde(default)]
+    pub cost: CostTracking,
+
     /// Exit reason from Supervisor node (if applicable)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exit_reason: Option<ExitReason>,
@@ -629,6 +678,7 @@ pub async fn execute_workflow(
     let mut in_flight: HashSet<String> = HashSet::new();
     let mut timing = ExecutionTiming::default();
     let mut token_usage = TokenUsage::default();
+    let mut cost = CostTracking::default();
     let mut final_output: HashMap<String, Value> = HashMap::new();
 
     // Main execution loop - input-based dependency checking
@@ -656,6 +706,7 @@ pub async fn execute_workflow(
                 )),
                 timing,
                 token_usage,
+                cost,
                 exit_reason: None,
                 checkpoint_state: None,
                 source_yaml: None,
@@ -738,7 +789,7 @@ pub async fn execute_workflow(
             // Record node timing
             timing.per_node.insert(result.node_id.clone(), result.timing_ms);
 
-            // Track token usage
+            // Track token usage and cost
             if let Some(usage) = result.outputs.get("_usage") {
                 if let (Some(input_tokens), Some(output_tokens)) = (
                     usage.get("input_tokens").and_then(|v| v.as_u64()),
@@ -747,6 +798,24 @@ pub async fn execute_workflow(
                     token_usage.total_input_tokens += input_tokens;
                     token_usage.total_output_tokens += output_tokens;
                     token_usage.per_node.insert(result.node_id.clone(), (input_tokens, output_tokens));
+
+                    let provider = usage.get("provider").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let model = usage.get("model").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let node_cost = config.model_registry.compute_cost(
+                        &provider, &model, input_tokens, output_tokens,
+                    );
+                    if let Some(c) = node_cost {
+                        cost.total_cost += c;
+                    } else if !provider.is_empty() || !model.is_empty() {
+                        cost.has_unknown_pricing = true;
+                    }
+                    cost.per_node.insert(result.node_id.clone(), NodeCost {
+                        provider,
+                        model,
+                        input_tokens,
+                        output_tokens,
+                        total_cost: node_cost,
+                    });
                 }
             }
 
@@ -795,6 +864,7 @@ pub async fn execute_workflow(
                     error: None,
                     timing,
                     token_usage,
+                    cost,
                     exit_reason: None,
                     checkpoint_state: Some(cp_state),
                     source_yaml: None,
@@ -837,16 +907,41 @@ pub async fn execute_workflow(
 
     timing.total_ms = start_time.elapsed().as_millis() as u64;
 
-    // Warn if workflow completed but produced no output (response node likely didn't execute)
-    if final_output.is_empty() && !pending_nodes.is_empty() {
+    // Detect partial completion: any pending node that the executor never
+    // reached → stuck. Distinct from "all nodes ran successfully" so the
+    // caller (server, inspector, CI) can flag silent failures instead of
+    // treating an empty `output` as healthy. The status is downgraded to
+    // `Partial`; `error` carries the stuck node list so consumers can
+    // surface it in dashboards / logs.
+    let stuck_nodes: Vec<String> = pending_nodes.iter().cloned().collect();
+    let is_partial = !stuck_nodes.is_empty();
+
+    if is_partial {
         warn!(
             workflow = %workflow.name,
-            pending_nodes = ?pending_nodes,
+            stuck_nodes = ?stuck_nodes,
             executed_nodes = executed.len(),
-            "Workflow completed with empty output — response node may not have executed. \
+            output_empty = final_output.is_empty(),
+            "Workflow completed with stuck nodes — returning Partial status. \
              Check edge conditions and node wiring."
         );
     }
+
+    let final_status = if is_partial {
+        ExecutionStatus::Partial
+    } else {
+        ExecutionStatus::Success
+    };
+    let final_error = if is_partial {
+        let mut sorted = stuck_nodes.clone();
+        sorted.sort();
+        Some(format!(
+            "Stuck nodes never became ready: {}",
+            sorted.join(", ")
+        ))
+    } else {
+        None
+    };
 
     info!(
         workflow = %workflow.name,
@@ -854,7 +949,8 @@ pub async fn execute_workflow(
         total_input_tokens = token_usage.total_input_tokens,
         total_output_tokens = token_usage.total_output_tokens,
         executed_nodes = executed.len(),
-        "Workflow execution completed successfully"
+        status = ?final_status,
+        "Workflow execution completed"
     );
 
     // Harness writeback: post-execution memory update via dedicated LLM call
@@ -888,13 +984,15 @@ pub async fn execute_workflow(
             let cfg = evomap_cfg.clone();
             let wf_name = workflow.name.clone();
             let total_ms = timing.total_ms;
+            let outcome = if is_partial { "partial" } else { "success" };
+            let err_for_evomap = final_error.clone();
             tokio::spawn(async move {
                 super::evomap::report_execution_outcome(
                     &cfg,
                     &wf_name,
-                    "success",
+                    outcome,
                     total_ms,
-                    None,
+                    err_for_evomap.as_deref(),
                 ).await;
             });
         }
@@ -902,12 +1000,13 @@ pub async fn execute_workflow(
 
     let state_guard = state.read().await;
     Ok(ExecutionResult {
-        status: ExecutionStatus::Success,
+        status: final_status,
         executions: state_guard.get_executions().clone(),
         output: final_output,
-        error: None,
+        error: final_error,
         timing,
         token_usage,
+        cost,
         exit_reason: None,
         checkpoint_state: None,
         source_yaml: None,
@@ -1336,6 +1435,15 @@ fn evaluate_edges(
     // If node has error, check if there are on_error edges
     let has_on_error_edges = edges.iter().any(|e| e.on_error);
 
+    // Pending dead-edge marks. Multiple edges may share the same
+    // (from, to) pair (e.g. one with `condition: severity == 'medium'`
+    // and another with `condition: severity == 'high'`). The dead-edge
+    // store keys on (from, to), so marking a single false sibling dead
+    // would poison a true sibling. Defer the marks until after the
+    // whole loop, then drop any whose target was taken by another edge
+    // in the same group.
+    let mut pending_dead: Vec<(String, String)> = Vec::new();
+
     for edge in &edges {
         // Skip exit edges in regular evaluation
         if edge.exit_reason.is_some() {
@@ -1409,8 +1517,19 @@ fn evaluate_edges(
             next.push(edge.to.clone());
             state.increment_edge_count(&edge.from, &edge.to);
         } else if edge.condition.is_some() {
-            // Conditional edge evaluated to false — record for dead path detection
-            state.mark_edge_dead(&edge.from, &edge.to);
+            // Conditional edge evaluated to false — defer dead mark until
+            // we know whether a sibling edge to the same target was taken.
+            pending_dead.push((edge.from.clone(), edge.to.clone()));
+        }
+    }
+
+    // Apply pending dead marks, but only for (from, to) pairs whose target
+    // was NOT taken by any sibling edge in this same evaluation. Without
+    // this guard, parallel edges sharing the same (from, to) but different
+    // conditions would clobber each other in the dead_edges set.
+    for (from, to) in pending_dead {
+        if !next.iter().any(|n| n == &to) {
+            state.mark_edge_dead(&from, &to);
         }
     }
 
@@ -1533,6 +1652,82 @@ edges:
         );
     }
 
+    /// Regression test for the multi-condition same-target bug.
+    ///
+    /// When two edges share the same `(from, to)` pair but different
+    /// conditions (e.g. `severity == 'medium'` and `severity == 'high'`
+    /// both routing to `gather`), the early false-evaluating sibling
+    /// used to poison the `dead_edges` set, blocking the true sibling's
+    /// target from ever becoming ready. The fix defers `mark_edge_dead`
+    /// until after the loop and only applies it to (from,to) pairs that
+    /// no sibling edge took.
+    #[tokio::test]
+    async fn test_multi_condition_same_target() {
+        // `route` produces severity='high'; two edges from route → sink
+        // with conditions 'medium' and 'high'. Both target sink. With
+        // the bug, sink would get stuck because the medium edge marks
+        // (route, sink) dead before the high edge succeeds.
+        let yaml = r#"
+version: "0.1"
+name: "MultiCondSameTarget"
+nodes:
+  - id: start
+    type: start
+    config:
+      output:
+        x: "input.x"
+  - id: route
+    type: transform
+    config:
+      script: |
+        #{ "severity": "high" }
+  - id: sink
+    type: transform
+    config:
+      script: |
+        #{ "reached": true }
+  - id: response
+    type: response
+    config:
+      output:
+        ok: "sink.reached"
+edges:
+  - from: start
+    to: route
+  - from: route
+    to: sink
+    condition: "route.severity == 'medium'"
+  - from: route
+    to: sink
+    condition: "route.severity == 'high'"
+  - from: sink
+    to: response
+"#;
+        let workflow = PreparedWorkflow::from_yaml(yaml).unwrap();
+        let mut input = HashMap::new();
+        input.insert("x".to_string(), Value::String("ignored".to_string()));
+
+        let result = execute_workflow(&workflow, input, ExecutionConfig::default(), None)
+            .await
+            .unwrap();
+
+        assert_eq!(result.status, ExecutionStatus::Success);
+        assert!(
+            result.executions.contains_key("sink"),
+            "sink should have run when one of its OR-conditions matched; \
+             dead_edges poisoning likely regressed",
+        );
+        assert!(
+            result.executions.contains_key("response"),
+            "response should have run after sink; sink got stuck → no output",
+        );
+        assert_eq!(
+            result.output.get("ok"),
+            Some(&Value::Bool(true)),
+            "final output missing — workflow ran with stuck nodes",
+        );
+    }
+
     /// `ExecutionResult.source_yaml` should round-trip through serde:
     /// absent when None (skip_serializing_if), present when Some.
     #[test]
@@ -1544,6 +1739,7 @@ edges:
             error: None,
             timing: ExecutionTiming::default(),
             token_usage: TokenUsage::default(),
+            cost: CostTracking::default(),
             exit_reason: None,
             checkpoint_state: None,
             source_yaml: None,

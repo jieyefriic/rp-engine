@@ -1726,7 +1726,7 @@ templates:
 
 ```jsonc
 {
-  "status": "Success" | "Error" | "Timeout" | "Paused",
+  "status": "Success" | "Partial" | "Error" | "Timeout" | "Paused",
   "executions": {
     "<node_id>": [
       {
@@ -1743,11 +1743,36 @@ templates:
   "timing":      { "total_ms": 4045, "per_node": { "<id>": 4045 } },
   "token_usage": { "total_input_tokens": 13, "total_output_tokens": 40,
                    "per_node": { "<id>": [13, 40] } },
+  "cost": {                        // USD list price; absent if no LLM nodes
+    "total_cost": 0.000301,
+    "per_node": { "<id>": { "provider": "qwen", "model": "qwen-flash",
+                            "input_tokens": 315, "output_tokens": 28,
+                            "total_cost": 0.000027 } },
+    "has_unknown_pricing": false
+  },
   "exit_reason": "...",            // supervisor only
   "checkpoint_state": { ... },     // when status = "Paused"
   "source_yaml": "version: '1.0'\nname: ...\n..."   // see below
 }
 ```
+
+### Status semantics
+
+| `status` | Meaning |
+|---|---|
+| `Success` | Workflow ran to completion; response node executed; `output` populated |
+| `Partial` | Workflow finished but some declared nodes never became ready (typically because edge conditions never matched and there was no default fallback). `error` carries the stuck-node list. Treat as a failure to surface in dashboards / CI |
+| `Error` | A node returned an error; `error` carries the message |
+| `Timeout` | Wall-clock timeout hit |
+| `Paused` | Stopped at a checkpoint; `checkpoint_state` carries resume state |
+
+### `cost`
+
+USD list-price cost per node (input_tokens × inputPrice / 1M + output_tokens × outputPrice / 1M).
+Cache discounts are NOT applied. `total_cost` aggregates only nodes with known pricing;
+`has_unknown_pricing: true` flags that the total is a lower bound. Suitable for the
+Inspector's "1000-run cost" projection. Models without a price entry in `providers.json`
+contribute a `NodeCost` with `total_cost` omitted.
 
 ### `source_yaml`
 
