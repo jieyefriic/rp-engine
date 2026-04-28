@@ -7,6 +7,9 @@ sources, MCP tools — and the engine parses it, resolves dependencies, and
 executes the graph: making LLM calls, running scripts, querying databases,
 calling MCP tools, iterating over data, and orchestrating multi-agent plans.
 
+This engine powers **[RicePrompt](https://riceprompt.app)** — the visual
+agent IDE where you build and run these workflows without writing YAML by hand.
+
 ```toml
 [dependencies]
 riceprompt-engine = "0.1"
@@ -97,6 +100,12 @@ More runnable examples live under [`examples/`](examples/).
 - [`docs/FLOW_SPEC.md`](docs/FLOW_SPEC.md) — authoritative YAML workflow spec
   (node types, fields, providers, data sources, harness, skills, MCP).
 - A user-facing usage guide ("skill guide") will be published separately.
+
+## Related
+
+- **[RicePrompt](https://riceprompt.app)** — visual agent IDE built on top
+  of this engine. Design workflows in a graph editor, run them in-browser,
+  and export the same YAML this engine consumes.
 
 ## Project status
 
