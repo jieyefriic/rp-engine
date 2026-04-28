@@ -123,7 +123,7 @@ async fn test_openai_base64() {
     let b64 = read_image_base64("/Users/jieye/Downloads/IMG_0C360C6B7B8A-1.jpeg");
 
     println!("\n=== OpenAI (gpt-4o-mini) — raw base64 ===");
-    match run_vl_test("openai", api_key, "gpt-4o-mini", &b64).await {
+    match run_vl_test("openai", &api_key, "gpt-4o-mini", &b64).await {
         Ok(text) => {
             println!("Response: {}", text);
             assert!(!text.is_empty(), "OpenAI returned empty response");
@@ -139,7 +139,7 @@ async fn test_openai_data_uri() {
     let data_uri = format!("data:image/jpeg;base64,{}", b64);
 
     println!("\n=== OpenAI (gpt-4o-mini) — data URI ===");
-    match run_vl_test("openai", api_key, "gpt-4o-mini", &data_uri).await {
+    match run_vl_test("openai", &api_key, "gpt-4o-mini", &data_uri).await {
         Ok(text) => {
             println!("Response: {}", text);
             assert!(!text.is_empty(), "OpenAI data URI returned empty response");
@@ -154,7 +154,7 @@ async fn test_anthropic_base64() {
     let b64 = read_image_base64("/Users/jieye/Downloads/IMG_0C360C6B7B8A-1.jpeg");
 
     println!("\n=== Anthropic (claude-sonnet-4-20250514) — raw base64 ===");
-    match run_vl_test("anthropic", api_key, "claude-sonnet-4-20250514", &b64).await {
+    match run_vl_test("anthropic", &api_key, "claude-sonnet-4-20250514", &b64).await {
         Ok(text) => {
             println!("Response: {}", text);
             assert!(!text.is_empty(), "Anthropic returned empty response");
@@ -170,7 +170,7 @@ async fn test_anthropic_url() {
     let url = "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png";
 
     println!("\n=== Anthropic (claude-sonnet-4-20250514) — URL ===");
-    match run_vl_test("anthropic", api_key, "claude-sonnet-4-20250514", url).await {
+    match run_vl_test("anthropic", &api_key, "claude-sonnet-4-20250514", url).await {
         Ok(text) => {
             println!("Response: {}", text);
             assert!(!text.is_empty(), "Anthropic URL returned empty response");
@@ -185,7 +185,7 @@ async fn test_gemini_base64() {
     let b64 = read_image_base64("/Users/jieye/Downloads/IMG_0C360C6B7B8A-1.jpeg");
 
     println!("\n=== Gemini (gemini-2.0-flash) — raw base64 ===");
-    match run_vl_test("gemini", api_key, "gemini-2.0-flash", &b64).await {
+    match run_vl_test("gemini", &api_key, "gemini-2.0-flash", &b64).await {
         Ok(text) => {
             println!("Response: {}", text);
             assert!(!text.is_empty(), "Gemini returned empty response");
@@ -200,7 +200,7 @@ async fn test_qwen_base64() {
     let b64 = read_image_base64("/Users/jieye/Downloads/IMG_0C360C6B7B8A-1.jpeg");
 
     println!("\n=== Qwen (qwen-vl-plus) — raw base64 ===");
-    match run_vl_test("qwen", api_key, "qwen-vl-plus", &b64).await {
+    match run_vl_test("qwen", &api_key, "qwen-vl-plus", &b64).await {
         Ok(text) => {
             println!("Response: {}", text);
             assert!(!text.is_empty(), "Qwen returned empty response");
@@ -215,7 +215,7 @@ async fn test_qwen_url() {
     let url = "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png";
 
     println!("\n=== Qwen (qwen-vl-plus) — URL ===");
-    match run_vl_test("qwen", api_key, "qwen-vl-plus", url).await {
+    match run_vl_test("qwen", &api_key, "qwen-vl-plus", url).await {
         Ok(text) => {
             println!("Response: {}", text);
             assert!(!text.is_empty(), "Qwen URL returned empty response");
