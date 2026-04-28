@@ -28,12 +28,16 @@ Thumbs.db
 .claude/
 CLAUDE.md
 
-# Internal dev logs / audits / handoff docs (not for open source)
+# Internal dev logs / audits / handoff / design docs (not for open source)
 docs/dev-log-*.md
 docs/audit-*.md
 docs/code-audit-*.md
 docs/architecture-snapshot-*.md
 docs/*-HANDOFF*.md
+docs/harness-design.md
+docs/MCP_DESIGN.md
+docs/model-research.md
+docs/IDE-ENGINE-ALIGNMENT-GUIDE.md
 
 # Git history bundles
 *.bundle
