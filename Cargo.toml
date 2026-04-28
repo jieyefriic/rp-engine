@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "YAML-native Agent workflow execution engine"
-repository = "https://github.com/anthropics/riceprompt-engine"
+repository = "https://github.com/jieyefriic/rp-engine"
+readme = "README.md"
 keywords = ["agent", "workflow", "llm", "yaml"]
 categories = ["development-tools", "asynchronous"]
 

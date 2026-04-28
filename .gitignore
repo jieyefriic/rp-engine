@@ -23,3 +23,10 @@ Thumbs.db
 
 # Test artifacts
 /tests/output/
+
+# Local Claude Code config
+.claude/
+CLAUDE.md
+
+# Git history bundles
+*.bundle
