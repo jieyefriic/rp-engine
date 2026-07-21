@@ -375,10 +375,12 @@ mod tests {
         // JSON support
         assert!(registry.supports_json("openai", "gpt-4o"));
         assert!(registry.supports_json("anthropic", "claude-sonnet-4-5-20250929"));
+        assert!(registry.supports_json("atlascloud", "qwen/qwen3.5-flash"));
 
         // Function calling
         assert!(registry.supports_function_calling("openai", "gpt-4o"));
         assert!(!registry.supports_function_calling("minimax", "M2-her"));
+        assert!(registry.supports_function_calling("atlascloud", "deepseek-ai/deepseek-v4-pro"));
 
         // Thinking
         assert!(registry.supports_thinking("openai", "gpt-5"));

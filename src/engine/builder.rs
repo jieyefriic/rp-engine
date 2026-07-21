@@ -10,7 +10,7 @@ use crate::nodes::{CustomNode, NodeRegistry, WorkflowNode};
 use crate::providers::{
     create_registry_with_keys,
     EmbeddingRegistry,
-    DashScopeEmbeddingProvider, OpenAIEmbeddingProvider,
+    AtlasCloudProvider, DashScopeEmbeddingProvider, OpenAIEmbeddingProvider,
 };
 use crate::providers::model_registry::ModelRegistry;
 use crate::providers::search::create_search_registry;
@@ -160,7 +160,7 @@ impl EngineBuilder {
 
     /// Register a provider with its API key
     ///
-    /// Supported providers: openai, anthropic, gemini, deepseek, qwen, xai, zhipu, moonshot
+    /// Supported providers: openai, anthropic, gemini, deepseek, qwen, xai, zhipu, moonshot, atlascloud
     pub fn provider(mut self, name: &str, api_key: impl Into<String>) -> Self {
         self.providers.insert(name.to_string(), api_key.into());
         self
@@ -355,7 +355,7 @@ impl EngineBuilder {
         }
 
         // Build provider registry by extracting individual keys
-        let provider_registry = create_registry_with_keys(
+        let mut provider_registry = create_registry_with_keys(
             self.providers.get("openai").cloned(),
             self.providers.get("anthropic").cloned(),
             self.providers.get("gemini").cloned(),
@@ -367,6 +367,12 @@ impl EngineBuilder {
             self.providers.get("minimax").cloned(),
             self.providers.get("huoshan").cloned(),
         );
+        if let Some(key) = self.providers.get("atlascloud") {
+            provider_registry.register(
+                "atlascloud",
+                Arc::new(AtlasCloudProvider::new(key.clone())),
+            );
+        }
 
         // Build search provider registry
         let search_registry = create_search_registry(

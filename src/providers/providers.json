@@ -198,5 +198,21 @@
       { "id": "doubao-seed-2-0-lite-260215", "name": "Doubao Seed 2.0 Lite", "modelType": "chat", "contextWindow": 128000, "maxTokens": 16384, "inputPrice": 0.08, "outputPrice": 0.50, "thinking": "optional", "json": false, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "thinking_toggle", "canDisable": true }, "modelNote": "Balanced production model." },
       { "id": "doubao-seed-2-0-mini-260215", "name": "Doubao Seed 2.0 Mini", "modelType": "chat", "contextWindow": 256000, "maxTokens": 16384, "inputPrice": 0.03, "outputPrice": 0.28, "thinking": "optional", "json": false, "thinkingJsonCompat": true, "functionCalling": true, "vision": true, "thinkingBudget": { "supportsThinkingBudget": true, "budgetParamName": "thinking_toggle", "canDisable": true }, "modelNote": "Low-latency, high-concurrency, cost-sensitive." }
     ]
+  },
+  {
+    "id": "atlascloud",
+    "name": "Atlas Cloud",
+    "defaultModel": "qwen/qwen3.5-flash",
+    "sampling": {
+      "maxTemperature": 2,
+      "supportsTopP": true,
+      "supportsTopK": false,
+      "defaultTopP": 1,
+      "allowBothTempAndTopP": true
+    },
+    "models": [
+      { "id": "qwen/qwen3.5-flash", "name": "Qwen3.5 Flash", "modelType": "chat", "contextWindow": 1000000, "maxTokens": 65536, "thinking": "optional", "json": true, "thinkingJsonCompat": "partial", "functionCalling": true, "vision": true },
+      { "id": "deepseek-ai/deepseek-v4-pro", "name": "DeepSeek V4 Pro", "modelType": "chat", "contextWindow": 1000000, "maxTokens": 384000, "thinking": "optional", "json": true, "thinkingJsonCompat": true, "functionCalling": true, "vision": false }
+    ]
   }
 ]
