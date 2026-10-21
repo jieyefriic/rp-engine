@@ -19,6 +19,7 @@ mod zhipu;
 mod moonshot;
 mod minimax;
 mod huoshan;
+mod atlascloud;
 pub mod model_registry;
 
 // Embedding providers
@@ -48,6 +49,7 @@ pub use zhipu::ZhipuProvider;
 pub use moonshot::MoonshotProvider;
 pub use minimax::MiniMaxProvider;
 pub use huoshan::HuoshanProvider;
+pub use atlascloud::AtlasCloudProvider;
 
 // Re-export Embedding providers and types
 pub use embedding::{EmbeddingProvider, EmbeddingRegistry, EmbeddingOptions, EmbeddingResponse, Embedding, EmbeddingUsage};
@@ -632,6 +634,7 @@ pub fn create_provider_from_def(
         "moonshot" => Ok(Arc::new(MoonshotProvider::new(&def.api_key))),
         "minimax" => Ok(Arc::new(MiniMaxProvider::new(&def.api_key))),
         "huoshan" => Ok(Arc::new(HuoshanProvider::new(&def.api_key))),
+        "atlascloud" | "atlas" => Ok(Arc::new(AtlasCloudProvider::new(&def.api_key))),
         "openai_compatible" => {
             let base_url = def.base_url.as_deref()
                 .ok_or_else(|| crate::error::EngineError::InvalidWorkflow(
@@ -733,7 +736,19 @@ mod tests_provider_factory {
 
     #[test]
     fn test_known_providers_create_ok() {
-        let kinds = ["openai", "anthropic", "gemini", "deepseek", "xai", "qwen", "zhipu", "moonshot", "minimax", "huoshan"];
+        let kinds = [
+            "openai",
+            "anthropic",
+            "gemini",
+            "deepseek",
+            "xai",
+            "qwen",
+            "zhipu",
+            "moonshot",
+            "minimax",
+            "huoshan",
+            "atlascloud",
+        ];
         for kind in kinds {
             let def = make_def(None, "test-key", None, None);
             let result = create_provider_from_def(kind, &def);

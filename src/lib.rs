@@ -59,7 +59,7 @@ pub use providers::{
     // Providers
     OpenAIProvider, AnthropicProvider, GeminiProvider,
     DeepSeekProvider, XAIProvider, QwenProvider, ZhipuProvider, MoonshotProvider, MiniMaxProvider,
-    OpenAICompatibleProvider,
+    AtlasCloudProvider, OpenAICompatibleProvider,
     // Registry helpers
     create_registry_with_keys,
     create_provider_from_def,
