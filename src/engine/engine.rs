@@ -96,6 +96,7 @@ pub struct Engine {
 
     /// Whether to embed source YAML in `ExecutionResult.source_yaml`
     capture_source_yaml: bool,
+    capture_source_yaml_raw: bool,
 }
 
 impl Engine {
@@ -120,6 +121,8 @@ impl Engine {
         capture_actual_prompt: bool,
         capture_raw_response: bool,
         capture_source_yaml: bool,
+        capture_source_yaml_raw: bool,
+        timeout: Duration,
         evomap: Option<super::evomap::EvoMapConfig>,
     ) -> Self {
         Self {
@@ -135,11 +138,12 @@ impl Engine {
             model_registry,
             transforms,
             state_saving,
-            timeout: Duration::from_secs(300), // 5 minutes default
+            timeout,
             max_iterations: 100,
             capture_actual_prompt,
             capture_raw_response,
             capture_source_yaml,
+            capture_source_yaml_raw,
         }
     }
 
@@ -260,7 +264,8 @@ impl Engine {
     /// # Arguments
     /// * `workflow_name` - Name of the workflow to resume
     /// * `checkpoint_state` - Serialized state from a previous Paused execution
-    /// * `resume_from` - Node ID to resume execution from (this node and all downstream re-execute)
+    /// * `resume_from` - A paused checkpoint to acknowledge and continue past,
+    ///   or a non-checkpoint node to replay with its downstream nodes.
     /// * `new_input` - New input to merge (e.g., user's answer to a question)
     ///
     /// # Returns
@@ -365,6 +370,13 @@ impl Engine {
     ) -> Result<ExecutionResult, EngineError> {
         let workflow = PreparedWorkflow::from_yaml(yaml)
             .map_err(|e| EngineError::InvalidWorkflow(e.to_string()))?;
+        let source_yaml = if !self.capture_source_yaml {
+            None
+        } else if self.capture_source_yaml_raw {
+            Some(yaml.to_string())
+        } else {
+            Some(super::source_snapshot::redacted_yaml(yaml)?)
+        };
 
         // Convert input to HashMap
         let input_map = match input {
@@ -419,13 +431,7 @@ impl Engine {
 
         let mut result = execute_workflow(&workflow, input_map, config, None).await?;
 
-        // Embed the source YAML into the result so a single JSON file is
-        // self-describing for offline inspection. We attach the input as
-        // received (pre-injection of any external keys by upstream callers)
-        // so the snapshot stays user-meaningful and free of secrets.
-        if self.capture_source_yaml {
-            result.source_yaml = Some(yaml.to_string());
-        }
+        result.source_yaml = source_yaml;
         Ok(result)
     }
 

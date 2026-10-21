@@ -68,6 +68,10 @@ pub struct CheckpointState {
     /// Conditional edges that evaluated to false at time of checkpoint
     #[serde(default)]
     pub dead_edges: Vec<(String, String)>,
+    /// Checkpoints completed in the paused batch that still need acknowledgement.
+    /// Absent in legacy snapshots; resume_from identifies their pause point.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pending_checkpoints: Vec<String>,
 }
 
 /// Supervisor context for dynamic task dispatch
@@ -149,6 +153,7 @@ impl ExecutionState {
             checkpoint_output,
             dead_nodes: self.dead_nodes.clone(),
             dead_edges: self.dead_edges.iter().cloned().collect(),
+            pending_checkpoints: Vec::new(),
         }
     }
 

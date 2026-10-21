@@ -270,8 +270,8 @@ pub struct ExecutionConfig {
     pub capture_raw_response: bool,
 
     /// Whether to embed the source YAML into ExecutionResult.source_yaml.
-    /// When enabled (default), every run_yaml* call attaches the original
-    /// (pre-injection) workflow YAML to the result. This makes a single
+    /// When enabled (default), every run_yaml* call attaches a credential-redacted
+    /// workflow YAML snapshot to the result. This makes a single
     /// JSON file self-describing for offline inspection / debugging.
     pub capture_source_yaml: bool,
 
@@ -490,7 +490,7 @@ pub struct ExecutionResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub checkpoint_state: Option<CheckpointState>,
 
-    /// Source YAML that was executed (pre-injection of any external keys).
+    /// Source YAML for inspection, with known credentials redacted by default.
     /// Populated by `Engine::run_yaml*()` when `capture_source_yaml` is true
     /// (default). Sub-workflow executions do NOT carry their own snapshot —
     /// the parent yaml already references them.
@@ -544,6 +544,7 @@ pub async fn execute_workflow(
     checkpoint: Option<ResumeParams>,
 ) -> Result<ExecutionResult, EngineError> {
     let start_time = Instant::now();
+    let deadline = tokio::time::Instant::now() + config.timeout;
 
     info!(
         workflow = %workflow.name,
@@ -590,36 +591,46 @@ pub async fn execute_workflow(
         config.mcp_servers.insert(id.clone(), server.clone());
     }
 
-    // Resolve harness instructions (inline text + external files + memory)
-    if let Some(ref harness) = workflow.harness {
-        let mut parts: Vec<String> = Vec::new();
+    let harness_setup = async {
+        // Resolve harness instructions (inline text + external files + memory)
+        if let Some(ref harness) = workflow.harness {
+            let mut parts: Vec<String> = Vec::new();
 
-        // 1. Inline instructions
-        if let Some(ref text) = harness.instructions {
-            parts.push(text.clone());
-        }
-
-        // 2. External files
-        for file_path in &harness.files {
-            match std::fs::read_to_string(file_path) {
-                Ok(content) => parts.push(content),
-                Err(e) => tracing::warn!(file = %file_path, error = %e, "Failed to read harness instruction file"),
+            // 1. Inline instructions
+            if let Some(ref text) = harness.instructions {
+                parts.push(text.clone());
             }
-        }
 
-        // 3. Memory file content (if exists)
-        if let Some(ref memory_path) = harness.memory_file {
-            if let Ok(content) = std::fs::read_to_string(memory_path) {
-                if !content.trim().is_empty() {
-                    parts.push(format!("## Memory\n{}", content));
+            // 2. External files
+            for file_path in &harness.files {
+                match tokio::fs::read_to_string(file_path).await {
+                    Ok(content) => parts.push(content),
+                    Err(e) => tracing::warn!(file = %file_path, error = %e, "Failed to read harness instruction file"),
                 }
             }
-            config.harness_memory_file = Some(memory_path.clone());
-        }
 
-        if !parts.is_empty() {
-            config.harness_instructions = Some(parts.join("\n\n---\n\n"));
+            // 3. Memory file content (if exists)
+            if let Some(ref memory_path) = harness.memory_file {
+                if let Ok(content) = tokio::fs::read_to_string(memory_path).await {
+                    if !content.trim().is_empty() {
+                        parts.push(format!("## Memory\n{}", content));
+                    }
+                }
+                config.harness_memory_file = Some(memory_path.clone());
+            }
+
+            if !parts.is_empty() {
+                config.harness_instructions = Some(parts.join("\n\n---\n\n"));
+            }
         }
+    };
+    if tokio::time::timeout_at(deadline, harness_setup).await.is_err() {
+        let initial = match &checkpoint {
+            Some(resume) => ExecutionState::from_checkpoint(&resume.checkpoint_state, input),
+            None => ExecutionState::new(input),
+        };
+        return Ok(timeout_result(&initial, HashMap::new(), ExecutionTiming::default(),
+            TokenUsage::default(), CostTracking::default(), start_time, config.timeout));
     }
 
     // Extract writeback config before Arc wrapping (needed for post-execution)
@@ -641,7 +652,70 @@ pub async fn execute_workflow(
             "Resuming workflow from checkpoint"
         );
 
-        let restored = ExecutionState::from_checkpoint(&resume.checkpoint_state, input);
+        let resume_node = graph.get_node(&resume.resume_from)?;
+        let acknowledging_checkpoint = resume_node.node_type == NodeType::Checkpoint;
+        let mut restored = ExecutionState::from_checkpoint(&resume.checkpoint_state, input);
+        workflow.input.validate(restored.get_input())?;
+        if acknowledging_checkpoint {
+            if !restored.has_node_output(&resume.resume_from)
+                || (!resume.checkpoint_state.pending_checkpoints.is_empty()
+                    && !resume.checkpoint_state.pending_checkpoints.contains(&resume.resume_from))
+            {
+                return Err(EngineError::InvalidWorkflow(
+                    format!("Checkpoint '{}' is not awaiting acknowledgement", resume.resume_from)
+                ));
+            }
+            for id in &resume.checkpoint_state.pending_checkpoints {
+                if !graph.is_checkpoint_node(id) || !restored.has_node_output(id) {
+                    return Err(EngineError::InvalidWorkflow(
+                        format!("Invalid pending checkpoint '{}'", id)
+                    ));
+                }
+            }
+        } else if !resume.checkpoint_state.pending_checkpoints.is_empty() {
+            return Err(EngineError::InvalidWorkflow(
+                "Acknowledge pending checkpoints before replaying another node".into()
+            ));
+        }
+
+        // Refresh start outputs before any dependent node can observe merged input.
+        // Start has no external side effects and does not re-traverse its edges.
+        if acknowledging_checkpoint {
+            if let Some(start) = workflow.find_start_node() {
+                use crate::nodes::NodeExecutor;
+                let outputs = crate::nodes::StartExecutor.execute(start, &restored, &config).await?;
+                restored.write(&start.id, outputs);
+            }
+        }
+
+        if acknowledging_checkpoint {
+            // Pause-time edges are deferred so decisions see the new input.
+            evaluate_edges(&graph, &resume.resume_from, &mut restored, &config, None)?;
+            let remaining: Vec<String> = resume.checkpoint_state.pending_checkpoints.iter()
+                .filter(|id| *id != &resume.resume_from).cloned().collect();
+            if let Some(next) = remaining.first() {
+                let output = restored.get_executions()[next].last()
+                    .map(|record| record.outputs.clone()).unwrap_or_default();
+                let mut saved = restored.to_checkpoint(output.clone());
+                saved.pending_checkpoints = remaining;
+                return Ok(ExecutionResult {
+                    status: ExecutionStatus::Paused,
+                    executions: restored.get_executions().clone(),
+                    output,
+                    error: None,
+                    timing: ExecutionTiming {
+                        total_ms: start_time.elapsed().as_millis() as u64,
+                        ..Default::default()
+                    },
+                    token_usage: TokenUsage::default(),
+                    cost: CostTracking::default(),
+                    exit_reason: None,
+                    checkpoint_state: Some(saved),
+                    source_yaml: None,
+                });
+            }
+            propagate_dead_paths(&graph, &mut restored);
+        }
 
         // Compute forward-reachable set from resume point
         let reachable = compute_forward_reachable(&graph, &resume.resume_from);
@@ -654,10 +728,10 @@ pub async fn execute_workflow(
         let mut pending: HashSet<String> = HashSet::new();
 
         for node in &workflow.nodes {
-            if reachable.contains(&node.id) || node.id == start_id {
+            if !acknowledging_checkpoint && (reachable.contains(&node.id) || node.id == start_id) {
                 // Resume point + downstream + start → re-execute
                 pending.insert(node.id.clone());
-            } else if restored.has_node_output(&node.id) {
+            } else if restored.has_node_output(&node.id) || restored.is_dead(&node.id) {
                 // Upstream nodes with existing outputs → keep as executed
                 pre_executed.insert(node.id.clone());
             } else {
@@ -680,11 +754,23 @@ pub async fn execute_workflow(
     let mut token_usage = TokenUsage::default();
     let mut cost = CostTracking::default();
     let mut final_output: HashMap<String, Value> = HashMap::new();
+    // A response can share a paused batch with a checkpoint. Preserve its output
+    // when acknowledging the checkpoint instead of requiring it to run twice.
+    if checkpoint.is_some() {
+        let restored = state.read().await;
+        for node in &workflow.nodes {
+            if node.node_type == NodeType::Response && executed.contains(&node.id) {
+                if let Some(record) = restored.get_executions().get(&node.id).and_then(|r| r.last()) {
+                    final_output = record.outputs.clone();
+                }
+            }
+        }
+    }
 
     // Main execution loop - input-based dependency checking
     loop {
         // Check timeout
-        if start_time.elapsed() > config.timeout {
+        if tokio::time::Instant::now() >= deadline {
             let elapsed_ms = start_time.elapsed().as_millis();
             error!(
                 workflow = %workflow.name,
@@ -695,26 +781,12 @@ pub async fn execute_workflow(
                 executed_nodes = ?executed,
                 "Workflow execution timeout"
             );
-            let state_guard = state.read().await;
-            return Ok(ExecutionResult {
-                status: ExecutionStatus::Timeout,
-                executions: state_guard.get_executions().clone(),
-                output: final_output,
-                error: Some(format!(
-                    "Execution timeout after {}ms (limit: {}ms). Pending: {:?}, In-flight: {:?}",
-                    elapsed_ms, config.timeout.as_millis(), pending_nodes, in_flight
-                )),
-                timing,
-                token_usage,
-                cost,
-                exit_reason: None,
-                checkpoint_state: None,
-                source_yaml: None,
-            });
+            return Ok(timeout_result(&*state.read().await, final_output, timing,
+                token_usage, cost, start_time, config.timeout));
         }
 
         // Find all ready nodes (inputs satisfied, not executed, not in-flight)
-        let ready_nodes: Vec<String> = {
+        let mut ready_nodes: Vec<String> = {
             let state_guard = state.read().await;
             pending_nodes.iter()
                 .filter(|node_id| {
@@ -725,6 +797,7 @@ pub async fn execute_workflow(
                 .cloned()
                 .collect()
         };
+        ready_nodes.sort();
 
         // Check if we're done or stuck
         if ready_nodes.is_empty() && in_flight.is_empty() {
@@ -763,12 +836,13 @@ pub async fn execute_workflow(
         }
 
         // Execute all ready nodes in PARALLEL
-        let results = match execute_nodes_parallel(
+        let (results, timed_out) = match execute_nodes_parallel(
             &ready_nodes,
             &graph,
             state.clone(),
             config.clone(),
             &workflow.name,
+            deadline,
         ).await {
             Ok(r) => r,
             Err(e) => {
@@ -784,6 +858,8 @@ pub async fn execute_workflow(
 
         // Process results
         let mut state_guard = state.write().await;
+        let mut checkpoints = Vec::new();
+        let mut routes = Vec::new();
 
         for result in results {
             // Record node timing
@@ -848,27 +924,14 @@ pub async fn execute_workflow(
                 "Node state recorded"
             );
 
-            // If this is a checkpoint node, pause execution and return state
+            // Commit the entire completed batch before pausing. A sibling may
+            // already have performed an external write and must not be replayed.
             if graph.is_checkpoint_node(&result.node_id) {
-                let cp_state = state_guard.to_checkpoint(result.outputs.clone());
-                timing.total_ms = start_time.elapsed().as_millis() as u64;
-                info!(
-                    workflow = %workflow.name,
-                    checkpoint_node = %result.node_id,
-                    "Workflow paused at checkpoint"
-                );
-                return Ok(ExecutionResult {
-                    status: ExecutionStatus::Paused,
-                    executions: state_guard.get_executions().clone(),
-                    output: result.outputs,
-                    error: None,
-                    timing,
-                    token_usage,
-                    cost,
-                    exit_reason: None,
-                    checkpoint_state: Some(cp_state),
-                    source_yaml: None,
-                });
+                checkpoints.push((result.node_id.clone(), result.outputs.clone()));
+                executed.insert(result.node_id.clone());
+                in_flight.remove(&result.node_id);
+                // Evaluate checkpoint edges only when it is acknowledged.
+                continue;
             }
 
             // If this is a response node, capture final output
@@ -880,13 +943,42 @@ pub async fn execute_workflow(
             executed.insert(result.node_id.clone());
             in_flight.remove(&result.node_id);
 
-            // Evaluate outgoing edges and add next nodes to pending
-            let next_nodes = evaluate_edges(&graph, &result.node_id, &mut state_guard, &config, exit_reason)?;
+            routes.push((result.node_id, exit_reason));
+        }
+
+        // Edge conditions see the fully committed batch, including siblings
+        // whose IDs sort after the source node.
+        for (node_id, exit_reason) in routes {
+            let next_nodes = evaluate_edges(&graph, &node_id, &mut state_guard, &config, exit_reason)?;
             for next in next_nodes {
                 if !executed.contains(&next) && !in_flight.contains(&next) {
                     pending_nodes.insert(next);
                 }
             }
+        }
+
+        if timed_out {
+            return Ok(timeout_result(&state_guard, final_output, timing,
+                token_usage, cost, start_time, config.timeout));
+        }
+
+        if !checkpoints.is_empty() {
+            let output = checkpoints[0].1.clone();
+            let mut saved = state_guard.to_checkpoint(output.clone());
+            saved.pending_checkpoints = checkpoints.into_iter().map(|(id, _)| id).collect();
+            timing.total_ms = start_time.elapsed().as_millis() as u64;
+            return Ok(ExecutionResult {
+                status: ExecutionStatus::Paused,
+                executions: state_guard.get_executions().clone(),
+                output,
+                error: None,
+                timing,
+                token_usage,
+                cost,
+                exit_reason: None,
+                checkpoint_state: Some(saved),
+                source_yaml: None,
+            });
         }
 
         // Propagate dead paths: mark nodes whose incoming edges are all inactive
@@ -963,17 +1055,22 @@ pub async fn execute_workflow(
             "Starting harness writeback"
         );
 
-        match harness_writeback(wb, mem_path, &final_output, &config).await {
-            Ok(()) => {
+        match tokio::time::timeout_at(deadline,
+            harness_writeback(wb, mem_path, &final_output, &config)).await {
+            Ok(Ok(())) => {
                 info!(workflow = %workflow.name, "Harness writeback completed");
             }
-            Err(e) => {
+            Ok(Err(e)) => {
                 // Writeback is best-effort — don't fail the workflow
                 warn!(
                     workflow = %workflow.name,
                     error = %e,
                     "Harness writeback failed (non-fatal)"
                 );
+            }
+            Err(_) => {
+                return Ok(timeout_result(&*state.read().await, final_output, timing,
+                    token_usage, cost, start_time, config.timeout));
             }
         }
     }
@@ -998,6 +1095,7 @@ pub async fn execute_workflow(
         }
     }
 
+    timing.total_ms = start_time.elapsed().as_millis() as u64;
     let state_guard = state.read().await;
     Ok(ExecutionResult {
         status: final_status,
@@ -1011,6 +1109,31 @@ pub async fn execute_workflow(
         checkpoint_state: None,
         source_yaml: None,
     })
+}
+
+fn timeout_result(
+    state: &ExecutionState,
+    output: HashMap<String, Value>,
+    mut timing: ExecutionTiming,
+    token_usage: TokenUsage,
+    cost: CostTracking,
+    start: Instant,
+    limit: Duration,
+) -> ExecutionResult {
+    timing.total_ms = start.elapsed().as_millis() as u64;
+    ExecutionResult {
+        status: ExecutionStatus::Timeout,
+        executions: state.get_executions().clone(),
+        output,
+        error: Some(format!("Execution timeout after {}ms (limit: {}ms)",
+            timing.total_ms, limit.as_millis())),
+        timing,
+        token_usage,
+        cost,
+        exit_reason: None,
+        checkpoint_state: None,
+        source_yaml: None,
+    }
 }
 
 /// Execute harness post-execution writeback: a dedicated LLM call reviews the workflow output
@@ -1031,7 +1154,7 @@ async fn harness_writeback(
         })?;
 
     // Read current memory (may not exist yet)
-    let current_memory = std::fs::read_to_string(memory_path).unwrap_or_default();
+    let current_memory = tokio::fs::read_to_string(memory_path).await.unwrap_or_default();
 
     // Build the writeback prompt
     let system_prompt = wb.prompt.clone().unwrap_or_else(|| {
@@ -1086,7 +1209,7 @@ async fn harness_writeback(
     }
 
     // Write back to memory file
-    std::fs::write(memory_path, &new_memory)
+    tokio::fs::write(memory_path, &new_memory).await
         .map_err(|e| {
             error!(path = %memory_path, error = %e, "Failed to write memory file");
             EngineError::NodeExecutionFailed(
@@ -1129,11 +1252,12 @@ async fn execute_nodes_parallel(
     state: Arc<RwLock<ExecutionState>>,
     config: Arc<ExecutionConfig>,
     workflow_name: &str,
-) -> Result<Vec<NodeResult>, EngineError> {
-    use futures::future::join_all;
+    deadline: tokio::time::Instant,
+) -> Result<(Vec<NodeResult>, bool), EngineError> {
+    use futures::{stream::FuturesUnordered, StreamExt};
 
     // Prepare node data for parallel execution
-    let mut tasks = Vec::new();
+    let mut tasks = FuturesUnordered::new();
     for node_id in node_ids {
         let node = match graph.get_node(node_id) {
             Ok(n) => n.clone(),
@@ -1148,29 +1272,29 @@ async fn execute_nodes_parallel(
         });
     }
 
-    // Execute all in parallel
-    let results = join_all(tasks).await;
-
-    // Collect results, fail on first error with detailed logging
+    // Keep completed outputs when the deadline drops unfinished futures.
+    // No detached tasks are spawned; retry sleeps and nested async calls are
+    // cancelled with their parent. External side effects cannot be undone.
     let mut node_results = Vec::new();
-    for (i, result) in results.into_iter().enumerate() {
-        match result {
-            Ok(r) => node_results.push(r),
-            Err(e) => {
-                let failed_node = &node_ids[i];
-                error!(
-                    workflow = %workflow_name,
-                    node = %failed_node,
-                    parallel_batch = ?node_ids,
-                    error = %e,
-                    "Node execution failed in parallel batch"
-                );
-                return Err(e);
-            }
+    let mut first_error = None;
+    let mut timed_out = false;
+    loop {
+        if tokio::time::Instant::now() >= deadline {
+            timed_out = true;
+            break;
+        }
+        match tokio::time::timeout_at(deadline, tasks.next()).await {
+            Ok(Some(Ok(result))) => node_results.push(result),
+            Ok(Some(Err(error))) => { first_error.get_or_insert(error); }
+            Ok(None) => break,
+            Err(_) => { timed_out = true; break; }
         }
     }
-
-    Ok(node_results)
+    if !timed_out {
+        if let Some(error) = first_error { return Err(error); }
+    }
+    node_results.sort_by(|a, b| a.node_id.cmp(&b.node_id));
+    Ok((node_results, timed_out))
 }
 
 /// Execute a single node
@@ -1590,6 +1714,53 @@ fn propagate_dead_paths(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct PendingProvider;
+
+    #[async_trait::async_trait]
+    impl crate::providers::LLMProvider for PendingProvider {
+        fn name(&self) -> &str { "pending" }
+        fn default_model(&self) -> &str { "offline" }
+        async fn chat(
+            &self, _: Vec<crate::providers::Message>, _: crate::providers::ChatOptions,
+        ) -> Result<crate::providers::ChatResponse, crate::error::ProviderError> {
+            std::future::pending().await
+        }
+        async fn stream(
+            &self, _: Vec<crate::providers::Message>, _: crate::providers::ChatOptions,
+            _: crate::providers::StreamCallback,
+        ) -> Result<crate::providers::StreamResponse, crate::error::ProviderError> {
+            std::future::pending().await
+        }
+    }
+
+    #[tokio::test]
+    async fn deadline_covers_writeback_and_retains_workflow_output() {
+        let dir = tempfile::tempdir().unwrap();
+        let memory = dir.path().join("memory.md");
+        std::fs::write(&memory, "original memory").unwrap();
+        let yaml = format!(r#"
+name: writeback
+harness:
+  memory_file: "{}"
+  writeback: {{provider: pending, model: offline}}
+nodes:
+  - {{id: start, type: start}}
+  - {{id: response, type: response, config: {{output: {{value: start.value}}}}}}
+edges:
+  - {{from: start, to: response}}
+"#, memory.display());
+        let workflow = PreparedWorkflow::from_yaml(&yaml).unwrap();
+        let mut config = ExecutionConfig::default().with_timeout(Duration::from_millis(80));
+        config.providers.register("pending", Arc::new(PendingProvider));
+        let input = HashMap::from([("value".into(), Value::String("finished".into()))]);
+        let result = tokio::time::timeout(Duration::from_secs(2),
+            execute_workflow(&workflow, input, config, None)).await.unwrap().unwrap();
+        assert_eq!(result.status, ExecutionStatus::Timeout);
+        assert_eq!(result.output["value"], "finished");
+        assert!(result.executions.contains_key("response"));
+        assert_eq!(std::fs::read_to_string(memory).unwrap(), "original memory");
+    }
 
     #[tokio::test]
     async fn test_simple_workflow() {

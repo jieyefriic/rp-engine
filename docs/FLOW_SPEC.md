@@ -894,6 +894,26 @@ Pauses workflow execution and returns serialized state for later resumption.
 The engine returns `ExecutionStatus::Paused` with a `CheckpointState`.
 Resume with `engine.resume(workflow_name, checkpoint_state, "ask_user", new_input)`.
 
+The pause is a batch barrier: all completed nodes in the current parallel batch
+are recorded before the checkpoint is returned. No downstream batch starts.
+Resuming from a checkpoint acknowledges it; the checkpoint and already completed
+siblings are not executed again. New input is merged into the saved input and
+the start node's outputs are refreshed before routing continues. Checkpoint
+outgoing conditions are evaluated at acknowledgement time, using the merged input.
+
+If multiple checkpoints complete in the same batch, `CheckpointState.pending_checkpoints`
+lists them in node-ID order. Acknowledge each listed ID with `resume`; the engine
+continues returning `Paused` until all are acknowledged. `checkpoint_output`
+contains the first outstanding checkpoint's output. Legacy snapshots without
+`pending_checkpoints` remain readable: `resume_from` identifies the checkpoint
+to acknowledge. New snapshots include the list; Rust code constructing
+`CheckpointState` literals must initialize this additional field.
+
+A non-checkpoint `resume_from` retains replay semantics (that node and downstream
+nodes re-execute), but is rejected while a new-format snapshot has outstanding
+checkpoints. An unknown resume node or a checkpoint with no saved execution is
+an error. Persisted checkpoint input is validated after merging the new input.
+
 ---
 
 ### `supervisor` — Agent Planning Loop
@@ -1766,6 +1786,20 @@ templates:
 | `Timeout` | Wall-clock timeout hit |
 | `Paused` | Stopped at a checkpoint; `checkpoint_state` carries resume state |
 
+Configure the per-run deadline with
+`Engine::builder().timeout(std::time::Duration::from_secs(30))` (default: 300s).
+It covers async harness loading, node batches, retry backoff and harness writeback.
+On timeout, unfinished node futures are dropped, and completed node outputs in
+the current batch remain in the result. If writeback times out, the result is
+`Timeout` but retains the workflow's completed response and execution records.
+`timing.total_ms` includes time spent awaiting writeback.
+
+Cancellation is cooperative: custom nodes must yield and must manage any tasks
+they spawn themselves. Blocking CPU work cannot be preempted by an async deadline.
+Already issued network/database/filesystem operations may have external effects
+even after local waiting is cancelled; timeout is not a transaction rollback.
+Optional detached EvoMap reporting is not part of the awaited run.
+
 ### `cost`
 
 USD list-price cost per node (input_tokens × inputPrice / 1M + output_tokens × outputPrice / 1M).
@@ -1778,17 +1812,28 @@ contribute a `NodeCost` with `total_cost` omitted.
 
 When the engine is built with `capture_source_yaml(true)` (the **default**),
 `Engine::run_yaml()` and `Engine::run_yaml_with_stream_handler()` embed the
-original input YAML into `result.source_yaml`. This makes a result JSON
+a credential-redacted YAML snapshot into `result.source_yaml`. This makes a result JSON
 file self-describing — a downstream tool (frontend inspector, debugging
 script) can render the workflow topology and the per-node executions from
 a single file without any out-of-band YAML lookup.
 
-The captured YAML is the **input as received** by `run_yaml*`, before any
-provider-key injection or other rewrites by upstream callers (e.g. the
-RicePrompt-Server hosted-key injection happens after the engine call site
-in some integrations). Users embedding the engine should therefore pass
-the user-meaningful YAML (without secrets) to `run_yaml*` if they want
-the snapshot to stay safe to persist.
+Snapshot redaction does not modify the YAML used for execution. It replaces
+known credential fields (API keys, passwords, tokens, secrets, private keys,
+credential containers and HTTP header values) with `[REDACTED]`. It also hides
+URLs/DSNs containing credentials, queries or fragments, and unparseable connection
+strings. Whole `${ENV_VAR}` references remain intact. These rules apply recursively,
+including nested subgraphs. Comments are removed; exact copies/aliases of known
+secret values are also redacted.
+
+The default snapshot is intended for inspection, not credential-complete replay.
+Formatting and comments are not preserved. Arbitrary secrets embedded in prose,
+scripts, prompts or custom fields are outside these rules; this is not a general
+data-loss-prevention filter for workflow input/output.
+
+Call `EngineBuilder::capture_source_yaml_raw(true)` only when the original input
+must be preserved and is suitable to include in results. This explicit opt-in
+can expose inline credentials. `capture_source_yaml(false)` still disables the
+snapshot even if raw capture was requested.
 
 Sub-workflow executions (invoked via the `workflow` node) **never** carry
 their own `source_yaml` — the parent workflow's snapshot already

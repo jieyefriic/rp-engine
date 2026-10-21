@@ -5,6 +5,7 @@ mod executor;
 mod builder;
 mod engine;
 mod stream_handler;
+mod source_snapshot;
 pub mod evomap;
 
 pub use graph::ExecutionGraph;

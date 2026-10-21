@@ -89,6 +89,8 @@ pub struct EngineBuilder {
     /// Default `true` — makes result JSON self-describing for offline
     /// inspection. Sub-workflow results never carry a snapshot regardless.
     capture_source_yaml: bool,
+    capture_source_yaml_raw: bool,
+    timeout: std::time::Duration,
 
     /// Model capability registry (vision support, etc.)
     model_registry: ModelRegistry,
@@ -124,6 +126,8 @@ impl EngineBuilder {
             capture_actual_prompt: false,
             capture_raw_response: false,
             capture_source_yaml: true,
+            capture_source_yaml_raw: false,
+            timeout: std::time::Duration::from_secs(300),
             model_registry: ModelRegistry::from_embedded(),
             redis_urls: HashMap::new(),
             evomap: None,
@@ -313,14 +317,27 @@ impl EngineBuilder {
 
     /// Enable embedding the source YAML in `ExecutionResult.source_yaml`.
     ///
-    /// Default `true`. The captured YAML is the original input to
-    /// `Engine::run_yaml*()`, before any provider-key injection by upstream
-    /// callers. Disable for very large workflows or when you don't need
+    /// Default `true`. Known credential fields in the captured YAML are
+    /// redacted; environment references are preserved. Disable when you don't need
     /// self-describing result JSONs (e.g. fire-and-forget pipelines).
     /// Sub-workflow results never carry a snapshot regardless of this flag —
     /// the parent yaml already references them.
     pub fn capture_source_yaml(mut self, enabled: bool) -> Self {
         self.capture_source_yaml = enabled;
+        self
+    }
+
+    /// Explicitly allow unredacted input YAML in results (default: false).
+    /// May expose credentials. This does not override capture_source_yaml(false).
+    pub fn capture_source_yaml_raw(mut self, enabled: bool) -> Self {
+        self.capture_source_yaml_raw = enabled;
+        self
+    }
+
+    /// Set the per-run async execution deadline, including retries and writeback.
+    /// Default: 300 seconds. External side effects cannot be rolled back on timeout.
+    pub fn timeout(mut self, timeout: std::time::Duration) -> Self {
+        self.timeout = timeout;
         self
     }
 
@@ -455,6 +472,8 @@ impl EngineBuilder {
             self.capture_actual_prompt,
             self.capture_raw_response,
             self.capture_source_yaml,
+            self.capture_source_yaml_raw,
+            self.timeout,
             self.evomap,
         ))
     }
