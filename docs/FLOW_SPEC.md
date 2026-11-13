@@ -1265,6 +1265,37 @@ subgraphs:
 
 ---
 
+### `rank_fusion` — Merge Ranked Retrieval Results
+
+Use after two or more retrieval paths that return ordered arrays but use
+different score scales. Bind a name to each list (best result first):
+
+```yaml
+- id: merge
+  type: rank_fusion
+  config:
+    variables: {keyword: text_search.results, vector: vector_search.results}
+    operation: {id_field: id, limit: 10}
+```
+
+Each entry must be an object with a nonempty string or integer ID in the
+top-level `id_field` (default `id`). Numeric and string IDs are distinct.
+The node sums `1 / (60 + rank)` for each source containing an ID, using the
+first occurrence's one-based position in the original list. Empty lists are
+valid; a bound non-array or malformed entry is an error. At least one source
+must be configured.
+
+`results` contains entries of the form `{item, score, ranks}` in descending
+fused score; `ranks` maps source names to positions. The first item encountered
+is retained, and exact ties keep encounter order (source name alphabetically,
+then list position). Optional positive `limit` truncates the output;
+`total_count` is the number of distinct IDs before truncation. For example,
+lists `[A, B]` and `[B, C]` put B first because both sources retrieved it.
+The node does not issue search or model requests.
+
+See the [complete YAML workflow](../examples/workflows/rank_fusion.yaml);
+`cargo test --test rank_fusion` runs it with offline inputs.
+
 ### `skill_set` — Skill Definitions for Progressive Disclosure
 
 Holds a collection of skill definitions that `generate` nodes can reference for progressive disclosure via tool calling.

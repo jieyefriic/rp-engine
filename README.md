@@ -25,6 +25,7 @@ riceprompt-engine = "0.1"
 - **Streaming, tool calling, structured output** — first-class across providers.
 - **Rich node types** — `generate`, `transform` (Rhai scripting), `iterator`,
   `supervisor` (multi-agent routing), `subgraph`, `data_connector`,
+  [`rank_fusion`](examples/workflows/rank_fusion.yaml) (combine ranked retrieval lists),
   `skill_set` (progressive-disclosure knowledge bundles), `mcp` /
   `mcp_tools` (Model Context Protocol).
 - **Built-in data connectors** — PostgreSQL, MySQL, MongoDB, Redis, Qdrant,

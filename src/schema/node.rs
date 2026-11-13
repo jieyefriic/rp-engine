@@ -343,6 +343,8 @@ pub enum NodeType {
     McpTools,
     /// Skill set node - provides skills for progressive disclosure in generate nodes
     SkillSet,
+    /// Merge ranked retrieval results by reciprocal rank
+    RankFusion,
     /// User-defined custom node type
     #[serde(untagged)]
     Custom(String),
