@@ -1,0 +1,8 @@
+{
+  "query": "夜间还书应该去哪里？",
+  "documents": [
+    {"id": "library", "text": "📚 图书馆借阅手册。办理借书证时，请携带登记卡前往一楼服务台，工作人员将核对姓名。\n\n夜间还书请使用东门的自助还书箱，不需要进入大厅。"},
+    {"id": "transit", "text": "夜间公交在北门停靠。末班车于晚上十一点发车。"},
+    {"id": "garden", "text": "The greenhouse irrigation pump runs at sunrise. The orchard is watered by hand."}
+  ]
+}

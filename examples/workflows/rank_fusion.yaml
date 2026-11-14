@@ -1,0 +1,17 @@
+name: hybrid_search
+nodes:
+  - {id: start, type: start}
+  - id: merge
+    type: rank_fusion
+    config:
+      variables:
+        keyword: start.keyword
+        vector: start.vector
+      operation: {id_field: id, limit: 3}
+  - id: response
+    type: response
+    config:
+      output: {hits: merge.results, total: merge.total_count}
+edges:
+  - {from: start, to: merge}
+  - {from: merge, to: response}
