@@ -1,0 +1,29 @@
+name: local_retrieval
+nodes:
+  - {id: start, type: start}
+  - id: split
+    type: text_chunk
+    config:
+      variables: {documents: start.documents}
+      operation: {max_chars: 48, overlap_chars: 4}
+  - id: find
+    type: keyword_search
+    config:
+      variables: {items: split.chunks, query: start.query}
+      operation: {limit: 10}
+  - id: merge
+    type: rank_fusion
+    config:
+      variables:
+        keyword: find.results
+        vector: {from: start.vector, default: []}
+      operation: {limit: 5}
+  - id: response
+    type: response
+    config:
+      output: {passages: merge.results, chunk_count: split.count}
+edges:
+  - {from: start, to: split}
+  - {from: split, to: find}
+  - {from: find, to: merge}
+  - {from: merge, to: response}

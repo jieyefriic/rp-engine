@@ -1265,6 +1265,61 @@ subgraphs:
 
 ---
 
+### `text_chunk` — Citable Passages
+
+Bind `variables.documents` to an array of objects with unique nonempty string
+`id` and string `text`. Output: `chunks` and `count`. Each chunk has a stable
+`id` (`<doc_id>@<start_byte>:<end_byte>`), `doc_id`, `text`, and half-open UTF-8
+byte offsets into the **unmodified** document. Slice the UTF-8 bytes, not
+JavaScript UTF-16 code units. Empty documents yield no chunks. Only the ID and
+text fields are consumed; the node doesn't open paths or strip markup.
+
+```yaml
+type: text_chunk
+config:
+  variables: {documents: start.documents}
+  operation: {max_chars: 512, overlap_chars: 48}
+```
+
+Windows are at most `max_chars` Unicode scalar values (default 512). Prefer the
+last blank-line paragraph break within the window that allows forward progress;
+otherwise cut at the character limit. The next chunk starts `overlap_chars`
+characters before the previous end (default 0, must be less than `max_chars`).
+Splits need not coincide with grapheme clusters. There is no normalization or
+trimming, so citations remain exact. Maximum 100,000 documents/chunks per call
+and 16 MiB each for input text + IDs and accumulated output text + copied
+source IDs. High overlaps can exceed the output budget.
+
+### `keyword_search` — In-memory BM25 Retrieval
+
+```yaml
+type: keyword_search
+config:
+  variables: {items: split.chunks, query: start.query}
+  operation: {limit: 10}
+```
+
+Bind a string query and an array of records with a `text` string and a nonempty
+string or integer `id`. No external index is required. `results` contains the
+best matching records, keeping all input fields and setting `bm25_score`.
+`total_count` is the number of matching records before the limit (default 10,
+must be positive). Ties keep input order. No match, an empty corpus, and blank
+or punctuation-only queries produce empty results.
+
+English words and other non-Han alphanumeric runs are lowercased; Han characters
+yield unigrams and adjacent bigrams within a contiguous run. Unique query terms
+are scored with BM25 (k1=1.2, b=0.75; positive log IDF). Corpus length and
+document frequency are computed per call, including nonmatching records.
+This is lexical retrieval: no stemming, dictionary segmentation, embeddings,
+language model, or persistent index. Intended for bounded corpora: up to
+100,000 items, 16 MiB of text, and 8 KiB of query per call.
+
+The [complete workflow](../examples/workflows/local_retrieval.yaml) wires both nodes
+into `rank_fusion`. With only a query and documents, it returns lexical hits.
+An optional `vector` input accepts a **precomputed** ranking; shared chunk IDs
+are deduplicated. Supply full chunk citation fields on vector-only items if
+they also need to be quoted. Run with `cargo run --example local_retrieval`.
+
 ### `rank_fusion` — Merge Ranked Retrieval Results
 
 Use after two or more retrieval paths that return ordered arrays but use

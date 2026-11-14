@@ -11,6 +11,7 @@ mod connectors;
 mod workflow_node;
 mod iterator;
 mod rank_fusion;
+mod retrieval;
 mod skill_set;
 mod mcp;
 pub mod subgraph_runner;
@@ -411,6 +412,8 @@ pub fn create_executor(node_type: &NodeType) -> Box<dyn NodeExecutor> {
         // Search node removed — search capability will be re-added as built-in tool
         // NodeType::Search now falls through to Custom() via serde(untagged)
         NodeType::Iterator => Box::new(iterator::IteratorExecutor),
+        NodeType::TextChunk => Box::new(retrieval::TextChunk),
+        NodeType::KeywordSearch => Box::new(retrieval::KeywordSearch),
         NodeType::RankFusion => Box::new(rank_fusion::RankFusionExecutor),
         NodeType::SkillSet => Box::new(skill_set::SkillSetExecutor),
         NodeType::Execute => Box::new(NotImplementedExecutor("execute")),

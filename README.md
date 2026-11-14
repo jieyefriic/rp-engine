@@ -25,9 +25,10 @@ riceprompt-engine = "0.1"
 - **Streaming, tool calling, structured output** — first-class across providers.
 - **Rich node types** — `generate`, `transform` (Rhai scripting), `iterator`,
   `supervisor` (multi-agent routing), `subgraph`, `data_connector`,
-  [`rank_fusion`](examples/workflows/rank_fusion.yaml) (combine ranked retrieval lists),
   `skill_set` (progressive-disclosure knowledge bundles), `mcp` /
   `mcp_tools` (Model Context Protocol).
+- **Local document retrieval** — split text into citable passages, search English and Chinese
+  with BM25, and optionally fuse a second retrieval ranking.
 - **Built-in data connectors** — PostgreSQL, MySQL, MongoDB, Redis, Qdrant,
   S3-compatible object storage, REST APIs.
 - **Harness layer** — workflow-level instructions (CLAUDE.md-style) injected
@@ -93,6 +94,20 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 ```
+
+Try [offline document retrieval](examples/workflows/local_retrieval.yaml) without a model or database:
+
+```sh
+cargo run --example local_retrieval
+# Use your own {"documents":[{"id":"...","text":"..."}],"query":"..."}:
+cargo run --example local_retrieval -- path/to/input.json
+```
+
+The [sample input](examples/workflows/local_retrieval.input.json) asks where to return
+library books at night. The first hit is the original passage about the east
+entrance, with its document ID and UTF-8 byte offsets. To add existing vector
+results, pass a `vector` array ranked best-first using the same chunk IDs.
+See the [node contracts](docs/FLOW_SPEC.md#text_chunk--citable-passages).
 
 More runnable examples live under [`examples/`](examples/).
 

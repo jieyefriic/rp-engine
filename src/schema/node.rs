@@ -343,6 +343,10 @@ pub enum NodeType {
     McpTools,
     /// Skill set node - provides skills for progressive disclosure in generate nodes
     SkillSet,
+    /// Split source documents into citable passages
+    TextChunk,
+    /// Search in-memory passages by keyword relevance
+    KeywordSearch,
     /// Merge ranked retrieval results by reciprocal rank
     RankFusion,
     /// User-defined custom node type
