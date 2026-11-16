@@ -439,6 +439,67 @@ This ensures workflows are portable across providers without manual parameter tu
 
 ---
 
+### `csv_table` — Read a CSV export
+
+Bind `variables.text` to a UTF-8 CSV string. The node runs offline and does not
+open file paths. It emits `table: {columns: [string], rows: [[string]]}` and
+`row_count` (excluding the header). All cells remain strings, including empty
+cells and identifiers such as `001`. Row order and whitespace are preserved.
+
+The first logical record is the header. The dialect is comma-delimited with
+double-quoted fields, doubled quotes, embedded newlines, LF/CRLF/CR record
+separators and an optional initial BOM. Blank or duplicate header names,
+ragged rows and malformed quotes are errors. Header-only input is a valid
+empty table; a missing header is not. This node does not infer dialects, dates,
+numbers, column aliases, comments, or spreadsheet formulas.
+
+### `reconcile_tables` — Audit two snapshots
+
+Bind `variables.before` and `variables.after` to tables of the shape above.
+A table can come from `csv_table` or directly from a JSON input or prior node.
+
+```yaml
+- id: changes
+  type: reconcile_tables
+  config:
+    variables: {before: previous.table, after: current.table}
+    operation:
+      keys: [site, sku]
+      compare: [quantity, description]
+```
+
+Both lists must be nonempty and disjoint, without repeated names. Each selected
+column must exist in both headers; header order and extra columns do not matter.
+A key is a tuple of exact strings (not a joined string). Blank key components
+are rejected. Comparisons are case- and whitespace-sensitive: `01` and `1` differ.
+Normalize upstream if the exports use different units or naming conventions.
+
+The node emits `report` with a `summary` counting **distinct keys** in five
+mutually exclusive categories. Detail arrays are sorted lexicographically by
+the configured key tuple:
+
+| Category | Detail |
+|---|---|
+| `added` / `removed` | Key, logical record number and selected values from the present side |
+| `changed` | Key, before/after record numbers and only fields whose values differ |
+| `conflicts` | Key and all record numbers on each side, in source order. Any duplicate on either side is a conflict, even if all its values are identical |
+| `unchanged` | Count only; no detail array |
+
+Record numbers are 1-based and include the header (first data record = 2).
+A quoted multiline cell is part of **one** record; the number is not a physical
+line number. Reordering rows alone is not a change. Missing columns, malformed
+tables or exceeded limits fail the node; they do not produce a partial report.
+
+Limits per input: 2 MiB of raw CSV (or total header/cell text for a supplied
+table), 10,000 data rows, 128 columns, 128 UTF-8 bytes per column name and
+65,536 data cells. Both nodes operate in memory, and results can contain source
+data. Neither node writes corrections back to either system.
+
+Run the [inventory snapshot example](../examples/inventory_diff/README.md)
+to see the full graph and a report from two actual CSV files.
+
+---
+
 ### `data_connector` — Data Source Operations
 
 Connects to external data sources (databases, caches, object storage, APIs).

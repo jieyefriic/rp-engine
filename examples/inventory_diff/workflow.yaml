@@ -1,0 +1,29 @@
+version: "1.0"
+name: inventory_snapshot_diff
+nodes:
+  - {id: start, type: start}
+  - id: old
+    type: csv_table
+    config:
+      variables: {text: start.before_csv}
+  - id: new
+    type: csv_table
+    config:
+      variables: {text: start.after_csv}
+  - id: diff
+    type: reconcile_tables
+    config:
+      variables: {before: old.table, after: new.table}
+      operation:
+        keys: [site, sku]
+        compare: [quantity, description]
+  - id: response
+    type: response
+    config:
+      output: {report: diff.report}
+edges:
+  - {from: start, to: old}
+  - {from: start, to: new}
+  - {from: old, to: diff}
+  - {from: new, to: diff}
+  - {from: diff, to: response}

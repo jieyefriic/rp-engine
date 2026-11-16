@@ -1,5 +1,6 @@
 //! Node executors for different node types
 
+mod tabular;
 mod start;
 mod response;
 mod checkpoint;
@@ -395,6 +396,16 @@ pub trait NodeExecutor: Send + Sync {
     ) -> Result<HashMap<String, Value>, EngineError>;
 }
 
+/// Built-in extensions keep their string names so a registered custom implementation
+/// retains precedence and adding a node does not break exhaustive NodeType matches.
+pub(crate) fn builtin_extension(name: &str) -> Option<Box<dyn NodeExecutor>> {
+    match name {
+        "csv_table" => Some(Box::new(tabular::CsvTable)),
+        "reconcile_tables" => Some(Box::new(tabular::ReconcileTables)),
+        _ => None,
+    }
+}
+
 /// Create an executor for a built-in node type
 ///
 /// For custom node types, use `NodeRegistry::get()` instead.
@@ -414,7 +425,8 @@ pub fn create_executor(node_type: &NodeType) -> Box<dyn NodeExecutor> {
         NodeType::Execute => Box::new(NotImplementedExecutor("execute")),
         NodeType::Mcp => Box::new(mcp::McpExecutor),
         NodeType::McpTools => Box::new(mcp::McpToolsExecutor),
-        NodeType::Custom(type_name) => Box::new(CustomNodeNotFoundExecutor(type_name.clone())),
+        NodeType::Custom(type_name) => builtin_extension(type_name)
+            .unwrap_or_else(|| Box::new(CustomNodeNotFoundExecutor(type_name.clone()))),
     }
 }
 

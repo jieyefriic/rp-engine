@@ -93,7 +93,8 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-More runnable examples live under [`examples/`](examples/).
+More runnable examples live under [`examples/`](examples/), including an
+[offline inventory audit from two CSV exports](examples/inventory_diff/README.md).
 
 ## Documentation
 
