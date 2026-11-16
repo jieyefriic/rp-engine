@@ -1452,6 +1452,9 @@ async fn execute_node_once(
                         })
                 }
                 None => {
+                    if let Some(executor) = crate::nodes::builtin_extension(type_name) {
+                        return executor.execute(node, state_snapshot, config).await;
+                    }
                     Err(EngineError::NodeExecutionFailed(
                         format!("Node '{}': Custom node type '{}' not found in registry", node_id, type_name)
                     ))

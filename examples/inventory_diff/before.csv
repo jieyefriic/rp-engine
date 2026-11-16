@@ -1,0 +1,7 @@
+site,sku,quantity,description
+East,001,12,"Bolt, zinc"
+East,002,5,Washer
+West,001,10,Bolt
+West,003,2,Nut
+West,003,4,Nut
+East,004,1,Bracket
