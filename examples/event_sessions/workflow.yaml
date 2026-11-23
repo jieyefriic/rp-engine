@@ -1,0 +1,20 @@
+name: event_sessions
+nodes:
+  - {id: start, type: start}
+  - id: parse
+    type: jsonl_events
+    config:
+      variables: {text: start.log}
+  - id: sessions
+    type: sessionize_events
+    config:
+      variables: {events: parse.events}
+      operation: {idle_seconds: 300}
+  - id: response
+    type: response
+    config:
+      output: {report: sessions.report}
+edges:
+  - {from: start, to: parse}
+  - {from: parse, to: sessions}
+  - {from: sessions, to: response}
