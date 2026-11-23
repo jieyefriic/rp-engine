@@ -1,5 +1,6 @@
 //! Node executors for different node types
 
+mod event_sessions;
 mod start;
 mod response;
 mod checkpoint;
@@ -395,6 +396,14 @@ pub trait NodeExecutor: Send + Sync {
     ) -> Result<HashMap<String, Value>, EngineError>;
 }
 
+pub(crate) fn event_extension(name: &str) -> Option<Box<dyn NodeExecutor>> {
+    match name {
+        "jsonl_events" => Some(Box::new(event_sessions::JsonlEvents)),
+        "sessionize_events" => Some(Box::new(event_sessions::SessionizeEvents)),
+        _ => None,
+    }
+}
+
 /// Create an executor for a built-in node type
 ///
 /// For custom node types, use `NodeRegistry::get()` instead.
@@ -414,7 +423,8 @@ pub fn create_executor(node_type: &NodeType) -> Box<dyn NodeExecutor> {
         NodeType::Execute => Box::new(NotImplementedExecutor("execute")),
         NodeType::Mcp => Box::new(mcp::McpExecutor),
         NodeType::McpTools => Box::new(mcp::McpToolsExecutor),
-        NodeType::Custom(type_name) => Box::new(CustomNodeNotFoundExecutor(type_name.clone())),
+        NodeType::Custom(type_name) => event_extension(type_name)
+            .unwrap_or_else(|| Box::new(CustomNodeNotFoundExecutor(type_name.clone()))),
     }
 }
 

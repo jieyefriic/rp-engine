@@ -1,0 +1,5 @@
+{"entity":"visitor-a","timestamp":"2026-11-23T10:02:00+08:00","action":"checkout"}
+{"entity":"visitor-b","timestamp":"2026-11-23T02:01:00Z","action":"login"}
+
+{"entity":"visitor-a","timestamp":"2026-11-23T02:00:00Z","action":"browse"}
+{"entity":"visitor-a","timestamp":"2026-11-23T02:08:00Z","action":"return"}

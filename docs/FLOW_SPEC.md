@@ -1329,6 +1329,27 @@ nodes:
 
 ---
 
+### `jsonl_events` and `sessionize_events` — Offline event sessions
+
+The [event session workflow](../examples/event_sessions/README.md) takes a raw
+UTF-8 JSONL export to a time-ordered session report with original source lines.
+`jsonl_events` consumes `variables.text` and emits normalized `events`;
+`sessionize_events` consumes `variables.events`, requires
+`operation: {idle_seconds: 300}`, and emits `report`.
+Records require string `entity`, `timestamp` (RFC3339 timezone required), and
+`action`. Blank lines are skipped but count toward source positions.
+Sessions group exact entity strings and split when consecutive UTC timestamps
+differ by **more than** the configured gap (1..86400 seconds).
+The report includes entity/event/session counts and ordered sessions with
+start/end timestamps, duration_ms, event_count and the original events.
+Equal timestamps retain source-line order; results sort by entity then time.
+
+The linked guide specifies input limits, error handling and the standalone CLI.
+These nodes neither call a model nor write external state. Existing registered
+custom nodes with the same names retain precedence in top-level workflows.
+
+---
+
 ### Custom Nodes
 
 Any `type` not matching the built-in types is treated as a custom node.

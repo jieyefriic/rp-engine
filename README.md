@@ -93,7 +93,8 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-More runnable examples live under [`examples/`](examples/).
+More runnable examples live under [`examples/`](examples/), including
+[offline event-log session reconstruction](examples/event_sessions/README.md).
 
 ## Documentation
 
